@@ -1,0 +1,22 @@
+[package]
+name = "riker"
+version = "0.1.0"
+authors = ["Lee Smith <leenozara@gmail.com>"]
+description = "Easily build fast, highly concurrent and resilient applications. An Actor Framework for Rust."
+homepage = "http://riker.rs"
+license = "MIT"
+readme = "README.md"
+
+[dependencies]
+bytes = "0.4"
+chrono = "0.4"
+config = "0.8"
+futures-preview = "0.2.2"
+log = { version = "0.4", features = ["std"] }
+rand = "0.4"
+regex = "0.2"
+uuid = { version = "0.6", features = ["v4"] }
+
+[dev-dependencies]
+riker-default = "0.1.0"
+riker-testkit = "0.1.0"
