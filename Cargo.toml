@@ -18,5 +18,5 @@ regex = "0.2"
 uuid = { version = "0.6", features = ["v4"] }
 
 [dev-dependencies]
-riker-default = "0.1.0"
-riker-testkit = "0.1.0"
+#riker-default = "0.1.0"
+#riker-testkit = "0.1.0"
