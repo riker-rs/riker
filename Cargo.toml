@@ -6,6 +6,7 @@ description = "Easily build fast, highly concurrent and resilient applications. 
 homepage = "http://riker.rs"
 license = "MIT"
 readme = "README.md"
+keywords = ["actors", "async"]
 
 [dependencies]
 bytes = "0.4"
