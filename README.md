@@ -23,13 +23,14 @@ Riker provides:
 
 ## Example
 
-Cargo.toml:
+`Cargo.toml`:
 ```toml
 [dependencies]
 riker = "0.1.1"
 riker-default = "0.1.1"
 ```
 
+`main.rs`:
 ```rust
 extern crate riker;
 extern crate riker_default;
