@@ -23,6 +23,13 @@ Riker provides:
 
 ## Example
 
+Cargo.toml:
+```toml
+[dependencies]
+riker = "0.1.1"
+riker-default = "0.1.1"
+```
+
 ```rust
 extern crate riker;
 extern crate riker_default;
@@ -77,15 +84,15 @@ fn main() {
 
 Riker's core functionality is provided by modules defined as part of a 'model'. Every application defines a `Model` to describe the modules to be used. Everything from database storage, to logging, to the underlying dispatcher that executes actors is a module.
 
-A default `Model` [riker-default](/riker-rs/riker-default) makes it easy to get started. You can also use this default model as part of a custom model.
+A default `Model` [riker-default](https://github.com/riker-rs/riker-default) makes it easy to get started. You can also use this default model as part of a custom model.
 
 ## Associated Projects
 
 Official crates that provide additional functionality:
 
-- [riker-cqrs](/riker-rs/riker-cqrs): Command Query Responsibility Separation support
-- [riker-testkit](/riker-rs/riker-testkit): Tools to make testing easier
-- [riker-patterns](/riker-rs/patterns): Common actor patterns, including `transform!` and 'ask'
+- [riker-cqrs](https://github.com/riker-rs/riker-cqrs): Command Query Responsibility Separation support
+- [riker-testkit](https://github.com/riker-rs/riker-testkit): Tools to make testing easier
+- [riker-patterns](https://github.com/riker-rs/riker-patterns): Common actor patterns, including `transform!` and 'ask'
 
 ## Roadmap & Currently in Development
 
