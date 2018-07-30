@@ -129,3 +129,63 @@ fn select_all_children_of_child() {
     p_assert_eq!(listen, ());
     p_assert_eq!(listen, ());
 }
+
+#[derive(Clone)]
+struct SelectTestActorCtx;
+
+impl SelectTestActorCtx {
+    fn new() -> BoxActor<TestMsg> {
+        Box::new(SelectTestActorCtx)
+    }
+}
+
+impl Actor for SelectTestActorCtx {
+    type Msg = TestMsg;
+
+    fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
+        // create first child actor
+        let props = Props::new(Box::new(ChildActor::new));
+        let _ = ctx.actor_of(props, "child_a").unwrap();
+
+        // create second child actor
+        let props = Props::new(Box::new(ChildActor::new));
+        let _ = ctx.actor_of(props, "child_b").unwrap();
+    }
+
+    fn receive(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, _: Option<ActorRef<Self::Msg>>) {
+
+        // up and down: ../select-actor/child_a
+        let sel = ctx.select("../select-actor/child_a").unwrap();
+        sel.tell(msg.clone(), None);
+
+        // child: child_a
+        let sel = ctx.select("child_a").unwrap();
+        sel.tell(msg.clone(), None);
+
+        // absolute: /user/select-actor/child_a
+        let sel = ctx.select("/user/select-actor/child_a").unwrap();
+        sel.tell(msg.clone(), None);
+
+        // all: *
+        let sel = ctx.select("*").unwrap();
+        sel.tell(msg, None);
+    }
+}
+
+#[test]
+fn select_ctx() {
+    let model: DefaultModel<TestMsg> = DefaultModel::new();
+    let system = ActorSystem::new(&model).unwrap();
+
+    let props = Props::new(Box::new(SelectTestActorCtx::new));
+    let actor = system.actor_of(props, "select-actor").unwrap();
+
+    let (probe, listen) = probe();
+    actor.tell(TestMsg(probe), None);
+
+    p_assert_eq!(listen, ());
+    p_assert_eq!(listen, ());
+    p_assert_eq!(listen, ());
+    p_assert_eq!(listen, ());
+    p_assert_eq!(listen, ());
+}
