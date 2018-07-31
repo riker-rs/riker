@@ -15,4 +15,4 @@ uuid = { version = "0.6", features = ["v4"] }
 
 [dev-dependencies]
 riker-default = { path = "../", version = "0.1.2" }
-riker-testkit = "0.1.1"
+riker-testkit = "0.1.0"

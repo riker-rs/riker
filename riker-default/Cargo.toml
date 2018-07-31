@@ -9,6 +9,17 @@ license = "MIT"
 readme = "README.md"
 keywords = ["event-sourcing", "scheduler", "async"]
 
+[workspace]
+
+members = [
+  "./",
+  "riker-deadletter",
+  "riker-dispatcher",
+  "riker-log",
+  "riker-mapvec",
+  "riker-timer"
+]
+
 [dependencies]
 riker = { path = "../", version = "0.1.2" }
 riker-deadletter = { path = "riker-deadletter", version = "0.1.2" }

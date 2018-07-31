@@ -9,6 +9,9 @@ license = "MIT"
 readme = "README.md"
 keywords = ["actors", "async"]
 
+[badges]
+travis-ci = { repository = "riker-rs/riker" }
+
 [dependencies]
 bytes = "0.4"
 chrono = "0.4"
