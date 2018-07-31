@@ -1,0 +1,18 @@
+[package]
+name = "riker-timer"
+version = "0.1.2"
+authors = ["Lee Smith <leenozara@gmail.com>"]
+description = "A message scheduler for Riker"
+homepage = "https://riker.rs/scheduling"
+repository = "https://github.com/riker-rs/riker-default"
+license = "MIT"
+readme = "README.md"
+
+[dependencies]
+riker = { path = "../../", version = "0.1.2" }
+config = "0.8"
+uuid = { version = "0.6", features = ["v4"] }
+
+[dev-dependencies]
+riker-default = { path = "../", version = "0.1.2" }
+riker-testkit = "0.1.1"

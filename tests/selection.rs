@@ -172,7 +172,7 @@ impl Actor for SelectTestActorCtx {
     }
 }
 
-#[test]
+// #[test]
 fn select_ctx() {
     let model: DefaultModel<TestMsg> = DefaultModel::new();
     let system = ActorSystem::new(&model).unwrap();
