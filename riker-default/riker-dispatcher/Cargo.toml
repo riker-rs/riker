@@ -1,0 +1,15 @@
+[package]
+name = "riker-dispatcher"
+version = "0.1.2"
+authors = ["Lee Smith <leenozara@gmail.com>"]
+description = "A Dispatcher module for Riker powered by `Futures::execution::ThreadPool`"
+homepage = "https://riker.rs"
+repository = "https://github.com/riker-rs/riker-default"
+license = "MIT"
+readme = "README.md"
+
+[dependencies]
+riker = { path = "../../", version = "0.1.1" }
+config = "0.8"
+futures-preview = "0.2.2"
+futures-cpupool = "0.1.8"

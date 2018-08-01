@@ -1,0 +1,29 @@
+[package]
+name = "riker-default"
+version = "0.1.2"
+authors = ["Lee Smith <leenozara@gmail.com>"]
+description = "Riker's default Model and modules providing core services"
+homepage = "https://riker.rs"
+repository = "https://github.com/riker-rs/riker-default"
+license = "MIT"
+readme = "README.md"
+keywords = ["event-sourcing", "scheduler", "async"]
+
+[workspace]
+
+members = [
+  "./",
+  "riker-deadletter",
+  "riker-dispatcher",
+  "riker-log",
+  "riker-mapvec",
+  "riker-timer"
+]
+
+[dependencies]
+riker = { path = "../", version = "0.1.1" }
+riker-deadletter = { path = "riker-deadletter", version = "0.1.1" }
+riker-dispatcher = { path = "riker-dispatcher", version = "0.1.1" }
+riker-log = { path = "riker-log", version = "0.1.1" }
+riker-mapvec = { path = "riker-mapvec", version = "0.1.1" }
+riker-timer = { path = "riker-timer", version = "0.1.1" }
