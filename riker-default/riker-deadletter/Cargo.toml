@@ -9,5 +9,5 @@ license = "MIT"
 readme = "README.md"
 
 [dependencies]
-riker = { path = "../../", version = "0.1.2" }
+riker = { path = "../../", version = "0.1.1" }
 log = { version = "0.4", features = ["std"] }

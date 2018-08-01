@@ -23,5 +23,5 @@ regex = "0.2"
 uuid = { version = "0.6", features = ["v4"] }
 
 [dev-dependencies]
-riker-default = { path = "riker-default", version = "0.1.2" }
+riker-default = { path = "riker-default", version = "0.1.1" }
 riker-testkit = "0.1.0"

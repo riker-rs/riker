@@ -21,9 +21,9 @@ members = [
 ]
 
 [dependencies]
-riker = { path = "../", version = "0.1.2" }
-riker-deadletter = { path = "riker-deadletter", version = "0.1.2" }
-riker-dispatcher = { path = "riker-dispatcher", version = "0.1.2" }
-riker-log = { path = "riker-log", version = "0.1.2" }
-riker-mapvec = { path = "riker-mapvec", version = "0.1.2" }
-riker-timer = { path = "riker-timer", version = "0.1.2" }
+riker = { path = "../", version = "0.1.1" }
+riker-deadletter = { path = "riker-deadletter", version = "0.1.1" }
+riker-dispatcher = { path = "riker-dispatcher", version = "0.1.1" }
+riker-log = { path = "riker-log", version = "0.1.1" }
+riker-mapvec = { path = "riker-mapvec", version = "0.1.1" }
+riker-timer = { path = "riker-timer", version = "0.1.1" }

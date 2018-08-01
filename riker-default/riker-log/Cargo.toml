@@ -9,7 +9,7 @@ license = "MIT"
 readme = "README.md"
 
 [dependencies]
-riker = { path = "../../", version = "0.1.2" }
+riker = { path = "../../", version = "0.1.1" }
 chrono = "0.4"
 config = "0.8"
 runtime-fmt = "0.3.0"
