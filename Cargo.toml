@@ -7,10 +7,21 @@ homepage = "https://riker.rs"
 repository = "https://github.com/riker-rs/riker"
 license = "MIT"
 readme = "README.md"
-keywords = ["actors", "async"]
+keywords = ["actors", "actor-model", "async"]
 
 [badges]
 travis-ci = { repository = "riker-rs/riker" }
+
+[workspace]
+
+members = [
+  "./",
+  "riker-default/riker-deadletter",
+  "riker-default/riker-dispatcher",
+  "riker-default/riker-log",
+  "riker-default/riker-mapvec",
+  "riker-default/riker-timer"
+]
 
 [dependencies]
 bytes = "0.4"

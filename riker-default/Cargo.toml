@@ -9,21 +9,10 @@ license = "MIT"
 readme = "README.md"
 keywords = ["event-sourcing", "scheduler", "async"]
 
-[workspace]
-
-members = [
-  "./",
-  "riker-deadletter",
-  "riker-dispatcher",
-  "riker-log",
-  "riker-mapvec",
-  "riker-timer"
-]
-
 [dependencies]
-riker = { path = "../", version = "0.1.1" }
-riker-deadletter = { path = "riker-deadletter", version = "0.1.1" }
-riker-dispatcher = { path = "riker-dispatcher", version = "0.1.1" }
-riker-log = { path = "riker-log", version = "0.1.1" }
-riker-mapvec = { path = "riker-mapvec", version = "0.1.1" }
-riker-timer = { path = "riker-timer", version = "0.1.1" }
+riker = { path = "../", version = "0.1.2" }
+riker-deadletter = { path = "riker-deadletter", version = "0.1.2" }
+riker-dispatcher = { path = "riker-dispatcher", version = "0.1.2" }
+riker-log = { path = "riker-log", version = "0.1.2" }
+riker-mapvec = { path = "riker-mapvec", version = "0.1.2" }
+riker-timer = { path = "riker-timer", version = "0.1.2" }
