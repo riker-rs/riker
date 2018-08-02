@@ -85,7 +85,7 @@ fn main() {
 
 Riker's core functionality is provided by modules defined as part of a 'model'. Every application defines a `Model` to describe the modules to be used. Everything from database storage, to logging, to the underlying dispatcher that executes actors is a module.
 
-A default `Model` [riker-default](https://github.com/riker-rs/riker-default) makes it easy to get started. You can also use this default model as part of a custom model.
+A default `Model` [riker-default](riker-default) makes it easy to get started. You can also use this default model as part of a custom model.
 
 ## Associated Projects
 
