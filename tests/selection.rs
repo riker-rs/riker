@@ -172,7 +172,7 @@ impl Actor for SelectTestActorCtx {
     }
 }
 
-// #[test]
+#[test]
 fn select_ctx() {
     let model: DefaultModel<TestMsg> = DefaultModel::new();
     let system = ActorSystem::new(&model).unwrap();
@@ -182,6 +182,8 @@ fn select_ctx() {
 
     let (probe, listen) = probe();
     actor.tell(TestMsg(probe), None);
+
+    // five test results expected:
 
     p_assert_eq!(listen, ());
     p_assert_eq!(listen, ());

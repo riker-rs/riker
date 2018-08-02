@@ -406,6 +406,8 @@ pub trait CellPublic {
     /// Returns an iterator for the actor's children references
     fn children<'a>(&'a self) -> Box<Iterator<Item = ActorRef<Self::Msg>> + 'a>;
 
+    fn user_root(&self) -> ActorRef<Self::Msg>;
+
     fn is_root(&self) -> bool;
 
     /// Adds the given message to the cell actor's mailbox
@@ -435,6 +437,10 @@ impl<Msg> CellPublic for ActorCell<Msg>
 
     fn children<'a>(&'a self) -> Box<Iterator<Item = ActorRef<Msg>> + 'a> {
         Box::new(self.inner.children.iter().clone())
+    }
+
+    fn user_root(&self) -> ActorRef<Msg> {
+        self.inner.system.user_root().clone()
     }
 
     fn is_root(&self) -> bool {
