@@ -34,7 +34,7 @@ impl fmt::Debug for InvalidName {
 }
 
 pub fn validate_path(path: &str) -> Result<(), InvalidPath> {
-    let rgx = Regex::new(r"^[a-zA-Z0-9/*_-]*$").unwrap();
+    let rgx = Regex::new(r"^[a-zA-Z0-9/*._-]*$").unwrap();
     if !rgx.is_match(path) {
         Err(InvalidPath { path: path.into() })
     } else {
@@ -48,7 +48,7 @@ pub struct InvalidPath {
 
 impl Error for InvalidPath {
     fn description(&self) -> &str {
-        "Invalid path. Must contain only a-Z, 0-9, /, _, or -"
+        "Invalid path. Must contain only a-Z, 0-9, /, _, .., or -"
     }
 }
 

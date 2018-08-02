@@ -40,8 +40,17 @@ pub struct ActorSelection<Msg: Message> {
 impl<Msg: Message> ActorSelection<Msg> {
     pub fn new(anchor: &ActorRef<Msg>, path: &str) -> Result<ActorSelection<Msg>, InvalidPath> {
         validate_path(path)?;
-        let path_str = path.to_string();
-        let path: Vec<Selection> = path.split_terminator('/').map({|seg|
+
+        let (anchor, path_str) = if path.starts_with("/") {
+            let anchor = anchor.user_root();
+            let anchor_path: String = format!("{}/", anchor.uri.path.deref().clone());
+            let path = path.to_string().replace(&anchor_path, "");
+            (anchor, path)
+        } else {
+            (anchor.clone(), path.to_string())
+        };
+
+        let path: Vec<Selection> = path_str.split_terminator('/').map({|seg|
             match seg {
                 ".." => Selection::SelectParent,
                 "*" => Selection::SelectAllChildren,
@@ -51,7 +60,7 @@ impl<Msg: Message> ActorSelection<Msg> {
             }
         }).collect();
 
-        Ok(ActorSelection { anchor: anchor.clone(), path: path, path_str: path_str })
+        Ok(ActorSelection { anchor: anchor, path: path, path_str: path_str })
     }
 }
 
