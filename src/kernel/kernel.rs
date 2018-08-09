@@ -83,6 +83,7 @@ impl<Msg, Dis> Kernel<Msg, Dis>
         let mut kernel = self;
 
         thread::spawn(move || {
+            let mut uid_counter = 10;
             let mut events: Option<ActorRef<Msg>> = None;
             let mut dead: Option<ActorRef<Msg>> = None;
 
@@ -95,13 +96,16 @@ impl<Msg, Dis> Kernel<Msg, Dis>
                         dead = Some(system.dead_letters().clone());
                     }
                     CreateActor(props, name, parent, tx) => {
-                        let result = kernel.create_actor(&system,
+                        let result = kernel.create_actor(
+                                            uid_counter,
+                                            &system,
                                             props,
                                             name,
                                             parent,
                                             &kernel_ref);
 
                         if let Ok(ref actor) = result {
+                            uid_counter += 1;
                             if events.is_some() {
                                 publish_event(&events, SystemEvent::ActorCreated(actor.clone()));
                             }
@@ -135,6 +139,7 @@ impl<Msg, Dis> Kernel<Msg, Dis>
     }
 
     fn create_actor(&mut self,
+                    uid: ActorId,
                     system: &ActorSystem<Msg>,
                     props: BoxActorProd<Msg>,
                     name: String,
@@ -143,7 +148,7 @@ impl<Msg, Dis> Kernel<Msg, Dis>
                     -> Result<ActorRef<Msg>, CreateError> {
          
         let uri = ActorUri {
-            uid: ActorUri::new_uid(),
+            uid,
             path: Arc::new(format!("{}/{}", parent.uri.path, name)),
             name: Arc::new(name),
             host: system.proto.host.clone()
