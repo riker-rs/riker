@@ -41,12 +41,14 @@ impl Actor for DumbActor {
 // *** Publish test ***
 struct SubscribeActor {
     probe: Option<TestProbe>,
+    topic: Topic,
 }
 
 impl SubscribeActor {
-    fn new() -> BoxActor<TestMsg> {
+    fn actor(topic: Topic) -> BoxActor<TestMsg> {
         let actor = SubscribeActor {
-            probe: None
+            probe: None,
+            topic
         };
 
         Box::new(actor)
@@ -57,7 +59,7 @@ impl Actor for SubscribeActor {
     type Msg = TestMsg;
 
     fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
-        let msg = ChannelMsg::Subscribe(MyTopic.into(), ctx.myself());
+        let msg = ChannelMsg::Subscribe(self.topic.clone(), ctx.myself());
         ctx.system.default_stream().tell(msg, None);
     }
 
@@ -72,6 +74,11 @@ impl Actor for SubscribeActor {
     }
 }
 
+// lazy_static! {
+//     static ref MYTOPIC: Topic = {
+//         Topic("my_topic".to_string())
+//     };
+// }
 struct MyTopic;
 
 impl From<MyTopic> for Topic {
@@ -85,19 +92,55 @@ fn publish() {
     let model: DefaultModel<TestMsg> = DefaultModel::new();
     let system = ActorSystem::new(&model).unwrap();
 
-    let props = Props::new(Box::new(SubscribeActor::new));
+    let props = Props::new_args(Box::new(SubscribeActor::actor), MyTopic.into());
     let actor = system.actor_of(props, "sub-actor").unwrap();
     
     let (probe, listen) = probe();
     actor.tell(TestMsg::Probe(probe), None);
     
-    // wait for the probe to arrive at the actor before attempting to stop the actor
+    // wait for the probe to arrive at the actor before publishing message
     listen.recv();
     
     let msg = TestMsg::Message("hello world!".to_string());
     let msg = ChannelMsg::Publish(MyTopic.into(), msg);
     system.default_stream().tell(msg, None);
 
+    p_assert_eq!(listen, ());
+}
+
+#[test]
+fn publish_subscribe_all() {
+    let model: DefaultModel<TestMsg> = DefaultModel::new();
+    let system = ActorSystem::new(&model).unwrap();
+
+    // Create actor that subscribes to all topics ("*") on the channel 
+    let props = Props::new_args(Box::new(SubscribeActor::actor), "*".into());
+    let actor = system.actor_of(props, "sub-actor").unwrap();
+    
+    let (probe, listen) = probe();
+    actor.tell(TestMsg::Probe(probe), None);
+    
+    // wait for the probe to arrive at the actor before publishing message
+    listen.recv();
+    
+    // Publish to "topic-1"
+    let msg1 = TestMsg::Message("hello world!".to_string());
+    let msg1 = ChannelMsg::Publish("topic-1".into(), msg1.clone());
+    system.default_stream().tell(msg1, None);
+
+    // Publish to "topic-2"
+    let msg2 = TestMsg::Message("hello world!".to_string());
+    let msg2 = ChannelMsg::Publish("topic-2".into(), msg2.clone());
+    system.default_stream().tell(msg2, None);
+
+    // Publish to "topic-3"
+    let msg3 = TestMsg::Message("hello world!".to_string());
+    let msg3 = ChannelMsg::Publish("topic-3".into(), msg3.clone());
+    system.default_stream().tell(msg3, None);
+
+    // Expecting three probe events
+    p_assert_eq!(listen, ());
+    p_assert_eq!(listen, ());
     p_assert_eq!(listen, ());
 }
 
