@@ -111,6 +111,15 @@ impl<Msg: Message> Channel<Msg> {
     }
 
     fn publish(&mut self, topic: &Topic, msg: Msg, sender: Option<ActorRef<Msg>>) {
+        // send message to actors subscribed to all topics
+        if let Some(subs) = self.subs.get(&All.into()) {
+            for sub in subs.iter() {
+                let msg = msg.clone();
+                sub.tell(msg, sender.clone());
+            }
+        }
+
+        // send message to actors subscribed to the topic
         if let Some(subs) = self.subs.get(topic) {
             for sub in subs.iter() {
                 let msg = msg.clone();
@@ -205,6 +214,15 @@ impl<Msg: Message> SystemChannel<Msg> {
     }
 
     fn publish_event(&mut self, evt: SystemEvent<Msg>, sender: Option<ActorRef<Msg>>) {
+        // send message to actors subscribed to all topics
+        if let Some(subs) = self.subs.get(&All.into()) {
+            for sub in subs.iter() {
+                let msg = SystemMsg::Event(evt.clone());
+                sub.sys_tell(msg, sender.clone());
+            }
+        }
+
+        // send message to actors subscribed to the topic
         if let Some(subs) = self.subs.get(&Topic::from(&evt)) {
             for sub in subs.iter() {
                 let msg = SystemMsg::Event(evt.clone());
@@ -285,6 +303,12 @@ pub struct Topic(String);
 
 impl<'a> From<&'a str> for Topic {
     fn from(topic: &str) -> Self {
+        Topic(topic.to_string())
+    }
+}
+
+impl From<String> for Topic {
+    fn from(topic: String) -> Self {
         Topic(topic.to_string())
     }
 }
