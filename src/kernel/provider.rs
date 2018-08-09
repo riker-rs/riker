@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::marker::PhantomData;
 
 use protocol::Message;
-use actor::{Actor, ActorRef, ActorUri, Context, ActorCell, CellInternal};
+use actor::{ActorId, Actor, ActorRef, ActorUri, Context, ActorCell, CellInternal};
 use actor::{Props, ActorProducer, BoxActor, BoxActorProd, PersistenceConf};
 use kernel::{KernelRef, ActorDock, MailboxSender, mailbox};
 use system::ActorSystem;
@@ -21,9 +21,9 @@ impl<Msg: Message> BigBang<Msg> {
 
         let bb = BigBang {
             root: root.clone(),
-            user: guardian("user", "/user", &root, kernel, system),
-            sysm: guardian("system", "/system", &root, kernel, system),
-            temp: guardian("temp", "/temp", &root, kernel, system)
+            user: guardian(1, "user", "/user", &root, kernel, system),
+            sysm: guardian(2, "system", "/system", &root, kernel, system),
+            temp: guardian(3, "temp", "/temp", &root, kernel, system)
         };
 
         root.cell.add_child("user", bb.user.0.clone());
@@ -54,7 +54,8 @@ fn root<Msg: Message>(kernel: &KernelRef<Msg>,
                     None)
 }
 
-fn guardian<Msg>(name: &str,
+fn guardian<Msg>(uid: ActorId,
+                name: &str,
                 path: &str,
                 root: &ActorRef<Msg>,
                 kernel: &KernelRef<Msg>,
@@ -63,7 +64,7 @@ fn guardian<Msg>(name: &str,
     where Msg: Message
 {
     let uri = ActorUri {
-        uid: ActorUri::new_uid(),
+        uid,
         name: Arc::new(name.to_string()),
         path: Arc::new(path.to_string()),
         host: Arc::new("localhost".to_string())

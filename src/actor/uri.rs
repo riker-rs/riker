@@ -2,8 +2,6 @@ use std::hash::{Hash, Hasher};
 use std::fmt;
 use std::sync::Arc;
 
-use rand;
-
 pub type ActorId = u32;
 
 /// An `ActorUri` represents the location of an actor, including the
@@ -20,10 +18,6 @@ pub struct ActorUri {
 }
 
 impl ActorUri {
-    pub fn new_uid() -> ActorId {
-        rand::random::<ActorId>()
-    }
-
     pub fn temp() -> ActorUri {
         ActorUri {
             uid: 0,
