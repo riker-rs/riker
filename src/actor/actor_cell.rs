@@ -5,6 +5,7 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::collections::HashMap;
 use std::ops::Deref;
 
+use chrono::{DateTime, Utc};
 use uuid::Uuid;
 use rand;
 use futures::{Future, FutureExt};
@@ -669,12 +670,15 @@ impl<Msg> Timer for Context<Msg>
     }
 
     fn schedule_at_time<T>(&self,
-        time: SystemTime,
+        time: DateTime<Utc>,
         receiver: ActorRef<Self::Msg>,
         sender: Option<ActorRef<Self::Msg>>,
         msg: T) -> Uuid
         where T: Into<ActorMsg<Self::Msg>>
     {
+
+        let time = SystemTime::UNIX_EPOCH +
+            Duration::from_secs(time.timestamp_millis() as u64);
         
         let id = Uuid::new_v4();
         

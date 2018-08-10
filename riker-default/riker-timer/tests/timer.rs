@@ -2,9 +2,12 @@ extern crate riker;
 extern crate riker_default;
 #[macro_use]
 extern crate riker_testkit;
+
+extern crate chrono;
 extern crate uuid;
 
-use std::time::{Duration, SystemTime};
+use chrono::{Utc, Duration as CDuration};
+use std::time::Duration;
 use uuid::Uuid;
 
 use riker::actors::*;
@@ -90,7 +93,7 @@ fn schedule_at_time() {
     let (probe, listen) = probe();
 
     // use scheduler to set up probe at a specific time
-    let schedule_at = SystemTime::now() + Duration::from_millis(200);
+    let schedule_at = Utc::now() + CDuration::milliseconds(200);
     system.schedule_at_time(schedule_at,
                             actor,
                             None,
