@@ -1,4 +1,5 @@
 #![crate_name = "riker"]
+#![feature(assoc_unix_epoch)]
 
 extern crate bytes;
 extern crate chrono;

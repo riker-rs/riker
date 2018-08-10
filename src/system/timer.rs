@@ -1,6 +1,7 @@
 use std::time::{SystemTime, Duration};
 use std::sync::mpsc::Sender;
 
+use chrono::{DateTime, Utc};
 use config::Config;
 use uuid::Uuid;
 
@@ -28,7 +29,7 @@ pub trait Timer {
         where T: Into<ActorMsg<Self::Msg>>;
 
     fn schedule_at_time<T>(&self,
-        time: SystemTime,
+        time: DateTime<Utc>,
         receiver: ActorRef<Self::Msg>,
         sender: Option<ActorRef<Self::Msg>>,
         msg: T)

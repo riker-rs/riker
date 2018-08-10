@@ -401,7 +401,7 @@ impl<Msg> Timer for ActorSystem<Msg>
         sender: Option<ActorRef<Self::Msg>>,
         msg: T) -> Uuid
             where T: Into<ActorMsg<Self::Msg>>
-        {
+    {
         
         let id = Uuid::new_v4();
         
@@ -424,7 +424,7 @@ impl<Msg> Timer for ActorSystem<Msg>
         sender: Option<ActorRef<Self::Msg>>,
         msg: T) -> Uuid
             where T: Into<ActorMsg<Self::Msg>>
-        {
+    {
         
         let id = Uuid::new_v4();
 
@@ -441,12 +441,14 @@ impl<Msg> Timer for ActorSystem<Msg>
     }
 
     fn schedule_at_time<T>(&self,
-        time: SystemTime,
+        time: DateTime<Utc>,
         receiver: ActorRef<Self::Msg>,
         sender: Option<ActorRef<Self::Msg>>,
         msg: T) -> Uuid
             where T: Into<ActorMsg<Self::Msg>>
-        {
+    {
+        let time = SystemTime::UNIX_EPOCH +
+            Duration::from_secs(time.timestamp() as u64);
         
         let id = Uuid::new_v4();
 
