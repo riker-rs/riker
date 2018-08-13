@@ -1,6 +1,6 @@
 [package]
 name = "riker"
-version = "0.1.3"
+version = "0.1.4"
 authors = ["Lee Smith <leenozara@gmail.com>"]
 description = "Easily build fast, highly concurrent and resilient applications. An Actor Framework for Rust."
 homepage = "https://riker.rs"
