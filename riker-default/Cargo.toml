@@ -1,6 +1,6 @@
 [package]
 name = "riker-default"
-version = "0.1.2"
+version = "0.1.4"
 authors = ["Lee Smith <leenozara@gmail.com>"]
 description = "Riker's default Model and modules providing core services"
 homepage = "https://riker.rs"
@@ -10,9 +10,9 @@ readme = "README.md"
 keywords = ["event-sourcing", "scheduler", "async"]
 
 [dependencies]
-riker = { path = "../", version = "0.1.2" }
-riker-deadletter = { path = "riker-deadletter", version = "0.1.2" }
-riker-dispatcher = { path = "riker-dispatcher", version = "0.1.2" }
-riker-log = { path = "riker-log", version = "0.1.2" }
-riker-mapvec = { path = "riker-mapvec", version = "0.1.2" }
-riker-timer = { path = "riker-timer", version = "0.1.2" }
+riker = { path = "../", version = "0.1.4" }
+riker-deadletter = { path = "riker-deadletter", version = "0.1.4" }
+riker-dispatcher = { path = "riker-dispatcher", version = "0.1.4" }
+riker-log = { path = "riker-log", version = "0.1.4" }
+riker-mapvec = { path = "riker-mapvec", version = "0.1.4" }
+riker-timer = { path = "riker-timer", version = "0.1.4" }
