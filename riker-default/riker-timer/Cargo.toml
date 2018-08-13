@@ -1,6 +1,6 @@
 [package]
 name = "riker-timer"
-version = "0.1.2"
+version = "0.1.4"
 authors = ["Lee Smith <leenozara@gmail.com>"]
 description = "A message scheduler for Riker"
 homepage = "https://riker.rs/scheduling"
@@ -9,7 +9,7 @@ license = "MIT"
 readme = "README.md"
 
 [dependencies]
-riker = { path = "../../", version = "0.1.1" }
+riker = { path = "../../", version = "0.1.4" }
 config = "0.8"
 uuid = { version = "0.6", features = ["v4"] }
 
