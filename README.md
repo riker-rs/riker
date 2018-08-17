@@ -1,10 +1,12 @@
 # Riker
+[![Build Status](https://travis-ci.org/riker-rs/riker.svg?branch=master)](https://travis-ci.org/riker-rs/riker)
+[![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+[![crates.io](https://meritbadge.herokuapp.com/riker)](https://crates.io/crates/riker)
+[![Released API docs](https://docs.rs/riker/badge.svg)](https://docs.rs/riker)
 
 ## Overview
 
 Riker is a framework for building modern, concurrent and resilient systems using the Rust language. Riker aims to make working with state and behavior in concurrent systems as easy and scalable as possible. The Actor Model has been chosen to realize this because of the familiar and inherent simplicity it provides while also providing strong guarantees that are easy to reason about. The Actor Model also provides a firm foundation for resilient systems through the use of the actor hierarchy and actor supervision.
-
-[![Build Status](https://travis-ci.org/riker-rs/riker.svg?branch=master)](https://travis-ci.org/riker-rs/riker)
 
 Riker provides:
 
