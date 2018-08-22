@@ -47,7 +47,7 @@ pub fn load_config() -> Config {
     cfg.set_default("scheduler.frequency_millis", 50).unwrap();
 
     // load the system config
-    // am.toml contains settings for anything related to the actor framework and its modules
+    // riker.toml contains settings for anything related to the actor framework and its modules
     let path = env::var("RIKER_CONF").unwrap_or("config/riker.toml".into());
     cfg.merge(File::with_name(&format!("{}", path)).required(false)).unwrap();
 
