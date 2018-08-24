@@ -37,10 +37,19 @@ pub trait ExecutionContext {
 pub fn load_config() -> Config {
     let mut cfg = Config::new();
 
+    cfg.set_default("debug", true).unwrap();
+    cfg.set_default("log.level", "debug").unwrap();
+    cfg.set_default("log.log_format", "{date} {time} {level} [{module}] {body}").unwrap();
+    cfg.set_default("log.date_format", "%Y-%m-%d").unwrap();
+    cfg.set_default("log.time_format", "%H:%M:%S%:z").unwrap();
+    cfg.set_default("mailbox.msg_process_limit", 1000).unwrap();
+    cfg.set_default("dispatcher.pool_size", 4).unwrap();
+    cfg.set_default("scheduler.frequency_millis", 50).unwrap();
+
     // load the system config
-    // am.toml contains settings for anything related to the actor framework and its modules
+    // riker.toml contains settings for anything related to the actor framework and its modules
     let path = env::var("RIKER_CONF").unwrap_or("config/riker.toml".into());
-    cfg.merge(File::with_name(&format!("{}", path)).required(true)).unwrap();
+    cfg.merge(File::with_name(&format!("{}", path)).required(false)).unwrap();
 
     // load the user application config
     // app.toml or app.yaml contains settings specific to the user application
