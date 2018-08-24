@@ -1,13 +1,13 @@
 [package]
 name = "riker"
-version = "0.1.4"
+version = "0.1.5"
 authors = ["Lee Smith <leenozara@gmail.com>"]
 description = "Easily build fast, highly concurrent and resilient applications. An Actor Framework for Rust."
 homepage = "https://riker.rs"
 repository = "https://github.com/riker-rs/riker"
 license = "MIT"
 readme = "README.md"
-keywords = ["actors", "actor-model", "async"]
+keywords = ["actors", "actor-model", "async", "cqrs"]
 
 [badges]
 travis-ci = { repository = "riker-rs/riker" }
