@@ -27,14 +27,18 @@ impl<Msg> Actor for SimpleLogger<Msg>
     fn system_receive(&mut self, _: &Context<Self::Msg>, msg: SystemMsg<Self::Msg>, _: Option<ActorRef<Self::Msg>>) {
         if let SystemMsg::Log(entry) = msg {
             let now = chrono::Utc::now();
-
-            rt_println!(self.cfg.log_fmt,
-                        date = now.format(&self.cfg.date_fmt),
-                        time = now.format(&self.cfg.time_fmt),
-                        level = entry.level,
-                        module = entry.module.unwrap_or_default(),
-                        body = entry.body
-                        ).unwrap();
+            let f_match: Vec<&String> = self.cfg.filter.iter()
+                .filter(|f| entry.module.as_ref().map(|m| m.contains(*f)).unwrap_or(false))
+                .collect();
+            if f_match.is_empty() {
+              rt_println!(self.cfg.log_fmt,
+                          date = now.format(&self.cfg.date_fmt),
+                          time = now.format(&self.cfg.time_fmt),
+                          level = entry.level,
+                          module = entry.module.unwrap_or_default(),
+                          body = entry.body
+                          ).unwrap();
+            }
         }
     }
 }
@@ -66,6 +70,7 @@ struct LoggerConfig {
     time_fmt: String,
     date_fmt: String,
     log_fmt: String,
+    filter: Vec<String>,
 }
 
 impl<'a> From<&'a Config> for LoggerConfig {
@@ -73,7 +78,8 @@ impl<'a> From<&'a Config> for LoggerConfig {
         LoggerConfig {
             time_fmt: config.get_str("log.time_format").unwrap().to_string(),
             date_fmt: config.get_str("log.date_format").unwrap().to_string(),
-            log_fmt: config.get_str("log.log_format").unwrap().to_string()
+            log_fmt: config.get_str("log.log_format").unwrap().to_string(),
+            filter: config.get_array("log.filter").unwrap_or(vec![]).into_iter().map(|e| e.to_string()).collect(),
         }
     }
 }
