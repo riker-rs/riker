@@ -1,6 +1,6 @@
 [package]
 name = "riker"
-version = "0.1.5"
+version = "0.1.6"
 authors = ["Lee Smith <leenozara@gmail.com>"]
 description = "Easily build fast, highly concurrent and resilient applications. An Actor Framework for Rust."
 homepage = "https://riker.rs"
@@ -34,5 +34,5 @@ regex = "0.2"
 uuid = { version = "0.6", features = ["v4"] }
 
 [dev-dependencies]
-riker-default = { path = "riker-default", version = "0.1.1" }
+riker-default = { path = "riker-default", version = "0.1.5" }
 riker-testkit = "0.1.0"
