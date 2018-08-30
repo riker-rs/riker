@@ -110,7 +110,7 @@ The next major theme on the project roadmap is clustering and location transpare
 We believe there is no greater need than now for a full-featured actor model implementation that scales to hundreds or thousands of microservices and that equally can run exceptionally well on resource limited hardware to drive drones, IoT and robotics. The Rust language makes this possible.
 
 ## Rust Version
-Riker is currently built using the **latest Rust Nightly**. Between Riker `0.2` and `0.3` we expect to build against Rust Stable with support for specific minimum versions.
+Riker is currently built using the **latest Rust Nightly**. Starting from between Riker `0.2` and `0.3` we expect to build against Rust Stable with support for specific minimum versions.
 
 ## Contributing
 
