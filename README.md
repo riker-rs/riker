@@ -28,8 +28,8 @@ Riker provides:
 `Cargo.toml`:
 ```toml
 [dependencies]
-riker = "0.1.6"
-riker-default = "0.1.6"
+riker = "0.1.7"
+riker-default = "0.1.7"
 ```
 
 `main.rs`:
