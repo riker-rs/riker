@@ -184,7 +184,7 @@ pub fn run_mailbox<Msg>(mbox: Mailbox<Msg>,
     mbox.inner.kernel.park_actor(mbox.inner.uid, actor);
     mbox.set_scheduled(false);
 
-    if (mbox.has_msgs() && !mbox.is_suspended()) || mbox.has_sys_msgs() {
+    if (mbox.has_msgs() && !mbox.is_suspended() && !mbox.is_scheduled())|| mbox.has_sys_msgs() {
         mbox.inner.kernel.schedule_actor(&mbox);
     }
 }
