@@ -180,14 +180,12 @@ pub fn run_mailbox<Msg>(mbox: Mailbox<Msg>,
     if !mbox.is_suspended() {
         process_msgs(&mbox, &cell, &ctx, &mut actor);
     }
-    // process_msgs(&mbox, &cell, &ctx, &mut actor);
 
     mbox.inner.kernel.park_actor(mbox.inner.uid, actor);
+    mbox.set_scheduled(false);
 
     if (mbox.has_msgs() && !mbox.is_suspended()) || mbox.has_sys_msgs() {
         mbox.inner.kernel.schedule_actor(&mbox);
-    } else {
-        mbox.set_scheduled(false);
     }
 }
 
