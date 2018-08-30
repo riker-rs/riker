@@ -1,6 +1,6 @@
 [package]
 name = "riker-timer"
-version = "0.1.5"
+version = "0.1.6"
 authors = ["Lee Smith <leenozara@gmail.com>"]
 description = "A message scheduler for Riker"
 homepage = "https://riker.rs/scheduling"

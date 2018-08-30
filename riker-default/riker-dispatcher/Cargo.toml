@@ -1,6 +1,6 @@
 [package]
 name = "riker-dispatcher"
-version = "0.1.5"
+version = "0.1.6"
 authors = ["Lee Smith <leenozara@gmail.com>"]
 description = "A Dispatcher module for Riker powered by `Futures::execution::ThreadPool`"
 homepage = "https://riker.rs"

@@ -1,6 +1,6 @@
 [package]
 name = "riker-mapvec"
-version = "0.1.5"
+version = "0.1.6"
 authors = ["Lee Smith <leenozara@gmail.com>"]
 description = "Simple in-memory datastore for Riker persistent actors"
 homepage = "https://riker.rs"
