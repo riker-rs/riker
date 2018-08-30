@@ -1,6 +1,6 @@
 [package]
 name = "riker-deadletter"
-version = "0.1.6"
+version = "0.1.7"
 authors = ["Lee Smith <leenozara@gmail.com>"]
 description = "A Dead Letters logger for Riker"
 homepage = "https://riker.rs"
@@ -9,5 +9,5 @@ license = "MIT"
 readme = "README.md"
 
 [dependencies]
-riker = { path = "../../", version = "0.1.6" }
+riker = { path = "../../", version = "0.1.7" }
 log = { version = "0.4", features = ["std"] }
