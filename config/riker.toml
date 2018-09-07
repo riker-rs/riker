@@ -4,6 +4,16 @@ debug = true
 # max level to log
 level = "debug"
 
+# Uncomment this to enable filters on the logger.  The {module} field
+# of every log line will be checked, and if the {module} field contains
+# any item in this list, the entire log line will be omitted from the
+# logging output.
+#
+# This example will omit any logging output from any module with
+# "test" in the name, and any module whose name contains "debug".
+#
+# filter = [ "test", "debug" ]
+
 # log format to use
 # correlates to format!(log_format, date=, time=, level=, module=, body=);
 # since named parameters are used the order of the fields is flexible
