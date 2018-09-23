@@ -202,9 +202,8 @@ impl<Msg, Dis> Kernel<Msg, Dis>
                 Ok(restarted)
             }
             _ => {
-                panic!("ACTOR DOCK NONE ON RESTART. THIS SHOULD NEVER HAPPEN"); // todo
-                // warn!("WARNING: Failed to restart actor: No dock found for: {}", uid);
-                // Err(RestartError::Actor(ActorError::RestartFailed("Actor doesn't exist".to_string())))
+                warn!("Cannot restart an already terminated actor {}", uid);
+                Err(RestartError)
             }
         }
     }
@@ -226,9 +225,8 @@ impl<Msg, Dis> Kernel<Msg, Dis>
                 Ok(terminated)
             }
             _ => {
-                panic!("ACTOR DOCK NONE ON TERMINATE. THIS SHOULD NEVER HAPPEN"); // todo
-                // warn!("WARNING: Failed to restart actor: No dock found for: {}", uid);
-                // Err(AMError::Actor(ActorError::TerminateFailed("Actor doesn't exist".to_string())))
+                warn!("Cannot terminate an already terminated actor {}", uid);
+                Err(())
             }
         }
     }
