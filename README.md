@@ -28,8 +28,8 @@ Riker provides:
 `Cargo.toml`:
 ```toml
 [dependencies]
-riker = "0.1.7"
-riker-default = "0.1.7"
+riker = "0.1.8"
+riker-default = "0.1.8"
 ```
 
 `main.rs`:
@@ -109,12 +109,22 @@ The next major theme on the project roadmap is clustering and location transpare
 ## Why Riker
 We believe there is no greater need than now for a full-featured actor model implementation that scales to hundreds or thousands of microservices and that equally can run exceptionally well on resource limited hardware to drive drones, IoT and robotics. The Rust language makes this possible.
 
+Rust empowers developers with control over memory management, requiring no garbage collection and runtime overhead, while also providing modern semantics and expressive syntax such as the trait system. The result is a language that can solve problems equally for Web and IoT.
+
+Riker adds to this by providing a famililar actor model API which in turn makes concurrent, resilent systems programming easy.
+
 ## Rust Version
 Riker is currently built using the **latest Rust Nightly**. Starting from between Riker `0.2` and `0.3` we expect to build against Rust Stable with support for specific minimum versions.
 
 ## Contributing
 
-This project is very new. There's currently no preferred contribution process. Anyone can contribute!
+Riker is looking for contributors - join the project! You don't need to be an expert in actors, concurrent systems, or even Rust. Great ideas come from everyone.
 
-Places to start are open issues and modules, such as data store modules.
+There are multiple ways to contribute:
+
+- Ask questions. Adding to the conversation is a great way to contribute. Find us on [Gitter](https://gitter.im/riker-rs/Lobby).
+- Documentation. Our aim is to make concurrent, resilient systems programming available to everyone and that starts with great Documentation.
+- Additions to Riker code base. Whether small or big, your Pull Request could make a difference.
+- Patterns, data storage and other supporting crates. We are happy to link to and provide full credit to external projects that provide support for databases in Riker's event storage model or implementations of common actor patterns.
+
 
