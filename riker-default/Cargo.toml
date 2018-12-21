@@ -2,6 +2,7 @@
 name = "riker-default"
 version = "0.1.8"
 authors = ["Lee Smith <leenozara@gmail.com>"]
+edition = "2018"
 description = "Riker's default Model and modules providing core services"
 homepage = "https://riker.rs"
 repository = "https://github.com/riker-rs/riker-default"

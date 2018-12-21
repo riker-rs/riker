@@ -1,7 +1,3 @@
-extern crate config;
-extern crate riker;
-extern crate uuid;
-
 use std::time::{Duration, SystemTime};
 use std::thread;
 use std::sync::mpsc::{channel, Sender};

@@ -1,7 +1,3 @@
-extern crate config;
-extern crate futures;
-extern crate riker;
-
 use futures::{Future, Never};
 use futures::executor::{ThreadPool, ThreadPoolBuilder};
 use config::Config;
