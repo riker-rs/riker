@@ -3,9 +3,9 @@ use std::io::ErrorKind;
 
 use bytes::Bytes;
 
-use ::actor::{ActorRef, BoxActorProd};
-use actors::{Evt, Topic};
-use system::{LogEntry, IoType, IoAddress};
+use crate::actor::{ActorRef, BoxActorProd};
+use crate::actors::{Evt, Topic};
+use crate::system::{LogEntry, IoType, IoAddress};
 
 /// Enum used to store messages in an actor's mailbox
 #[derive(Debug, Clone)]

@@ -17,9 +17,9 @@ pub use self::mailbox::{Mailbox, MailboxSender, MailboxSchedule, MailboxConfig};
 pub use self::provider::{BigBang, create_actor_ref};
 pub use self::queue::{queue, QueueWriter, QueueReader};
 
-use protocol::Message;
-use actor::{ActorRef, ActorId, BoxActor, BoxActorProd, CreateError};
-use system::ActorSystem;
+use crate::protocol::Message;
+use crate::actor::{ActorRef, ActorId, BoxActor, BoxActorProd, CreateError};
+use crate::system::ActorSystem;
 
 #[allow(dead_code)]
 pub enum KernelMsg<Msg: Message> {

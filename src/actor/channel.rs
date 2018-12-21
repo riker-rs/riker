@@ -3,8 +3,8 @@
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 
-use protocol::{Message, ActorMsg, SystemMsg, ChannelMsg, SystemEvent, DeadLetter};
-use ::actor::{Actor, BoxActor, Props, BoxActorProd, ActorRef, Context, Tell, SysTell};
+use crate::protocol::{Message, ActorMsg, SystemMsg, ChannelMsg, SystemEvent, DeadLetter};
+use crate::actor::{Actor, BoxActor, Props, BoxActorProd, ActorRef, Context, Tell, SysTell};
 
 type Subs<Msg> = HashMap<Topic, Vec<ActorRef<Msg>>>;
 

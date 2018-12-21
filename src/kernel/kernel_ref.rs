@@ -3,12 +3,12 @@ use std::sync::mpsc::{channel, Sender};
 use futures::Future;
 use futures::channel::oneshot;
 
-use protocol::{Message, Envelope, SystemEnvelope, Enqueued};
-use actor::{BoxActor, ActorRef, ActorId, BoxActorProd};
-use actor::{CreateError, MsgError, MsgResult};
-use futures_util::{MySender, DispatchHandle};
-use kernel::{KernelMsg, MailboxSender, MailboxSchedule};
-use system::Job;
+use crate::protocol::{Message, Envelope, SystemEnvelope, Enqueued};
+use crate::actor::{BoxActor, ActorRef, ActorId, BoxActorProd};
+use crate::actor::{CreateError, MsgError, MsgResult};
+use crate::futures_util::{MySender, DispatchHandle};
+use crate::kernel::{KernelMsg, MailboxSender, MailboxSchedule};
+use crate::system::Job;
 
 use self::KernelMsg::{CreateActor, RestartActor, TerminateActor};
 use self::KernelMsg::{ParkActor, UnparkActor, Stop, RunFuture};

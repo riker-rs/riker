@@ -1,15 +1,5 @@
 #![crate_name = "riker"]
 
-extern crate bytes;
-extern crate chrono;
-extern crate config;
-extern crate futures;
-extern crate regex;
-#[macro_use] 
-extern crate log;
-extern crate rand;
-extern crate uuid;
-
 mod validate;
 
 pub mod actor;
@@ -24,7 +14,7 @@ use std::env;
 use futures::Future;
 use config::{Config, File};
 
-use futures_util::DispatchHandle;
+use crate::futures_util::DispatchHandle;
 
 pub trait ExecutionContext {
     fn execute<F>(&self, f: F) -> DispatchHandle<F::Item, F::Error>
@@ -60,11 +50,11 @@ pub fn load_config() -> Config {
 
 // Pub exports
 pub mod actors {
-    pub use model::Model;
-    pub use protocol::{Message, ActorMsg, ChannelMsg, Identify, SystemEnvelope, SystemMsg, SystemEvent, IOMsg, ESMsg, CQMsg};
-    pub use ExecutionContext;
-    pub use actor::*;
-    pub use system::{ActorSystem, Evt,Timer};
-    pub use load_config;
+    pub use crate::model::Model;
+    pub use crate::protocol::{Message, ActorMsg, ChannelMsg, Identify, SystemEnvelope, SystemMsg, SystemEvent, IOMsg, ESMsg, CQMsg};
+    pub use crate::ExecutionContext;
+    pub use crate::actor::*;
+    pub use crate::system::{ActorSystem, Evt,Timer};
+    pub use crate::load_config;
     // pub use errors::Error as AMError;
 }
