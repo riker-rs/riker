@@ -1,10 +1,3 @@
-extern crate riker;
-extern crate riker_dispatcher;
-extern crate riker_log;
-extern crate riker_deadletter;
-extern crate riker_mapvec;
-extern crate riker_timer;
-
 use std::marker::PhantomData;
 
 use riker::model::Model;

@@ -2,6 +2,7 @@
 name = "riker-timer"
 version = "0.1.9"
 authors = ["Lee Smith <leenozara@gmail.com>"]
+edition = "2018"
 description = "A message scheduler for Riker"
 homepage = "https://riker.rs/scheduling"
 repository = "https://github.com/riker-rs/riker-default"

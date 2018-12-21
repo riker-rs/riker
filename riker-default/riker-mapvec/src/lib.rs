@@ -1,6 +1,3 @@
-extern crate config;
-extern crate riker;
-
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 

@@ -1,10 +1,7 @@
-#[macro_use] 
-extern crate log;
-extern crate riker;
-
 use riker::actors::*;
 use riker::actor::All;
 use riker::system::DeadLetterProps;
+use log::{log, info};
 
 pub struct DeadLettersActor<Msg: Message> {
     dl: ActorRef<Msg>,
