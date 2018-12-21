@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 use std::fmt;
 use std::panic::{UnwindSafe, RefUnwindSafe};
 
-use ::actor::{Actor, BoxActor};
+use crate::actor::{Actor, BoxActor};
 
 /// Provides instances of `ActorProducer` for use when creating Actors (`actor_of`).
 /// 

@@ -9,7 +9,8 @@ mod uri;
 use std::error::Error;
 use std::fmt;
 
-use protocol::{Message, ActorMsg, SystemMsg};
+use crate::protocol::{Message, ActorMsg, SystemMsg};
+pub use crate::actor::props::{Props, BoxActorProd, ActorProducer, ActorArgs};
 // use self::actor_ref::ActorRef;
 
 
@@ -28,9 +29,7 @@ pub use self::actor_cell::{ActorCell, CellPublic, Context, PersistenceConf};
 pub use self::actor_ref::{ActorRef, ActorRefFactory, TmpActorRefFactory};
 pub use self::uri::{ActorUri, ActorId};
 pub use self::selection::{ActorSelection, ActorSelectionFactory};
-pub use actor::props::{Props, BoxActorProd, ActorProducer, ActorArgs};
 pub use self::channel::{Channel, SystemChannel, Topic, All, SysTopic, SysChannels, dead_letter};
-
 pub use self::actor_cell::CellInternal;
 
 pub trait Tell {

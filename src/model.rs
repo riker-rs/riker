@@ -1,9 +1,9 @@
-use protocol::Message;
-use kernel::Dispatcher;
-use system::{LoggerProps, DeadLetterProps};
-use system::EventStore;
-use system::IoManagerProps;
-use system::TimerFactory;
+use crate::protocol::Message;
+use crate::kernel::Dispatcher;
+use crate::system::{LoggerProps, DeadLetterProps};
+use crate::system::EventStore;
+use crate::system::IoManagerProps;
+use crate::system::TimerFactory;
 
 /// Riker's system and module configuration.
 /// 
