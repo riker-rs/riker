@@ -1,9 +1,16 @@
 #![crate_name = "riker"]
+#![feature(
+        async_await,
+        await_macro,
+        futures_api,
+        pin,
+        arbitrary_self_types
+)]
 
 mod validate;
 
 pub mod actor;
-pub mod futures_util;
+// pub mod futures_util;
 pub mod kernel;
 pub mod model;
 pub mod protocol;
@@ -14,13 +21,17 @@ use std::env;
 use futures::Future;
 use config::{Config, File};
 
-use crate::futures_util::DispatchHandle;
+// use crate::futures_util::DispatchHandle;
+
+// pub trait ExecutionContext {
+//     fn execute<F>(&self, f: F)
+//         where F: Future + Send + 'static,
+//                 F::Output: Send + 'static
+// }
 
 pub trait ExecutionContext {
-    fn execute<F>(&self, f: F) -> DispatchHandle<F::Item, F::Error>
-        where F: Future + Send + 'static,
-                F::Item: Send + 'static,
-                F::Error: Send + 'static;
+    fn execute<F>(&self, f: F)
+        where F: Future<Output=()> + Send + 'static;
 }
 
 pub fn load_config() -> Config {
@@ -56,5 +67,4 @@ pub mod actors {
     pub use crate::actor::*;
     pub use crate::system::{ActorSystem, Evt,Timer};
     pub use crate::load_config;
-    // pub use errors::Error as AMError;
 }

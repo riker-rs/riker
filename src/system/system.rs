@@ -2,16 +2,17 @@ use std::fmt;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, Duration};
+use std::pin::Pin;
 
 use chrono::prelude::*;
 use config::Config;
 use rand;
 use uuid::Uuid;
+use futures::Future;
 use futures::channel::oneshot::{channel, Sender, Receiver, Canceled};
-use futures::{Future, Poll, task};
+use futures::task::{LocalWaker, Poll};
 use log::{log, debug, Level};
 
-use crate::futures_util::DispatchHandle;
 use crate::model::Model;
 use crate::protocol::{Message, ActorMsg, SystemMsg, ChannelMsg, ActorCmd, SystemEvent, IOMsg};
 use crate::ExecutionContext;
@@ -91,7 +92,6 @@ impl<Msg: Message> ActorSystem<Msg> {
     {
         validate_name(name)
             .map_err(|_| SystemError::InvalidName(name.into()))?;
-        
         // Process Configuration
         let debug = config.get_bool("debug").unwrap();
 
@@ -122,13 +122,13 @@ impl<Msg: Message> ActorSystem<Msg> {
 
         // start timer
         let timer = Mdl::Tmr::new(&config, debug);
-
+        
         // start kernel
         let kernel_main: Kernel<Mdl::Msg, Mdl::Dis> = Kernel::new(&config);
         let (kernel, sys_actors) = kernel_main.start(&system, timer);
         system.kernel = Some(kernel.clone());
         system.sys_actors = Some(sys_actors);
-
+        
         // start system channels
         let sys_channels = sys_channels(&system)?;
         system.sys_channels = Some(sys_channels.clone());
@@ -136,7 +136,7 @@ impl<Msg: Message> ActorSystem<Msg> {
         // start logging
         let logger = logger(&system, &config, Mdl::Log::props(&config))?;
         system.logger = Some(logger);
-
+        
         // start default stream
         let props = Props::new_args(Box::new(Channel::new), Some(system.event_stream().clone()));
         let ds = sys_actor_of(&system, props, "default_stream")?;
@@ -149,7 +149,7 @@ impl<Msg: Message> ActorSystem<Msg> {
         // start event store
         let esm = sys_actor_of(&system, EsManager::<Mdl::Evs>::props(&config), "event_store")?;
         system.event_store = Some(esm);
-
+        
         // start io manager
         let io = sys_actor_of(&system, Io::props(), "io_manager")?;
         system.io_manager = Some(io.clone());
@@ -173,8 +173,8 @@ impl<Msg: Message> ActorSystem<Msg> {
     /// 
     /// Does not block. Returns a future which is completed when all
     /// actors have successfully stopped.
-    pub fn shutdown(&self) -> Shutdown {
-        let (tx, rx) = channel::<()>();
+    pub fn shutdown(&self) -> impl Future {
+        let (tx, mut rx) = channel::<()>();
         let tx = Arc::new(Mutex::new(Some(tx)));
 
         let a = ShutdownActor {
@@ -188,8 +188,8 @@ impl<Msg: Message> ActorSystem<Msg> {
         // send stop to all /user children
         self.stop(self.user_root());
 
-        Shutdown {
-            inner: rx,
+        async move {
+            rx.try_recv()
         }
     }
 
@@ -469,13 +469,23 @@ impl<Msg> Timer for ActorSystem<Msg>
     }
 }
 
+// impl<Msg> ExecutionContext for ActorSystem<Msg>
+//     where Msg: Message
+// {
+//     fn execute<F: Future>(&self, f: F) -> DispatchHandle<F::Item, F::Error>
+//         where F: Future + Send + 'static,
+//                 F::Item: Send + 'static,
+//                 F::Error: Send + 'static,
+//     {
+//         self.kernel.as_ref().unwrap().execute(f)
+//     }
+// }
+
 impl<Msg> ExecutionContext for ActorSystem<Msg>
     where Msg: Message
 {
-    fn execute<F: Future>(&self, f: F) -> DispatchHandle<F::Item, F::Error>
-        where F: Future + Send + 'static,
-                F::Item: Send + 'static,
-                F::Error: Send + 'static,
+    fn execute<F: Future>(&self, f: F)
+        where F: Future<Output=()> + Send + 'static
     {
         self.kernel.as_ref().unwrap().execute(f)
     }
@@ -490,19 +500,6 @@ impl<Msg> fmt::Debug for ActorSystem<Msg>
                 self.name(),
                 self.start_date(),
                 self.uptime())
-    }
-}
-
-pub struct Shutdown {
-    inner: Receiver<()>,
-}
-
-impl Future for Shutdown {
-    type Item = ();
-    type Error = Canceled;
-
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
-        self.inner.poll(cx)
     }
 }
 
@@ -557,84 +554,3 @@ impl<Msg: Message> Actor for ShutdownActor<Msg> {
     fn receive(&mut self, _: &Context<Self::Msg>, _: Self::Msg, _: Option<ActorRef<Self::Msg>>) {}
 }
 
-
-// #[cfg(test)]
-// mod tests {
-//     extern crate futures;
-
-//     use super::*;
-
-//     use test_mocks::{MockModel, get_test_config};
-//     use config::Config;
-
-//     #[derive(Debug, Clone]
-//     struct TestMsg;
-//     unsafe impl Send for TestMsg {}
-
-//     #[test]
-//     fn create_system_bad_name() {
-//         let model = MockModel;
-
-//         let mut cfg = Config::new();
-//         cfg.set("am_actors.debug", true).unwrap();
-//         let asys = ActorSystem::with_config(&model, "!%@#^!@#", &cfg);
-//         assert!(asys.is_err());
-//     }
-
-//     #[test]
-//     fn create_system_no_config_is_error() {
-//         let model = MockModel;
-
-//         let mut cfg = Config::new();
-//         cfg.set("am_actors.debug", true).unwrap();
-//         let asys = ActorSystem::with_config(&model, "my-system", &cfg);
-//         assert!(asys.is_err());
-//     }
-
-//     #[test]
-//     fn create_system_default() {
-//         let model = MockModel;
-
-//         let system = ActorSystem::new(&model).unwrap();
-//         assert_eq!(system.name(), "system");
-//     }
-
-//     #[test]
-//     fn create_system_with_name() {
-//         let model = MockModel;
-
-//         let system = ActorSystem::with_name(&model, "my-system").unwrap();
-//         assert_eq!(system.name(), "my-system");
-//     }
-
-//     #[test]
-//     fn create_system_with_config() {
-//         let model = MockModel;
-
-//         let system =
-//             ActorSystem::with_config(&model, "system", &get_test_config()).unwrap();
-//         assert_eq!(system.name(), "system");
-//     }
-
-//     #[test]
-//     fn select_from_system() {
-//         let model = MockModel;
-
-//         let system =
-//             ActorSystem::with_config(&model, "my-system", &get_test_config()).unwrap();
-
-//         // select test actor through actor selection: /root/user/child_a
-//         system.select("child_a").unwrap();
-//     }
-
-//     #[test]
-//     fn select_from_system_bad_name() {
-//         let model = MockModel;
-
-//         let system =
-//             ActorSystem::with_config(&model, "my-system", &get_test_config()).unwrap();
-
-//         // select test actor through actor selection: /root/user/child_a
-//         assert!(system.select("@#$@#$@").is_err());
-//     }
-// }

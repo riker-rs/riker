@@ -62,7 +62,7 @@ impl<Msg: Message> ActorRef<Msg> {
     }
 
     /// Iterator over children references.
-    pub fn children<'a>(&'a self) -> Box<Iterator<Item = ActorRef<Msg>> + 'a> {
+    pub fn children<'a>(&'a self) -> Box<dyn Iterator<Item = ActorRef<Msg>> + 'a> {
         self.cell.children()
     }
 }

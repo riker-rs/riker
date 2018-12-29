@@ -1,27 +1,28 @@
-use futures::{Future, Never, Async, Poll, FutureExt};
+use futures::{Future, FutureExt};
 use std::fmt::Debug;
 use std::panic::AssertUnwindSafe;
+use std::pin::Pin;
 
-use futures::task::Context;
+use futures::task::{LocalWaker, Poll};
 use futures::channel::oneshot::{channel, Sender, Receiver};
 
-pub struct DispatchHandle<T, E> {
-    pub inner: Receiver<Result<T, E>>,
+pub struct DispatchHandle<T> {
+    pub inner: Receiver<T>,
 }
 
-impl<T, E> Future for DispatchHandle<T, E>
+impl<T> Future for DispatchHandle<T>
     where T: Send + 'static,
-            E: Send + Debug + 'static
 {
-    type Item = T;
-    type Error = E;
+    type Output = T;
 
-    fn poll(&mut self, cx: &mut Context) -> Poll<Self::Item, Self::Error> {
-        match self.inner.poll(cx).expect("") {
-            Async::Ready(Ok(e)) => Ok(e.into()),
-            Async::Ready(Err(e)) => Err(e),
-            Async::Pending => Ok(Async::Pending),
-        }
+    fn poll(self: Pin<&mut Self>, _lw: &LocalWaker) -> Poll<Self::Output> {
+        // TODO r2018
+        // match self.inner.poll(cx).expect("") {
+        //     Poll::Ready(Ok(e)) => e.into(),
+        //     Poll::Ready(Err(e)) => e,
+        //     Poll::Pending => Poll::Pending,
+        // }
+        Poll::Pending
     }
 }
 
@@ -30,21 +31,21 @@ pub struct MySender<F, T> {
     pub tx: Option<Sender<T>>,
 }
 
-impl<F: Future> Future for MySender<F, Result<F::Item, F::Error>> {
-    type Item = ();
-    type Error = Never;
+impl<F: Future> Future for MySender<F, F::Output> {
+    type Output = ();
 
-    fn poll(&mut self, cx: &mut Context) -> Poll<(), Never> {
-        let res = match self.fut.poll(cx) {
-            Ok(Async::Ready(e)) => Ok(e),
-            Ok(Async::Pending) => return Ok(Async::Pending),
-            Err(e) => Err(e),
-        };
+    fn poll(self: Pin<&mut Self>, _lw: &LocalWaker) -> Poll<Self::Output> {
+        // TODO r2018
+        // let res = match self.fut.poll(cx) {
+        //     Poll::Ready(e) => e,
+        //     Poll::Pending => return Poll::Pending,
+        //     // Err(e) => Err(e),
+        // };
 
-        // if the receiving end has gone away then that's ok, we just ignore the
-        // send error here.
-        drop(self.tx.take().unwrap().send(res));
-        Ok(Async::Ready(()))
+        // // if the receiving end has gone away then that's ok, we just ignore the
+        // // send error here.
+        // drop(self.tx.take().unwrap().send(res));
+        Poll::Ready(())
     }
 }
 
@@ -62,24 +63,25 @@ pub struct Spawn<F>(Option<F>);
 /// completion or extract a value from the task. That can either be done through
 /// a channel, or by using [`spawn_with_handle`](::spawn_with_handle).
 pub fn spawn<F>(f: F) -> Spawn<F>
-    where F: Future<Item = (), Error = Never> + 'static + Send
+    where F: Future<Output = ()> + 'static + Send
 {
     Spawn(Some(f))
 }
 
-impl<F: Future<Item = (), Error = Never> + Send + 'static> Future for Spawn<F> {
-    type Item = ();
-    type Error = Never;
-    fn poll(&mut self, cx: &mut Context) -> Poll<(), Never> {
-        let (tx, _rx) = channel(); // todo remove. tx/rx not used. tx only used to satisfy MySender
+impl<F: Future<Output = ()> + Send + 'static> Future for Spawn<F> {
+    type Output = ();
 
-        let sender = MySender {
-            fut: AssertUnwindSafe(self.0.take().unwrap()).catch_unwind(),
-            tx: Some(tx),
-        };
+    fn poll(self: Pin<&mut Self>, _lw: &LocalWaker) -> Poll<Self::Output> {
+        // TODO r2018
+        // let (tx, _rx) = channel(); // todo remove. tx/rx not used. tx only used to satisfy MySender
 
-        cx.spawn(sender);
-        Ok(Async::Ready(()))
+        // let sender = MySender {
+        //     fut: AssertUnwindSafe(self.0.take().unwrap()).catch_unwind(),
+        //     tx: Some(tx),
+        // };
+
+        // cx.spawn(sender);
+        Poll::Ready(())
     }
 }
 
