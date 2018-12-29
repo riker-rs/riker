@@ -257,7 +257,7 @@ impl<A: Actor + ?Sized> Actor for Box<A> {
 }
 
 /// The actor trait object
-pub type BoxActor<Msg> = Box<Actor<Msg=Msg> + Send>;
+pub type BoxActor<Msg> = Box<dyn Actor<Msg=Msg> + Send>;
 
 /// Supervision strategy
 /// 

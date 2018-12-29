@@ -4,11 +4,14 @@ use std::panic::catch_unwind;
 use std::sync::Arc;
 use std::sync::mpsc::{channel, Sender, Receiver};
 use std::ops::Deref;
+use std::pin::{Pin, Unpin};
 
 pub use futures::future::*;
-use futures::Never;
+use futures::{pending, poll};
+use futures::executor::block_on;
 use config::Config;
 use log::{log, trace, warn};
+use pin_utils::pin_mut;
 
 use crate::protocol::{Message, SystemMsg, SystemEvent, ChannelMsg};
 use crate::actor::{BoxActor, ActorCell, CellInternal};
@@ -16,6 +19,8 @@ use crate::actor::{ActorRef, ActorId, ActorUri, BoxActorProd};
 use crate::actor::{TryTell, SysTell, ActorProducer, CreateError, RestartError};
 use crate::kernel::{KernelRef, KernelMsg, Dispatcher, BigBang, create_actor_ref};
 use crate::kernel::{Mailbox, MailboxSender, MailboxConfig, mailbox, run_mailbox, flush_to_deadletters};
+
+use crate::kernel::dispatcher::RikerFuture;
 use crate::system::{ActorSystem, Job};
 
 use self::KernelMsg::{CreateActor, RestartActor, TerminateActor};
@@ -84,6 +89,7 @@ impl<Msg, Dis> Kernel<Msg, Dis>
         let mut kernel = self;
 
         thread::spawn(move || {
+            
             let mut uid_counter = 10;
             let mut events: Option<ActorRef<Msg>> = None;
             let mut dead: Option<ActorRef<Msg>> = None;
@@ -126,14 +132,17 @@ impl<Msg, Dis> Kernel<Msg, Dis>
                     }
                     ParkActor(uid, actor) => kernel.park_actor(uid, actor),
                     UnparkActor(uid) => kernel.unpark_actor(uid),
-                    RunFuture(f) => kernel.dispatcher.execute(f),
+                    RunFuture(f) => {
+                        println!("RF");
+                        kernel.dispatcher.execute(async {
+                            f
+                        });
+                    },
 
                     // break out of the main loop and let self be consumed
                     // thus removing the entire kernel from memory
                     // break;
                     Stop => break
-                        
-
                 };
             }
         });
@@ -147,7 +156,6 @@ impl<Msg, Dis> Kernel<Msg, Dis>
                     parent: ActorRef<Msg>,
                     kernel_ref: &KernelRef<Msg>)
                     -> Result<ActorRef<Msg>, CreateError> {
-         
         let uri = ActorUri {
             uid,
             path: Arc::new(format!("{}/{}", parent.uri.path, name)),
@@ -249,9 +257,14 @@ impl<Msg, Dis> Kernel<Msg, Dis>
                 let mbox = dock.mailbox.clone();
                 let actor = dock.actor.take();
 
-                self.dispatcher.execute(lazy(move|_| {
-                    ok::<(), Never>(run_mailbox(mbox, cell, actor))
-                }));
+                let run = self.dispatcher.execute(async {
+                    // std::thread::sleep(std::time::Duration::from_secs(1));
+                    run_mailbox(mbox, cell, actor);
+                });
+
+                self.dispatcher.execute(async {
+                    pin_mut!(run);
+                });
             }
             _ => {}
         }

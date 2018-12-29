@@ -6,7 +6,6 @@ use futures::channel::oneshot;
 use crate::protocol::{Message, Envelope, SystemEnvelope, Enqueued};
 use crate::actor::{BoxActor, ActorRef, ActorId, BoxActorProd};
 use crate::actor::{CreateError, MsgError, MsgResult};
-use crate::futures_util::{MySender, DispatchHandle};
 use crate::kernel::{KernelMsg, MailboxSender, MailboxSchedule};
 use crate::system::Job;
 
@@ -25,8 +24,8 @@ impl<Msg> KernelRef<Msg>
     pub fn dispatch(&self,
                     msg: Envelope<Msg>,
                     mbox: &MailboxSender<Msg>) -> MsgResult<Envelope<Msg>> {
-
         let msg = Enqueued::ActorMsg(msg);
+
         match mbox.try_enqueue(msg) {
             Ok(_) => {
                 if !mbox.is_scheduled() {
@@ -65,7 +64,6 @@ impl<Msg> KernelRef<Msg>
                         props: BoxActorProd<Msg>,
                         name: &str,
                         parent: &ActorRef<Msg>) -> Result<ActorRef<Msg>, CreateError> {
-
         let (tx, rx) = channel();
         let msg = CreateActor(props,
                                 name.to_string(),
@@ -92,23 +90,28 @@ impl<Msg> KernelRef<Msg>
         send(Stop, &self.kernel_tx);
     }
 
-    pub fn execute<F: Future>(&self, f: F) -> DispatchHandle<F::Item, F::Error>
-        where F: Future + Send + 'static,
-                F::Item: Send + 'static,
-                F::Error: Send + 'static,
-    {
-        let (tx, rx) = oneshot::channel();
+    // pub fn execute<F: Future>(&self, f: F) -> DispatchHandle<F::Item, F::Error>
+    //     where F: Future + Send + 'static,
+    //             F::Item: Send + 'static
+    // {
+    //     let (tx, rx) = oneshot::channel();
 
-        let sender = MySender {
-            fut: f,
-            tx: Some(tx),
-        };
+    //     let sender = MySender {
+    //         fut: f,
+    //         tx: Some(tx),
+    //     };
     
-        send(RunFuture(Box::new(sender)), &self.kernel_tx);
+    //     send(RunFuture(Box::new(sender)), &self.kernel_tx);
 
-        DispatchHandle {
-            inner: rx
-        }
+    //     DispatchHandle {
+    //         inner: rx
+    //     }
+    // }
+
+    pub fn execute<F: Future>(&self, f: F)
+        where F: Future<Output=()> + Send + 'static
+    {
+        send(RunFuture(Box::new(f)), &self.kernel_tx);
     }
 
     // Scheduler

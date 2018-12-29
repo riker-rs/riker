@@ -18,7 +18,6 @@ use crate::actor::dead_letter;
 use crate::kernel::{KernelRef, MailboxSender};
 use crate::system::{ActorSystem, Evt, query};
 use crate::system::{Timer, Job, OnceJob, RepeatJob};
-use crate::futures_util::DispatchHandle;
 use crate::validate::{validate_name, InvalidPath};
 
 #[derive(Clone)]
@@ -324,10 +323,13 @@ impl<Msg> CellInternal for ActorCell<Msg>
             (Some(_), Some(es), Some(perconf)) => {
                 let q = query(&perconf.id, &perconf.keyspace, &es, self);
                 let myself = self.myself();
-                self.execute(
-                    q.map(move |evts| {
-                        myself.sys_tell(SystemMsg::Replay(evts), None);
-                    }));
+
+                // TODO r2018
+                // self.execute(
+                //     q.map(move |evts| {
+                //         myself.sys_tell(SystemMsg::Replay(evts), None);
+                //     }));
+                
                 
                 false
             }
@@ -351,13 +353,22 @@ impl<Msg> CellInternal for ActorCell<Msg>
     }
 }
 
+// impl<Msg> ExecutionContext for ActorCell<Msg>
+//     where Msg: Message
+// {
+//     fn execute<F: Future>(&self, f: F) -> DispatchHandle<F::Item, F::Error>
+//         where F: Future + Send + 'static,
+//                 F::Output: Send + 'static
+//     {
+//         self.inner.kernel.execute(f)
+//     }
+// }
+
 impl<Msg> ExecutionContext for ActorCell<Msg>
     where Msg: Message
 {
-    fn execute<F: Future>(&self, f: F) -> DispatchHandle<F::Item, F::Error>
-        where F: Future + Send + 'static,
-                F::Item: Send + 'static,
-                F::Error: Send + 'static,
+    fn execute<F: Future>(&self, f: F)
+        where F: Future<Output=()> + Send + 'static
     {
         self.inner.kernel.execute(f)
     }
@@ -406,7 +417,7 @@ pub trait CellPublic {
     fn parent(&self) -> ActorRef<Self::Msg>;
 
     /// Returns an iterator for the actor's children references
-    fn children<'a>(&'a self) -> Box<Iterator<Item = ActorRef<Self::Msg>> + 'a>;
+    fn children<'a>(&'a self) -> Box<dyn Iterator<Item = ActorRef<Self::Msg>> + 'a>;
 
     fn user_root(&self) -> ActorRef<Self::Msg>;
 
@@ -437,7 +448,7 @@ impl<Msg> CellPublic for ActorCell<Msg>
         self.inner.parent.as_ref().unwrap().clone()
     }
 
-    fn children<'a>(&'a self) -> Box<Iterator<Item = ActorRef<Msg>> + 'a> {
+    fn children<'a>(&'a self) -> Box<dyn Iterator<Item = ActorRef<Msg>> + 'a> {
         Box::new(self.inner.children.iter().clone())
     }
 
@@ -700,13 +711,23 @@ impl<Msg> Timer for Context<Msg>
     }
 }
 
+// impl<Msg> ExecutionContext for Context<Msg>
+//     where Msg: Message
+// {
+//     fn execute<F: Future>(&self, f: F) -> DispatchHandle<F::Item, F::Error>
+//         where F: Future + Send + 'static,
+//                 F::Item: Send + 'static,
+//                 F::Error: Send + 'static,
+//     {
+//         self.kernel.execute(f)
+//     }
+// }
+
 impl<Msg> ExecutionContext for Context<Msg>
     where Msg: Message
 {
-    fn execute<F: Future>(&self, f: F) -> DispatchHandle<F::Item, F::Error>
-        where F: Future + Send + 'static,
-                F::Item: Send + 'static,
-                F::Error: Send + 'static,
+    fn execute<F: Future>(&self, f: F)
+        where F: Future<Output=()> + Send + 'static
     {
         self.kernel.execute(f)
     }

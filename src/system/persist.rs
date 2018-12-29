@@ -1,11 +1,13 @@
 use std::sync::{Arc, Mutex};
 use std::marker::PhantomData;
+use std::pin::Pin;
 
 use chrono::prelude::{DateTime, Utc};
 use config::Config;
 use log::{log, warn};
 
-use futures::{Future, Poll, Async, task, Never};
+use futures::Future;
+use futures::task::{LocalWaker, Poll};
 use futures::channel::oneshot::{channel, Sender, Receiver};
 
 use crate::protocol::{Message, ActorMsg, ESMsg, SystemMsg};
@@ -184,15 +186,17 @@ impl<Msg> EsQuery<Msg>
 }
 
 impl<Msg: Message> Future for EsQuery<Msg> {
-    type Item = Vec<Msg>;
-    type Error = Never;
+    type Output = Vec<Msg>;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Self::Item, Never> {
-        match self.inner.poll(cx) {
-            Ok(Async::Ready(e)) => Ok(Async::Ready(e)),
-            Ok(Async::Pending) => return Ok(Async::Pending),
-            Err(_) => panic!(),
-        }
+    fn poll(self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<(Self::Output)> {
+        // match self.inner.poll(lw) {
+        //     Ok(Poll::Ready(e)) => Poll::Ready(e),
+        //     Ok(Poll::Pending) => return Poll::Pending
+        // }
+        // TODO r2018
+        // self.inner.poll(lw);
+        println!("UN1");
+        unimplemented!()
     }
 }
 
@@ -236,7 +240,7 @@ impl<Msg: Message> Actor for EsQueryActor<Msg> {
     }
 }
 
-type QueryFuture<Msg> = Box<Future<Item=Vec<Msg>, Error=Never> + Send>;
+type QueryFuture<Msg> = Box<dyn Future<Output=Vec<Msg>> + Send>;
 
 pub fn query<Msg, Ctx>(id: &String,
                         keyspace: &String,
