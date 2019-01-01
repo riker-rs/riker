@@ -114,16 +114,17 @@ fn supervision_restart_failed_actor() {
     let model: DefaultModel<TestMsg> = DefaultModel::new();
     let system = ActorSystem::new(&model).unwrap();
 
-    let props = Props::new(Box::new(RestartSupervisor::new));
-    let sup = system.actor_of(props, "supervisor").unwrap();
+    for i in 0..10 {
+        let props = Props::new(Box::new(RestartSupervisor::new));
+        let sup = system.actor_of(props, &format!("supervisor_{}", i)).unwrap();
 
-    // Make the test actor panic
-    sup.tell(TestMsg::Panic, None);
+        // Make the test actor panic
+        sup.tell(TestMsg::Panic, None);
 
-    let (probe, listen) = probe::<()>();
-    sup.tell(TestMsg::Probe(probe), None);
-    p_assert_eq!(listen, ());
-    system.print_tree();
+        let (probe, listen) = probe::<()>();
+        sup.tell(TestMsg::Probe(probe), None);
+        p_assert_eq!(listen, ());
+    }
 }
 
 // Test Escalate Strategy

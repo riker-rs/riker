@@ -1,13 +1,14 @@
 #![feature(futures_api)]
 
-use futures::Future;
+use std::panic::AssertUnwindSafe;
+
+use futures::{Future, FutureExt};
 use futures::executor::{ThreadPool, ThreadPoolBuilder};
 use futures::task::{SpawnExt};
 use futures::future::{FutureObj, UnsafeFutureObj, RemoteHandle};
 use config::Config;
 
-
-use riker::kernel::{Dispatcher, RikerFuture};
+use riker::kernel::Dispatcher;
 
 pub struct ThreadPoolDispatcher {
     inner: ThreadPool,
@@ -25,21 +26,11 @@ impl Dispatcher for ThreadPoolDispatcher {
         }
     }
 
-    // fn execute<F>(&mut self, f: F)
-    //     where F: Future<Output=()> + Send + 'static
-    // {
-    //     //self.inner.run(spawn(f)).unwrap();
-    //     self.inner.run(f.f)
-    // }
-    // fn execute<F: Future + Send + 'static>(&mut self, f: F) -> RemoteHandle<F::Output> {
-    //     // self.inner.run(f)
-    //     self.inner.spawn_with_handle(f).unwrap()
-    // }
-    fn execute<F>(&mut self, f: F) -> RemoteHandle<F::Output>
-        where F: Future + Send + 'static,
-                <F as Future>::Output: std::marker::Send
+    fn execute<F>(&mut self, f: F)
+        where F: Future<Output = ()> + Send + 'static
     {
-        self.inner.spawn_with_handle(f).unwrap()
+        // let f = AssertUnwindSafe(f).catch_unwind();
+        let _ = self.inner.spawn(f);
     }
 }
 
