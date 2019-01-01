@@ -24,15 +24,20 @@ members = [
   "riker-default/riker-timer"
 ]
 
+# [features]
+# std = ["futures-preview/std"]
+# default = ["std"]
+
 [dependencies]
 bytes = "0.4"
 chrono = "0.4"
-config = "0.9"
-futures-preview = "0.2.2"
+config = "0.8"
+futures-preview = "0.3.0-alpha.10"
 log = { version = "0.4", features = ["std"] }
 rand = "0.4"
 regex = "0.2"
 uuid = { version = "0.6", features = ["v4"] }
+pin-utils = "0.1.0-alpha.3"
 
 [dev-dependencies]
 riker-default = { path = "riker-default", version = "0.1.8" }

@@ -1,8 +1,11 @@
+use std::marker::Unpin;
 use std::sync::mpsc::{channel, Sender};
 
-use futures::Future;
+use futures::{Future, FutureExt};
+use futures::future::RemoteHandle;
 use futures::channel::oneshot;
 
+use crate::ExecResult;
 use crate::protocol::{Message, Envelope, SystemEnvelope, Enqueued};
 use crate::actor::{BoxActor, ActorRef, ActorId, BoxActorProd};
 use crate::actor::{CreateError, MsgError, MsgResult};
@@ -90,29 +93,21 @@ impl<Msg> KernelRef<Msg>
         send(Stop, &self.kernel_tx);
     }
 
-    // pub fn execute<F: Future>(&self, f: F) -> DispatchHandle<F::Item, F::Error>
-    //     where F: Future + Send + 'static,
-    //             F::Item: Send + 'static
-    // {
-    //     let (tx, rx) = oneshot::channel();
-
-    //     let sender = MySender {
-    //         fut: f,
-    //         tx: Some(tx),
-    //     };
-    
-    //     send(RunFuture(Box::new(sender)), &self.kernel_tx);
-
-    //     DispatchHandle {
-    //         inner: rx
-    //     }
-    // }
-
-    pub fn execute<F: Future>(&self, f: F)
-        where F: Future<Output=()> + Send + 'static
+    pub fn execute<F>(&self, f: F) -> RemoteHandle<F::Output>
+        where F: Future + Send + Unpin + 'static,
+                <F as Future>::Output: std::marker::Send
     {
-        send(RunFuture(Box::new(f)), &self.kernel_tx);
+        let (r, rh) = f.remote_handle();
+        send(RunFuture(Box::new(r)), &self.kernel_tx);
+        rh
+        // unimplemented!()
     }
+
+    // pub fn execute<F: Future>(&self, f: F)
+    //     where F: Future<Output=()> + Send + 'static
+    // {
+    //     send(RunFuture(Box::new(f)), &self.kernel_tx);
+    // }
 
     // Scheduler
 

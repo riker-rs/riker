@@ -68,17 +68,15 @@ impl Actor for ParentActor {
     type Msg = TestMsg;
 
     fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
-        // std::thread::sleep(std::time::Duration::from_secs(4));
-        println!("A1");
         let props = Props::new(Box::new(ChildActor::new));
         ctx.actor_of(props, "child_a").unwrap();
-        println!("A2");
+
         let props = Props::new(Box::new(ChildActor::new));
         ctx.actor_of(props, "child_b").unwrap();
-        println!("A3");
+
         let props = Props::new(Box::new(ChildActor::new));
         ctx.actor_of(props, "child_c").unwrap();
-        println!("A4");
+
         let props = Props::new(Box::new(ChildActor::new));
         ctx.actor_of(props, "child_d").unwrap();
     }
@@ -90,7 +88,6 @@ impl Actor for ParentActor {
     }
 
     fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: Self::Msg, _sender: Option<ActorRef<Self::Msg>>) {
-        println!("X1");
         self.probe = Some(msg.0);
         self.probe.event(());
     }
@@ -107,12 +104,6 @@ impl ChildActor {
 impl Actor for ChildActor {
     type Msg = TestMsg;
 
-    // fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
-    //     println!("B1");
-
-    //     std::thread::sleep(std::time::Duration::from_secs(2));
-    // }
-
     fn receive(&mut self, _: &Context<Self::Msg>, _: Self::Msg, _: Option<ActorRef<Self::Msg>>) {}
 }
 
@@ -126,48 +117,15 @@ fn stop_actor() {
     let parent = system.actor_of(props, "parent").unwrap();
 
     std::thread::sleep(std::time::Duration::from_secs(2));
-    println!("ZZZZZ");
+
     let (probe, listen) = probe();
     parent.tell(TestMsg(probe), None);
     system.print_tree();
 
     // wait for the probe to arrive at the actor before attempting to stop the actor
     listen.recv();
-    println!("ZZZZZ2");
     
     system.stop(&parent);
     p_assert_eq!(listen, ());
-}
-
-
-#[test]
-#[allow(dead_code)]
-fn start_actor() {
-    let model: DefaultModel<TestMsg> = DefaultModel::new();
-    let system = ActorSystem::new(&model).unwrap();
-
-    let props = Props::new(Box::new(ChildActor::new));
-    let parent = system.actor_of(props, "parent1").unwrap();
-
-    let props = Props::new(Box::new(ChildActor::new));
-    let parent = system.actor_of(props, "parent2").unwrap();
-
-    let props = Props::new(Box::new(ChildActor::new));
-    let parent = system.actor_of(props, "parent3").unwrap();
-
-    let props = Props::new(Box::new(ChildActor::new));
-    let parent = system.actor_of(props, "parent4").unwrap();
-
-    let (probe, listen) = probe();
-    parent.tell(TestMsg(probe), None);
-    // system.print_tree();
-
-    // // wait for the probe to arrive at the actor before attempting to stop the actor
-    // listen.recv();
-    
-    // system.stop(&parent);
-    // p_assert_eq!(listen, ());
-
-    std::thread::sleep(std::time::Duration::from_secs(10));
 }
 

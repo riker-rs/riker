@@ -5,13 +5,14 @@ mod mailbox;
 mod provider;
 mod queue;
 
+use std::marker::Unpin;
 use std::sync::mpsc::Sender;
 
 use futures::Future;
 
 pub use self::kernel_ref::KernelRef;
 pub use self::kernel::{Kernel, ActorDock, SysActors};
-pub use self::dispatcher::{Dispatcher, RikerFuture};
+pub use self::dispatcher::Dispatcher;
 pub use self::mailbox::{mailbox, run_mailbox, flush_to_deadletters};
 pub use self::mailbox::{Mailbox, MailboxSender, MailboxSchedule, MailboxConfig};
 pub use self::provider::{BigBang, create_actor_ref};
@@ -30,7 +31,7 @@ pub enum KernelMsg<Msg: Message> {
     RestartActor(ActorId),
     ParkActor(ActorId, Option<BoxActor<Msg>>),
     UnparkActor(ActorId),
-    RunFuture(Box<dyn Future<Output=()> + Send + 'static>),
+    RunFuture(Box<dyn Future<Output=()> + Send + Unpin + 'static>),
 
     Stop,
 }

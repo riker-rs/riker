@@ -1,13 +1,14 @@
 use std::collections::{HashMap, HashSet};
 use std::thread;
 use std::panic::catch_unwind;
+use std::panic::AssertUnwindSafe;
 use std::sync::Arc;
 use std::sync::mpsc::{channel, Sender, Receiver};
 use std::ops::Deref;
 use std::pin::{Pin, Unpin};
 
 pub use futures::future::*;
-use futures::{pending, poll};
+use futures::{pending, poll, FutureExt, TryFutureExt};
 use futures::executor::block_on;
 use config::Config;
 use log::{log, trace, warn};
@@ -19,8 +20,6 @@ use crate::actor::{ActorRef, ActorId, ActorUri, BoxActorProd};
 use crate::actor::{TryTell, SysTell, ActorProducer, CreateError, RestartError};
 use crate::kernel::{KernelRef, KernelMsg, Dispatcher, BigBang, create_actor_ref};
 use crate::kernel::{Mailbox, MailboxSender, MailboxConfig, mailbox, run_mailbox, flush_to_deadletters};
-
-use crate::kernel::dispatcher::RikerFuture;
 use crate::system::{ActorSystem, Job};
 
 use self::KernelMsg::{CreateActor, RestartActor, TerminateActor};
@@ -134,9 +133,8 @@ impl<Msg, Dis> Kernel<Msg, Dis>
                     UnparkActor(uid) => kernel.unpark_actor(uid),
                     RunFuture(f) => {
                         println!("RF");
-                        kernel.dispatcher.execute(async {
-                            f
-                        });
+                        // pin_mut!(f);
+                        kernel.dispatcher.execute(f);
                     },
 
                     // break out of the main loop and let self be consumed
@@ -257,14 +255,20 @@ impl<Msg, Dis> Kernel<Msg, Dis>
                 let mbox = dock.mailbox.clone();
                 let actor = dock.actor.take();
 
-                let run = self.dispatcher.execute(async {
-                    // std::thread::sleep(std::time::Duration::from_secs(1));
+                let f = async {
                     run_mailbox(mbox, cell, actor);
-                });
+                };
 
-                self.dispatcher.execute(async {
-                    pin_mut!(run);
-                });
+                let run = async {
+                    await!(AssertUnwindSafe(f).catch_unwind());
+                    ()
+                };
+
+                let run = self.dispatcher.execute(run);
+
+                // self.dispatcher.execute(async {
+                //     pin_mut!(run);
+                // });
             }
             _ => {}
         }

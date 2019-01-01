@@ -10,15 +10,18 @@
 mod validate;
 
 pub mod actor;
-// pub mod futures_util;
 pub mod kernel;
 pub mod model;
 pub mod protocol;
 pub mod system;
 
 use std::env;
+use std::error::Error;
+use std::fmt;
+use std::marker::Unpin;
 
 use futures::Future;
+use futures::future::RemoteHandle;
 use config::{Config, File};
 
 // use crate::futures_util::DispatchHandle;
@@ -30,8 +33,33 @@ use config::{Config, File};
 // }
 
 pub trait ExecutionContext {
-    fn execute<F>(&self, f: F)
-        where F: Future<Output=()> + Send + 'static;
+//     fn execute<F>(&self, f: F)
+//         where F: Future<Output=()> + Send + 'static;
+    fn execute<F>(&self, f: F) -> RemoteHandle<ExecResult<F::Output>>
+        where F: Future + Send + Unpin + 'static,
+                <F as Future>::Output: std::marker::Send;
+}
+
+pub type ExecResult<T> = Result<T, ExecError>;
+
+pub struct ExecError;
+
+impl Error for ExecError {
+    fn description(&self) -> &str {
+        "Panic occurred during execution of the task."
+    }
+}
+
+impl fmt::Display for ExecError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("Panic occurred during execution of the task.")
+    }
+}
+
+impl fmt::Debug for ExecError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str(self.description())
+    }
 }
 
 pub fn load_config() -> Config {
