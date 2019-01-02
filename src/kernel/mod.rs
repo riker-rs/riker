@@ -5,6 +5,7 @@ mod mailbox;
 mod provider;
 mod queue;
 
+use std::pin::Pin;
 use std::marker::Unpin;
 use std::sync::mpsc::Sender;
 
@@ -31,7 +32,7 @@ pub enum KernelMsg<Msg: Message> {
     RestartActor(ActorId),
     ParkActor(ActorId, Option<BoxActor<Msg>>),
     UnparkActor(ActorId),
-    RunFuture(Box<dyn Future<Output=()> + Send + Unpin + 'static>),
+    RunFuture(Pin<Box<dyn Future<Output=()> + Send + 'static>>),
 
     Stop,
 }

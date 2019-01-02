@@ -36,7 +36,7 @@ pub trait ExecutionContext {
 //     fn execute<F>(&self, f: F)
 //         where F: Future<Output=()> + Send + 'static;
     fn execute<F>(&self, f: F) -> RemoteHandle<ExecResult<F::Output>>
-        where F: Future + Send + Unpin + 'static,
+        where F: Future + Send + 'static,
                 <F as Future>::Output: std::marker::Send;
 }
 

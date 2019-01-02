@@ -1,3 +1,4 @@
+use std::pin::Pin;
 use std::marker::Unpin;
 use std::sync::mpsc::{channel, Sender};
 
@@ -94,11 +95,11 @@ impl<Msg> KernelRef<Msg>
     }
 
     pub fn execute<F>(&self, f: F) -> RemoteHandle<F::Output>
-        where F: Future + Send + Unpin + 'static,
+        where F: Future + Send + 'static,
                 <F as Future>::Output: std::marker::Send
     {
         let (r, rh) = f.remote_handle();
-        send(RunFuture(Box::new(r)), &self.kernel_tx);
+        send(RunFuture(r.boxed()), &self.kernel_tx);
         rh
         // unimplemented!()
     }
