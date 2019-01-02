@@ -376,7 +376,7 @@ impl<Msg> ExecutionContext for ActorCell<Msg>
     //     self.inner.kernel.execute(f)
     // }
     fn execute<F>(&self, f: F) -> RemoteHandle<ExecResult<F::Output>>
-        where F: Future + Send + Unpin + 'static,
+        where F: Future + Send + 'static,
                 <F as Future>::Output: std::marker::Send
     {
         let f = AssertUnwindSafe(f)
@@ -744,7 +744,7 @@ impl<Msg> ExecutionContext for Context<Msg>
     //     self.kernel.execute(f)
     // }
     fn execute<F>(&self, f: F) -> RemoteHandle<ExecResult<F::Output>>
-        where F: Future + Send + Unpin + 'static,
+        where F: Future + Send + 'static,
                 <F as Future>::Output: std::marker::Send
     {
         let f = AssertUnwindSafe(f)

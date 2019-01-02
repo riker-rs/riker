@@ -1,7 +1,17 @@
+#![feature(
+        async_await,
+        await_macro,
+        futures_api,
+        pin,
+        arbitrary_self_types
+)]
+
 extern crate riker;
 extern crate riker_default;
 
 extern crate futures;
+
+use std::pin::Unpin;
 
 use riker::actors::*;
 use riker_default::DefaultModel;
@@ -78,26 +88,14 @@ fn system_guardian_mailboxes() {
 fn system_execute_futures() {
     let model: DefaultModel<TestMsg> = DefaultModel::new();
     let system = ActorSystem::new(&model).unwrap();
-    
-    let fa = lazy(|_| {
-        ok::<String, ()>("some_val".to_string())
-    });
 
-    let fb = lazy(|_| {
-        ok::<String, ()>("some_val".to_string())
-    });
-
-    let fc = lazy(|_| {
-        ok::<String, ()>("some_val".to_string())
-    });
-
-    // let resa = block_on(system.execute(fb)).unwrap();
-    // let resb = block_on(system.execute(fc)).unwrap();
-    // let resc = block_on(system.execute(fa)).unwrap();
-
-    // assert_eq!(resa, "some_val".to_string());
-    // assert_eq!(resb, "some_val".to_string());
-    // assert_eq!(resc, "some_val".to_string());
+    for i in 0..100 {
+        let handle = system.execute(async move {
+            format!("some_val_{}", i)
+        });
+        
+        assert_eq!(block_on(handle).unwrap(), format!("some_val_{}", i));
+    }
 }
 
 #[test]

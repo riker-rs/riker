@@ -476,7 +476,7 @@ impl<Msg> ExecutionContext for ActorSystem<Msg>
     where Msg: Message
 {
     fn execute<F>(&self, f: F) -> RemoteHandle<ExecResult<F::Output>>
-        where F: Future + Send + Unpin + 'static,
+        where F: Future + Send + 'static,
             <F as Future>::Output: std::marker::Send
     {
         let f = AssertUnwindSafe(f)

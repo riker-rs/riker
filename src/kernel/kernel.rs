@@ -132,8 +132,6 @@ impl<Msg, Dis> Kernel<Msg, Dis>
                     ParkActor(uid, actor) => kernel.park_actor(uid, actor),
                     UnparkActor(uid) => kernel.unpark_actor(uid),
                     RunFuture(f) => {
-                        println!("RF");
-                        // pin_mut!(f);
                         kernel.dispatcher.execute(f);
                     },
 
