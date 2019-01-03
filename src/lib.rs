@@ -3,7 +3,6 @@
         async_await,
         await_macro,
         futures_api,
-        pin,
         arbitrary_self_types
 )]
 
@@ -18,23 +17,12 @@ pub mod system;
 use std::env;
 use std::error::Error;
 use std::fmt;
-use std::marker::Unpin;
 
 use futures::Future;
 use futures::future::RemoteHandle;
 use config::{Config, File};
 
-// use crate::futures_util::DispatchHandle;
-
-// pub trait ExecutionContext {
-//     fn execute<F>(&self, f: F)
-//         where F: Future + Send + 'static,
-//                 F::Output: Send + 'static
-// }
-
 pub trait ExecutionContext {
-//     fn execute<F>(&self, f: F)
-//         where F: Future<Output=()> + Send + 'static;
     fn execute<F>(&self, f: F) -> RemoteHandle<ExecResult<F::Output>>
         where F: Future + Send + 'static,
                 <F as Future>::Output: std::marker::Send;

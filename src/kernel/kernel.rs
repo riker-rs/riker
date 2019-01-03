@@ -5,14 +5,10 @@ use std::panic::AssertUnwindSafe;
 use std::sync::Arc;
 use std::sync::mpsc::{channel, Sender, Receiver};
 use std::ops::Deref;
-use std::pin::{Pin, Unpin};
 
-pub use futures::future::*;
-use futures::{pending, poll, FutureExt, TryFutureExt};
-use futures::executor::block_on;
+use futures::FutureExt;
 use config::Config;
-use log::{log, trace, warn};
-use pin_utils::pin_mut;
+use log::{trace, warn};
 
 use crate::protocol::{Message, SystemMsg, SystemEvent, ChannelMsg};
 use crate::actor::{BoxActor, ActorCell, CellInternal};
@@ -258,15 +254,11 @@ impl<Msg, Dis> Kernel<Msg, Dis>
                 };
 
                 let run = async {
-                    await!(AssertUnwindSafe(f).catch_unwind());
+                    let _ = await!(AssertUnwindSafe(f).catch_unwind());
                     ()
                 };
 
-                let run = self.dispatcher.execute(run);
-
-                // self.dispatcher.execute(async {
-                //     pin_mut!(run);
-                // });
+                self.dispatcher.execute(run);
             }
             _ => {}
         }

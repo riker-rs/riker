@@ -1,12 +1,8 @@
-use std::pin::Pin;
-use std::marker::Unpin;
 use std::sync::mpsc::{channel, Sender};
 
 use futures::{Future, FutureExt};
 use futures::future::RemoteHandle;
-use futures::channel::oneshot;
 
-use crate::ExecResult;
 use crate::protocol::{Message, Envelope, SystemEnvelope, Enqueued};
 use crate::actor::{BoxActor, ActorRef, ActorId, BoxActorProd};
 use crate::actor::{CreateError, MsgError, MsgResult};

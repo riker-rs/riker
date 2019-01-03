@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::ops::Deref;
 
 use config::Config;
-use log::{log, trace};
+use log::trace;
 
 use crate::protocol::*;
 use crate::system::LogEntry;

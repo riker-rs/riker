@@ -4,7 +4,7 @@ use std::pin::Pin;
 
 use chrono::prelude::{DateTime, Utc};
 use config::Config;
-use log::{log, warn};
+use log::warn;
 
 use futures::Future;
 use futures::task::{LocalWaker, Poll};
