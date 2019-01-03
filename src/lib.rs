@@ -65,12 +65,12 @@ pub fn load_config() -> Config {
     // load the system config
     // riker.toml contains settings for anything related to the actor framework and its modules
     let path = env::var("RIKER_CONF").unwrap_or("config/riker.toml".into());
-    //cfg.merge(File::with_name(&format!("{}", path)).required(false)).unwrap();
+    cfg.merge(File::with_name(&format!("{}", path)).required(false)).unwrap();
 
     // load the user application config
     // app.toml or app.yaml contains settings specific to the user application
     let path = env::var("APP_CONF").unwrap_or("config/app".into());
-    //cfg.merge(File::with_name(&format!("{}", path)).required(false)).unwrap();
+    cfg.merge(File::with_name(&format!("{}", path)).required(false)).unwrap();
     cfg
 }
 
