@@ -326,12 +326,13 @@ impl<Msg> CellInternal for ActorCell<Msg>
                 let q = query(&perconf.id, &perconf.keyspace, &es, self);
                 let myself = self.myself();
 
-                // TODO r2018
-                // self.execute(
-                //     q.map(move |evts| {
-                //         myself.sys_tell(SystemMsg::Replay(evts), None);
-                //     }));
-                
+                let _ = self.execute(
+                    q.map(move |evts| {
+                        if let Ok(evts) = evts {
+                            myself.sys_tell(SystemMsg::Replay(evts), None);
+                        }
+                    })
+                );
                 
                 false
             }

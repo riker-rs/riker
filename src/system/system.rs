@@ -174,7 +174,7 @@ impl<Msg: Message> ActorSystem<Msg> {
     /// Does not block. Returns a future which is completed when all
     /// actors have successfully stopped.
     pub fn shutdown(&self) -> impl Future {
-        let (tx, mut rx) = channel::<()>();
+        let (tx, rx) = channel::<()>();
         let tx = Arc::new(Mutex::new(Some(tx)));
 
         let a = ShutdownActor {
@@ -188,9 +188,7 @@ impl<Msg: Message> ActorSystem<Msg> {
         // send stop to all /user children
         self.stop(self.user_root());
 
-        async move {
-            rx.try_recv()
-        }
+        rx
     }
 
     /// Returns the system start date
