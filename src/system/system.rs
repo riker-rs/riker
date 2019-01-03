@@ -2,8 +2,6 @@ use std::fmt;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, Duration};
-use std::marker::Unpin;
-use std::pin::Pin;
 use std::panic::AssertUnwindSafe;
 
 use chrono::prelude::*;
@@ -12,9 +10,8 @@ use rand;
 use uuid::Uuid;
 use futures::{Future, FutureExt, TryFutureExt};
 use futures::future::RemoteHandle;
-use futures::channel::oneshot::{channel, Sender, Receiver, Canceled};
-use futures::task::{LocalWaker, Poll};
-use log::{log, debug, Level};
+use futures::channel::oneshot::{channel, Sender};
+use log::{debug, Level};
 
 use crate::model::Model;
 use crate::protocol::{Message, ActorMsg, SystemMsg, ChannelMsg, ActorCmd, SystemEvent, IOMsg};

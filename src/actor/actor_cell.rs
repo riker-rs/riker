@@ -4,13 +4,12 @@ use std::sync::{Arc, RwLock};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::collections::HashMap;
 use std::ops::Deref;
-use std::marker::Unpin;
 use std::panic::AssertUnwindSafe;
 
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 use rand;
-use log::{log, warn};
+use log::warn;
 use futures::{Future, FutureExt, TryFutureExt};
 use futures::future::RemoteHandle;
 

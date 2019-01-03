@@ -6,7 +6,6 @@ mod provider;
 mod queue;
 
 use std::pin::Pin;
-use std::marker::Unpin;
 use std::sync::mpsc::Sender;
 
 use futures::Future;
