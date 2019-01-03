@@ -11,5 +11,5 @@ readme = "README.md"
 [dependencies]
 riker = { path = "../../", version = "0.1.8" }
 chrono = "0.4"
-config = "0.8"
+config = "0.9"
 runtime-fmt = "0.3.0"

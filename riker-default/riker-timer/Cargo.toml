@@ -10,7 +10,7 @@ readme = "README.md"
 
 [dependencies]
 riker = { path = "../../", version = "0.1.8" }
-config = "0.8"
+config = "0.9"
 uuid = { version = "0.6", features = ["v4"] }
 
 [dev-dependencies]
