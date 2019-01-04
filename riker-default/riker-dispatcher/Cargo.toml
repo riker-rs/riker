@@ -10,7 +10,8 @@ license = "MIT"
 readme = "README.md"
 
 [dependencies]
-riker = { path = "../../", version = "0.1.9" }
+riker = { path = "../../", version = "0.1.8" }
 config = "0.9"
+# futures-preview = "0.2.2"
 futures-preview = "0.3.0-alpha.10"
 futures-cpupool = "0.1.8"

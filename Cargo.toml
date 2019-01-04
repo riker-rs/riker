@@ -24,10 +24,18 @@ members = [
   "riker-default/riker-timer"
 ]
 
+# [features]
+# std = ["futures-preview/std"]
+# default = ["std"]
+
 [dependencies]
 bytes = "0.4"
 chrono = "0.4"
+<<<<<<< HEAD
 config = "0.9"
+=======
+config = "0.8"
+>>>>>>> 8c7a6dc364ad051bdfa3bb1f716d758bd79ffe84
 futures-preview = "0.3.0-alpha.10"
 log = { version = "0.4", features = ["std"] }
 rand = "0.4"

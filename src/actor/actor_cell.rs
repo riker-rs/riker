@@ -356,6 +356,17 @@ impl<Msg> CellInternal for ActorCell<Msg>
     }
 }
 
+// impl<Msg> ExecutionContext for ActorCell<Msg>
+//     where Msg: Message
+// {
+//     fn execute<F: Future>(&self, f: F) -> DispatchHandle<F::Item, F::Error>
+//         where F: Future + Send + 'static,
+//                 F::Output: Send + 'static
+//     {
+//         self.inner.kernel.execute(f)
+//     }
+// }
+
 impl<Msg> ExecutionContext for ActorCell<Msg>
     where Msg: Message
 {
