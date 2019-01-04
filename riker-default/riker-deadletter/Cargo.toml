@@ -1,6 +1,6 @@
 [package]
 name = "riker-deadletter"
-version = "0.1.9"
+version = "0.2.0"
 authors = ["Lee Smith <leenozara@gmail.com>"]
 edition = "2018"
 description = "A Dead Letters logger for Riker"
