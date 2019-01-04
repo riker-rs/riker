@@ -1,17 +1,8 @@
 #![feature(futures_api)]
 
-<<<<<<< HEAD
 use futures::Future;
 use futures::executor::{ThreadPool, ThreadPoolBuilder};
 use futures::task::{SpawnExt};
-=======
-use std::panic::AssertUnwindSafe;
-
-use futures::{Future, FutureExt};
-use futures::executor::{ThreadPool, ThreadPoolBuilder};
-use futures::task::{SpawnExt};
-use futures::future::{FutureObj, UnsafeFutureObj, RemoteHandle};
->>>>>>> 8c7a6dc364ad051bdfa3bb1f716d758bd79ffe84
 use config::Config;
 
 use riker::kernel::Dispatcher;
@@ -35,7 +26,6 @@ impl Dispatcher for ThreadPoolDispatcher {
     fn execute<F>(&mut self, f: F)
         where F: Future<Output = ()> + Send + 'static
     {
-        // let f = AssertUnwindSafe(f).catch_unwind();
         let _ = self.inner.spawn(f);
     }
 }
