@@ -1,12 +1,12 @@
 use std::iter::Peekable;
 use std::ops::Deref;
 
-use protocol::{Message, SystemMsg, ActorMsg};
-use actor::{Tell, SysTell};
-use actor::CellInternal;
-use actor::actor_ref::ActorRef;
-use actor::channel::dead_letter;
-use validate::{InvalidPath, validate_path};
+use crate::protocol::{Message, SystemMsg, ActorMsg};
+use crate::actor::{Tell, SysTell};
+use crate::actor::CellInternal;
+use crate::actor::actor_ref::ActorRef;
+use crate::actor::channel::dead_letter;
+use crate::validate::{InvalidPath, validate_path};
 
 /// A selection represents part of the actor heirarchy, allowing
 /// messages to be sent to all actors in the selection.

@@ -1,21 +1,22 @@
 use std::collections::{HashMap, HashSet};
 use std::thread;
 use std::panic::catch_unwind;
+use std::panic::AssertUnwindSafe;
 use std::sync::Arc;
 use std::sync::mpsc::{channel, Sender, Receiver};
 use std::ops::Deref;
 
-pub use futures::future::*;
-use futures::Never;
+use futures::FutureExt;
 use config::Config;
+use log::{log, trace, warn};
 
-use protocol::{Message, SystemMsg, SystemEvent, ChannelMsg};
-use actor::{BoxActor, ActorCell, CellInternal};
-use actor::{ActorRef, ActorId, ActorUri, BoxActorProd};
-use actor::{TryTell, SysTell, ActorProducer, CreateError, RestartError};
-use kernel::{KernelRef, KernelMsg, Dispatcher, BigBang, create_actor_ref};
-use kernel::{Mailbox, MailboxSender, MailboxConfig, mailbox, run_mailbox, flush_to_deadletters};
-use system::{ActorSystem, Job};
+use crate::protocol::{Message, SystemMsg, SystemEvent, ChannelMsg};
+use crate::actor::{BoxActor, ActorCell, CellInternal};
+use crate::actor::{ActorRef, ActorId, ActorUri, BoxActorProd};
+use crate::actor::{TryTell, SysTell, ActorProducer, CreateError, RestartError};
+use crate::kernel::{KernelRef, KernelMsg, Dispatcher, BigBang, create_actor_ref};
+use crate::kernel::{Mailbox, MailboxSender, MailboxConfig, mailbox, run_mailbox, flush_to_deadletters};
+use crate::system::{ActorSystem, Job};
 
 use self::KernelMsg::{CreateActor, RestartActor, TerminateActor};
 use self::KernelMsg::{Initialize, ParkActor, UnparkActor, Stop, RunFuture};
@@ -83,6 +84,7 @@ impl<Msg, Dis> Kernel<Msg, Dis>
         let mut kernel = self;
 
         thread::spawn(move || {
+            
             let mut uid_counter = 10;
             let mut events: Option<ActorRef<Msg>> = None;
             let mut dead: Option<ActorRef<Msg>> = None;
@@ -125,14 +127,14 @@ impl<Msg, Dis> Kernel<Msg, Dis>
                     }
                     ParkActor(uid, actor) => kernel.park_actor(uid, actor),
                     UnparkActor(uid) => kernel.unpark_actor(uid),
-                    RunFuture(f) => kernel.dispatcher.execute(f),
+                    RunFuture(f) => {
+                        kernel.dispatcher.execute(f);
+                    },
 
                     // break out of the main loop and let self be consumed
                     // thus removing the entire kernel from memory
                     // break;
                     Stop => break
-                        
-
                 };
             }
         });
@@ -146,7 +148,6 @@ impl<Msg, Dis> Kernel<Msg, Dis>
                     parent: ActorRef<Msg>,
                     kernel_ref: &KernelRef<Msg>)
                     -> Result<ActorRef<Msg>, CreateError> {
-         
         let uri = ActorUri {
             uid,
             path: Arc::new(format!("{}/{}", parent.uri.path, name)),
@@ -248,9 +249,16 @@ impl<Msg, Dis> Kernel<Msg, Dis>
                 let mbox = dock.mailbox.clone();
                 let actor = dock.actor.take();
 
-                self.dispatcher.execute(lazy(move|_| {
-                    ok::<(), Never>(run_mailbox(mbox, cell, actor))
-                }));
+                let f = async {
+                    run_mailbox(mbox, cell, actor);
+                };
+
+                let run = async {
+                    let _ = await!(AssertUnwindSafe(f).catch_unwind());
+                    ()
+                };
+
+                self.dispatcher.execute(run);
             }
             _ => {}
         }

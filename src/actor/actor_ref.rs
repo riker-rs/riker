@@ -1,8 +1,8 @@
 use std::fmt;
 
-use protocol::*;
-use actor::{ActorUri, BoxActorProd, ActorCell, CellPublic};
-use actor::{Tell, TryTell, SysTell, CreateError, TryMsgError};
+use crate::protocol::*;
+use crate::actor::{ActorUri, BoxActorProd, ActorCell, CellPublic};
+use crate::actor::{Tell, TryTell, SysTell, CreateError, TryMsgError};
 
 /// An actor reference exposes methods to interact with its underlying
 /// actor.
@@ -62,7 +62,7 @@ impl<Msg: Message> ActorRef<Msg> {
     }
 
     /// Iterator over children references.
-    pub fn children<'a>(&'a self) -> Box<Iterator<Item = ActorRef<Msg>> + 'a> {
+    pub fn children<'a>(&'a self) -> Box<dyn Iterator<Item = ActorRef<Msg>> + 'a> {
         self.cell.children()
     }
 }

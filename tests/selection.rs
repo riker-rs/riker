@@ -1,9 +1,5 @@
-extern crate riker;
-extern crate riker_default;
 #[macro_use]
 extern crate riker_testkit;
-
-extern crate futures;
 
 use riker::actors::*;
 use riker_default::DefaultModel;
@@ -121,13 +117,21 @@ fn select_all_children_of_child() {
 
     let (probe, listen) = probe();
 
-    // select test actors through actor selection: /root/user/select-actor/*
+    // select relative test actors through actor selection: /root/user/select-actor/*
     let selection = system.select("select-actor/*").unwrap();
-    selection.tell(TestMsg(probe), None);
+    selection.tell(TestMsg(probe.clone()), None);
 
     // actors 'child_a' and 'child_b' should both fire a probe event
     p_assert_eq!(listen, ());
     p_assert_eq!(listen, ());
+
+    // select absolute test actors through actor selection: /root/user/select-actor/*
+    // let selection = system.select("/user/select-actor/*").unwrap();
+    // selection.tell(TestMsg(probe), None);
+
+    // // actors 'child_a' and 'child_b' should both fire a probe event
+    // p_assert_eq!(listen, ());
+    // p_assert_eq!(listen, ());
 }
 
 #[derive(Clone)]

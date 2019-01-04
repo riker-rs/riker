@@ -5,8 +5,8 @@ use chrono::{DateTime, Utc};
 use config::Config;
 use uuid::Uuid;
 
-use protocol::{Message, ActorMsg};
-use actor::{ActorRef, Tell};
+use crate::protocol::{Message, ActorMsg};
+use crate::actor::{ActorRef, Tell};
 
 pub trait Timer {
     type Msg: Message;

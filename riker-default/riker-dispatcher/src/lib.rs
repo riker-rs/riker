@@ -1,13 +1,11 @@
-extern crate config;
-extern crate futures;
-extern crate riker;
+#![feature(futures_api)]
 
-use futures::{Future, Never};
+use futures::Future;
 use futures::executor::{ThreadPool, ThreadPoolBuilder};
+use futures::task::{SpawnExt};
 use config::Config;
 
 use riker::kernel::Dispatcher;
-use riker::futures_util::spawn;
 
 pub struct ThreadPoolDispatcher {
     inner: ThreadPool,
@@ -26,9 +24,9 @@ impl Dispatcher for ThreadPoolDispatcher {
     }
 
     fn execute<F>(&mut self, f: F)
-        where F: Future<Item=(), Error=Never> + Send + 'static
+        where F: Future<Output = ()> + Send + 'static
     {
-        self.inner.run(spawn(f)).unwrap();
+        let _ = self.inner.spawn(f);
     }
 }
 

@@ -1,8 +1,8 @@
 use log;
 use config::Config;
 
-use protocol::{Message, SystemMsg};
-use actor::{ActorRef, SysTell, BoxActorProd};
+use crate::protocol::{Message, SystemMsg};
+use crate::actor::{ActorRef, SysTell, BoxActorProd};
 
 #[derive(Clone)]
 pub struct Logger<Msg: Message> {

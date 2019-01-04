@@ -2,6 +2,7 @@
 name = "riker-mapvec"
 version = "0.1.9"
 authors = ["Lee Smith <leenozara@gmail.com>"]
+edition = "2018"
 description = "Simple in-memory datastore for Riker persistent actors"
 homepage = "https://riker.rs"
 repository = "https://github.com/riker-rs/riker-default"
@@ -14,5 +15,5 @@ riker = { path = "../../", version = "0.1.9" }
 config = "0.9"
 
 [dev-dependencies]
-riker-default = { path = "../", version = "0.1.8" }
+riker-default = { path = "../", version = "0.1.9" }
 riker-testkit = "0.1.0"

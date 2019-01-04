@@ -1,15 +1,15 @@
-extern crate riker;
-extern crate riker_default;
-
-extern crate futures;
+#![feature(
+        async_await,
+        await_macro,
+        futures_api,
+        arbitrary_self_types
+)]
 
 use riker::actors::*;
 use riker_default::DefaultModel;
 
-use futures::future::*;
 use futures::executor::block_on;
 
-// todo add test documentation
 struct ShutdownTestActor {
     level: u32,
 }
@@ -55,8 +55,7 @@ fn system_shutdown() {
     let props = Props::new_args(Box::new(ShutdownTestActor::new), 1);
     let _ = system.actor_of(props, "test-actor-1").unwrap();
 
-    // std::thread::sleep(std::time::Duration::from_millis(2000));
-    block_on(system.shutdown()).unwrap();
+    block_on(system.shutdown());
 }
 
 
@@ -78,26 +77,14 @@ fn system_guardian_mailboxes() {
 fn system_execute_futures() {
     let model: DefaultModel<TestMsg> = DefaultModel::new();
     let system = ActorSystem::new(&model).unwrap();
-    
-    let fa = lazy(|_| {
-        ok::<String, ()>("some_val".to_string())
-    });
 
-    let fb = lazy(|_| {
-        ok::<String, ()>("some_val".to_string())
-    });
-
-    let fc = lazy(|_| {
-        ok::<String, ()>("some_val".to_string())
-    });
-
-    let resa = block_on(system.execute(fb)).unwrap();
-    let resb = block_on(system.execute(fc)).unwrap();
-    let resc = block_on(system.execute(fa)).unwrap();
-
-    assert_eq!(resa, "some_val".to_string());
-    assert_eq!(resb, "some_val".to_string());
-    assert_eq!(resc, "some_val".to_string());
+    for i in 0..100 {
+        let handle = system.execute(async move {
+            format!("some_val_{}", i)
+        });
+        
+        assert_eq!(block_on(handle).unwrap(), format!("some_val_{}", i));
+    }
 }
 
 #[test]

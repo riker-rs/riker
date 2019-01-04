@@ -2,6 +2,7 @@
 name = "riker-deadletter"
 version = "0.1.9"
 authors = ["Lee Smith <leenozara@gmail.com>"]
+edition = "2018"
 description = "A Dead Letters logger for Riker"
 homepage = "https://riker.rs"
 repository = "https://github.com/riker-rs/riker-default"

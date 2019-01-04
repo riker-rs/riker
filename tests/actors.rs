@@ -1,5 +1,3 @@
-extern crate riker;
-extern crate riker_default;
 #[macro_use]
 extern crate riker_testkit;
 
@@ -115,6 +113,8 @@ fn stop_actor() {
 
     let props = Props::new(Box::new(ParentActor::new));
     let parent = system.actor_of(props, "parent").unwrap();
+
+    std::thread::sleep(std::time::Duration::from_secs(2));
 
     let (probe, listen) = probe();
     parent.tell(TestMsg(probe), None);

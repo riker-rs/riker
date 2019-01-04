@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 use std::fmt;
 use std::panic::{UnwindSafe, RefUnwindSafe};
 
-use ::actor::{Actor, BoxActor};
+use crate::actor::{Actor, BoxActor};
 
 /// Provides instances of `ActorProducer` for use when creating Actors (`actor_of`).
 /// 
@@ -47,8 +47,8 @@ impl Props {
     /// // start the actor and get an `ActorRef`
     /// let actor = system.actor_of(props, "user").unwrap();
     /// ```
-    pub fn new<A>(creator: Box<Fn() -> A + Send>)
-        -> Arc<Mutex<Box<ActorProducer<Actor = A>>>>
+    pub fn new<A>(creator: Box<dyn Fn() -> A + Send>)
+        -> Arc<Mutex<Box<dyn ActorProducer<Actor = A>>>>
         where A: Actor + Send + 'static
     {
         Arc::new(Mutex::new(ActorProps::new(creator)))
@@ -129,8 +129,8 @@ impl Props {
     /// // start the actor and get an `ActorRef`
     /// let actor = system.actor_of(props, "bank_account").unwrap();
     /// ```
-    pub fn new_args<A, Args>(creator: Box<Fn(Args) -> A + Send>, args: Args)
-        -> Arc<Mutex<Box<ActorProducer<Actor = A>>>>
+    pub fn new_args<A, Args>(creator: Box<dyn Fn(Args) -> A + Send>, args: Args)
+        -> Arc<Mutex<Box<dyn ActorProducer<Actor = A>>>>
         where A: Actor + Send + 'static, Args: ActorArgs + 'static        
     {
         Arc::new(Mutex::new(ActorPropsWithArgs::new(creator, args)))
@@ -165,7 +165,7 @@ pub trait ActorProducer : fmt::Debug + Send + UnwindSafe + RefUnwindSafe {
     fn produce(&self) -> Self::Actor;
 }
 
-impl<A> ActorProducer for Arc<Mutex<Box<ActorProducer<Actor = A>>>>
+impl<A> ActorProducer for Arc<Mutex<Box<dyn ActorProducer<Actor = A>>>>
     where A: Actor + Send + 'static
 {
     type Actor = A;
@@ -196,7 +196,7 @@ impl<A> ActorProducer for Box<ActorProducer<Actor = A>>
 }
 
 pub struct ActorProps<A: Actor> {
-    creator: Box<Fn() -> A + Send>,
+    creator: Box<dyn Fn() -> A + Send>,
 }
 
 impl<A: Actor> UnwindSafe for ActorProps<A> {}
@@ -205,7 +205,7 @@ impl<A: Actor> RefUnwindSafe for ActorProps<A> {}
 impl<A> ActorProps<A> 
     where A: Actor + Send + 'static
 {
-    pub fn new(creator: Box<Fn() -> A + Send>) -> Box<ActorProducer<Actor = A>> {
+    pub fn new(creator: Box<dyn Fn() -> A + Send>) -> Box<dyn ActorProducer<Actor = A>> {
         Box::new(ActorProps { creator: creator })
     }
 }
@@ -234,7 +234,7 @@ impl<A: Actor> fmt::Debug for ActorProps<A> {
 }
 
 pub struct ActorPropsWithArgs<A: Actor, Args: ActorArgs> {
-    creator: Box<Fn(Args) -> A + Send>,
+    creator: Box<dyn Fn(Args) -> A + Send>,
     args: Args,
 }
 
@@ -244,7 +244,7 @@ impl<A: Actor, Args: ActorArgs> RefUnwindSafe for ActorPropsWithArgs<A, Args> {}
 impl<A, Args> ActorPropsWithArgs<A, Args>
     where A: Actor + Send + 'static, Args: ActorArgs + 'static
 {
-    pub fn new(creator: Box<Fn(Args) -> A + Send>, args: Args) -> Box<ActorProducer<Actor = A>> {
+    pub fn new(creator: Box<dyn Fn(Args) -> A + Send>, args: Args) -> Box<dyn ActorProducer<Actor = A>> {
         Box::new(ActorPropsWithArgs {
             creator: creator,
             args: args,

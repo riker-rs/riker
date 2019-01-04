@@ -4,21 +4,23 @@ use std::sync::{Arc, RwLock};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::collections::HashMap;
 use std::ops::Deref;
+use std::panic::AssertUnwindSafe;
 
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 use rand;
-use futures::{Future, FutureExt};
+use log::{log, warn};
+use futures::{Future, FutureExt, TryFutureExt};
+use futures::future::RemoteHandle;
 
-use protocol::*;
-use ExecutionContext;
-use actor::*;
-use actor::dead_letter;
-use kernel::{KernelRef, MailboxSender};
-use system::{ActorSystem, Evt, query};
-use system::{Timer, Job, OnceJob, RepeatJob};
-use futures_util::DispatchHandle;
-use validate::{validate_name, InvalidPath};
+use crate::protocol::*;
+use crate::{ExecutionContext, ExecResult, ExecError};
+use crate::actor::*;
+use crate::actor::dead_letter;
+use crate::kernel::{KernelRef, MailboxSender};
+use crate::system::{ActorSystem, Evt, query};
+use crate::system::{Timer, Job, OnceJob, RepeatJob};
+use crate::validate::{validate_name, InvalidPath};
 
 #[derive(Clone)]
 pub struct ActorCell<Msg: Message> {
@@ -323,10 +325,14 @@ impl<Msg> CellInternal for ActorCell<Msg>
             (Some(_), Some(es), Some(perconf)) => {
                 let q = query(&perconf.id, &perconf.keyspace, &es, self);
                 let myself = self.myself();
-                self.execute(
+
+                let _ = self.execute(
                     q.map(move |evts| {
-                        myself.sys_tell(SystemMsg::Replay(evts), None);
-                    }));
+                        if let Ok(evts) = evts {
+                            myself.sys_tell(SystemMsg::Replay(evts), None);
+                        }
+                    })
+                );
                 
                 false
             }
@@ -350,14 +356,27 @@ impl<Msg> CellInternal for ActorCell<Msg>
     }
 }
 
+// impl<Msg> ExecutionContext for ActorCell<Msg>
+//     where Msg: Message
+// {
+//     fn execute<F: Future>(&self, f: F) -> DispatchHandle<F::Item, F::Error>
+//         where F: Future + Send + 'static,
+//                 F::Output: Send + 'static
+//     {
+//         self.inner.kernel.execute(f)
+//     }
+// }
+
 impl<Msg> ExecutionContext for ActorCell<Msg>
     where Msg: Message
 {
-    fn execute<F: Future>(&self, f: F) -> DispatchHandle<F::Item, F::Error>
+    fn execute<F>(&self, f: F) -> RemoteHandle<ExecResult<F::Output>>
         where F: Future + Send + 'static,
-                F::Item: Send + 'static,
-                F::Error: Send + 'static,
+                <F as Future>::Output: std::marker::Send
     {
+        let f = AssertUnwindSafe(f)
+            .catch_unwind()
+            .map_err(|_|ExecError);
         self.inner.kernel.execute(f)
     }
 }
@@ -405,7 +424,7 @@ pub trait CellPublic {
     fn parent(&self) -> ActorRef<Self::Msg>;
 
     /// Returns an iterator for the actor's children references
-    fn children<'a>(&'a self) -> Box<Iterator<Item = ActorRef<Self::Msg>> + 'a>;
+    fn children<'a>(&'a self) -> Box<dyn Iterator<Item = ActorRef<Self::Msg>> + 'a>;
 
     fn user_root(&self) -> ActorRef<Self::Msg>;
 
@@ -436,7 +455,7 @@ impl<Msg> CellPublic for ActorCell<Msg>
         self.inner.parent.as_ref().unwrap().clone()
     }
 
-    fn children<'a>(&'a self) -> Box<Iterator<Item = ActorRef<Msg>> + 'a> {
+    fn children<'a>(&'a self) -> Box<dyn Iterator<Item = ActorRef<Msg>> + 'a> {
         Box::new(self.inner.children.iter().clone())
     }
 
@@ -702,11 +721,13 @@ impl<Msg> Timer for Context<Msg>
 impl<Msg> ExecutionContext for Context<Msg>
     where Msg: Message
 {
-    fn execute<F: Future>(&self, f: F) -> DispatchHandle<F::Item, F::Error>
+    fn execute<F>(&self, f: F) -> RemoteHandle<ExecResult<F::Output>>
         where F: Future + Send + 'static,
-                F::Item: Send + 'static,
-                F::Error: Send + 'static,
+                <F as Future>::Output: std::marker::Send
     {
+        let f = AssertUnwindSafe(f)
+            .catch_unwind()
+            .map_err(|_|ExecError);
         self.kernel.execute(f)
     }
 }
@@ -776,45 +797,3 @@ pub struct PersistenceConf {
     pub id: String,
     pub keyspace: String,
 }
-
-// #[cfg(test)]
-// mod tests {
-//     use actors::{Actor, ActorRefFactory, ActorSystem, Context, Envelope, Props};
-//     use test_mocks::{MockModel, get_test_config};
-
-//     struct TestActor;
-//     impl Actor for TestActor {
-//         type Msg = String;
-//         fn receive(&mut self, _: &Context<Self::Msg>, _: Envelope<Self::Msg>) {}
-//     }
-    
-//     #[test]
-//     fn test_actor_of_bad_name() {
-//         let model = MockModel;
-//         let asys = ActorSystem::with_config(&model, "system", &get_test_config()).unwrap();
-//         let act1 = asys.actor_of(Props::new(Box::new(|| {Box::new(TestActor)})), "test").unwrap();
-        
-//         let ctx = act1.underlying;
-//         assert!(ctx.actor_of(Props::new(Box::new(|| {Box::new(TestActor)})), "@#$&*^").is_err());
-//     }
-    
-//     #[test]
-//     fn test_actor_of_already_existing() {
-//         let model = MockModel;
-//         let asys = ActorSystem::with_config(&model, "system", &get_test_config()).unwrap();
-//         let act1 = asys.actor_of(Props::new(Box::new(|| {Box::new(TestActor)})), "test").unwrap();
-        
-//         let ctx = act1.underlying;
-//         let act1a = ctx.actor_of(Props::new(Box::new(|| {Box::new(TestActor)})), "foo").unwrap();
-    
-//         let act1b = asys.actor_of(Props::new(Box::new(|| {Box::new(TestActor)})), "test")
-//             .expect_err("Duplicate actor path '/test' should fail");
-    
-//         let act1a2 = ctx.actor_of(Props::new(Box::new(|| {Box::new(TestActor)})), "foo")
-//             .expect_err("Duplicate actor path '/test/foo' should fail");
-    
-//         let act1c = ctx.actor_of(Props::new(Box::new(|| {Box::new(TestActor)})), "test/foo")
-//             .expect_err("Duplicate actor path '/test/foo' should fail");
-    
-//     }
-// }

@@ -1,15 +1,17 @@
 use std::sync::{Arc, Mutex};
 use std::marker::PhantomData;
+use std::pin::Pin;
 
 use chrono::prelude::{DateTime, Utc};
 use config::Config;
+use log::{log, warn};
 
-use futures::{Future, Poll, Async, task, Never};
-use futures::channel::oneshot::{channel, Sender, Receiver};
+use futures::{Future, FutureExt};
+use futures::channel::oneshot::{channel, Sender, Canceled};
 
-use protocol::{Message, ActorMsg, ESMsg, SystemMsg};
-use actors::{Actor, BoxActor, Context, ActorRef, BoxActorProd};
-use actors::{Props, ActorRefFactory, TmpActorRefFactory, Tell, SysTell};
+use crate::protocol::{Message, ActorMsg, ESMsg, SystemMsg};
+use crate::actors::{Actor, BoxActor, Context, ActorRef, BoxActorProd};
+use crate::actors::{Props, ActorRefFactory, TmpActorRefFactory, Tell, SysTell};
 
 // use actor::BoxActorProd;
 
@@ -156,45 +158,6 @@ impl<Msg: Message> EventStore for NoEventStore<Msg> {
     }
 }
 
-pub struct EsQuery<Msg: Message> {
-    inner: Receiver<Vec<Msg>>,
-}
-
-impl<Msg> EsQuery<Msg>
-    where Msg: Message
-{
-    pub fn new<Ctx>(id: &String,
-                    keyspace: &String,
-                    es: &ActorRef<Msg>,
-                    ctx: &Ctx) -> EsQuery<Msg>
-        where Ctx: TmpActorRefFactory<Msg=Msg>
-    {
-        let (tx, rx) = channel::<Vec<Msg>>();
-        let tx = Arc::new(Mutex::new(Some(tx)));
-
-        let props = Props::new_args(Box::new(EsQueryActor::new), tx);
-        let actor = ctx.tmp_actor_of(props).unwrap();
-        es.tell(ESMsg::Load(id.clone(), keyspace.clone()), Some(actor));
-
-        EsQuery {
-            inner: rx
-        }
-    }
-}
-
-impl<Msg: Message> Future for EsQuery<Msg> {
-    type Item = Vec<Msg>;
-    type Error = Never;
-
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Self::Item, Never> {
-        match self.inner.poll(cx) {
-            Ok(Async::Ready(e)) => Ok(Async::Ready(e)),
-            Ok(Async::Pending) => return Ok(Async::Pending),
-            Err(_) => panic!(),
-        }
-    }
-}
-
 struct EsQueryActor<Msg: Message> {
     tx: Arc<Mutex<Option<Sender<Vec<Msg>>>>>,
 }
@@ -235,7 +198,7 @@ impl<Msg: Message> Actor for EsQueryActor<Msg> {
     }
 }
 
-type QueryFuture<Msg> = Box<Future<Item=Vec<Msg>, Error=Never> + Send>;
+type QueryFuture<Msg> = Pin<Box<dyn Future<Output=Result<Vec<Msg>, Canceled>> + Send>>;
 
 pub fn query<Msg, Ctx>(id: &String,
                         keyspace: &String,
@@ -243,5 +206,13 @@ pub fn query<Msg, Ctx>(id: &String,
                         ctx: &Ctx) -> QueryFuture<Msg>
     where Msg: Message, Ctx: TmpActorRefFactory<Msg=Msg>
 {
-    Box::new(EsQuery::new(id, keyspace, es, ctx))
+    let (tx, rx) = channel::<Vec<Msg>>();
+    let tx = Arc::new(Mutex::new(Some(tx)));
+
+    let props = Props::new_args(Box::new(EsQueryActor::new), tx);
+    let actor = ctx.tmp_actor_of(props).unwrap();
+    es.tell(ESMsg::Load(id.clone(), keyspace.clone()), Some(actor));
+
+    // Box::new(rx)
+    rx.boxed()
 }

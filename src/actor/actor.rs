@@ -1,8 +1,8 @@
 #![allow(unused_variables)]
 
-use protocol::{Message, SystemMsg, ActorMsg};
-use actor::actor_ref::ActorRef;
-use actor::actor_cell::{Context, PersistenceConf};
+use crate::protocol::{Message, SystemMsg, ActorMsg};
+use crate::actor::actor_ref::ActorRef;
+use crate::actor::actor_cell::{Context, PersistenceConf};
 
 /// An Actor represents a struct that will be scheduled for execution when it is sent a message.
 /// 
@@ -257,7 +257,7 @@ impl<A: Actor + ?Sized> Actor for Box<A> {
 }
 
 /// The actor trait object
-pub type BoxActor<Msg> = Box<Actor<Msg=Msg> + Send>;
+pub type BoxActor<Msg> = Box<dyn Actor<Msg=Msg> + Send>;
 
 /// Supervision strategy
 /// 

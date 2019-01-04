@@ -1,12 +1,7 @@
-extern crate config;
-extern crate chrono;
-extern crate riker;
-#[macro_use]
-extern crate runtime_fmt;
-
 use std::marker::PhantomData;
 
 use config::Config;
+use runtime_fmt::{rt_println, rt_format_args};
 
 use riker::actors::*;
 use riker::system::LoggerProps;

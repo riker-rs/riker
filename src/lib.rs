@@ -1,36 +1,53 @@
 #![crate_name = "riker"]
-
-extern crate bytes;
-extern crate chrono;
-extern crate config;
-extern crate futures;
-extern crate regex;
-#[macro_use] 
-extern crate log;
-extern crate rand;
-extern crate uuid;
+#![feature(
+        async_await,
+        await_macro,
+        futures_api,
+        arbitrary_self_types
+)]
 
 mod validate;
 
 pub mod actor;
-pub mod futures_util;
 pub mod kernel;
 pub mod model;
 pub mod protocol;
 pub mod system;
 
 use std::env;
+use std::error::Error;
+use std::fmt;
 
 use futures::Future;
+use futures::future::RemoteHandle;
 use config::{Config, File};
 
-use futures_util::DispatchHandle;
-
 pub trait ExecutionContext {
-    fn execute<F>(&self, f: F) -> DispatchHandle<F::Item, F::Error>
+    fn execute<F>(&self, f: F) -> RemoteHandle<ExecResult<F::Output>>
         where F: Future + Send + 'static,
-                F::Item: Send + 'static,
-                F::Error: Send + 'static;
+                <F as Future>::Output: std::marker::Send;
+}
+
+pub type ExecResult<T> = Result<T, ExecError>;
+
+pub struct ExecError;
+
+impl Error for ExecError {
+    fn description(&self) -> &str {
+        "Panic occurred during execution of the task."
+    }
+}
+
+impl fmt::Display for ExecError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("Panic occurred during execution of the task.")
+    }
+}
+
+impl fmt::Debug for ExecError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str(self.description())
+    }
 }
 
 pub fn load_config() -> Config {
@@ -54,17 +71,15 @@ pub fn load_config() -> Config {
     // app.toml or app.yaml contains settings specific to the user application
     let path = env::var("APP_CONF").unwrap_or("config/app".into());
     cfg.merge(File::with_name(&format!("{}", path)).required(false)).unwrap();
-    
     cfg
 }
 
 // Pub exports
 pub mod actors {
-    pub use model::Model;
-    pub use protocol::{Message, ActorMsg, ChannelMsg, Identify, SystemEnvelope, SystemMsg, SystemEvent, IOMsg, ESMsg, CQMsg};
-    pub use ExecutionContext;
-    pub use actor::*;
-    pub use system::{ActorSystem, Evt,Timer};
-    pub use load_config;
-    // pub use errors::Error as AMError;
+    pub use crate::model::Model;
+    pub use crate::protocol::{Message, ActorMsg, ChannelMsg, Identify, SystemEnvelope, SystemMsg, SystemEvent, IOMsg, ESMsg, CQMsg};
+    pub use crate::{ExecutionContext, ExecResult};
+    pub use crate::actor::*;
+    pub use crate::system::{ActorSystem, Evt,Timer};
+    pub use crate::load_config;
 }

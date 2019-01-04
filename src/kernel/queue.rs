@@ -1,7 +1,7 @@
 use std::sync::Mutex;
 use std::sync::mpsc::{channel, Sender, Receiver};
 
-use protocol::{Message, Enqueued};
+use crate::protocol::{Message, Enqueued};
 
 pub fn queue<Msg: Message>() -> (QueueWriter<Msg>, QueueReader<Msg>) {
     let (tx, rx) = channel::<Enqueued<Msg>>();
