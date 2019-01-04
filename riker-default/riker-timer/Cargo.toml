@@ -10,7 +10,7 @@ license = "MIT"
 readme = "README.md"
 
 [dependencies]
-riker = { path = "../../", version = "0.1.9" }
+riker = { path = "../../", version = "0.2.0" }
 config = "0.9"
 uuid = { version = "0.6", features = ["v4"] }
 

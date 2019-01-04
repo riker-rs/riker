@@ -11,7 +11,7 @@ readme = "README.md"
 keywords = ["event-sourcing", "scheduler", "async"]
 
 [dependencies]
-riker = { path = "../", version = "0.1.9" }
+riker = { path = "../", version = "0.2.0" }
 riker-deadletter = { path = "riker-deadletter", version = "0.1.9" }
 riker-dispatcher = { path = "riker-dispatcher", version = "0.1.9" }
 riker-log = { path = "riker-log", version = "0.1.9" }

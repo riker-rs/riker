@@ -11,7 +11,7 @@ readme = "README.md"
 
 
 [dependencies]
-riker = { path = "../../", version = "0.1.9" }
+riker = { path = "../../", version = "0.2.0" }
 config = "0.9"
 
 [dev-dependencies]
