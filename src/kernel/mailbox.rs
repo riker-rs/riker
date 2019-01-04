@@ -178,7 +178,7 @@ pub fn run_mailbox<Msg>(mbox: Mailbox<Msg>,
 
     process_sys_msgs(&mbox, &cell, &ctx, &mut actor);
 
-    if !mbox.is_suspended() {
+    if actor.is_some() && !mbox.is_suspended() {
         process_msgs(&mbox, &cell, &ctx, &mut actor);
     }
 
