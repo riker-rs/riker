@@ -5,18 +5,11 @@
         arbitrary_self_types
 )]
 
-extern crate riker;
-extern crate riker_default;
-
-extern crate futures;
-
 use riker::actors::*;
 use riker_default::DefaultModel;
 
-use futures::future::*;
 use futures::executor::block_on;
 
-// todo add test documentation
 struct ShutdownTestActor {
     level: u32,
 }
@@ -62,7 +55,6 @@ fn system_shutdown() {
     let props = Props::new_args(Box::new(ShutdownTestActor::new), 1);
     let _ = system.actor_of(props, "test-actor-1").unwrap();
 
-    // std::thread::sleep(std::time::Duration::from_millis(2000));
     block_on(system.shutdown());
 }
 

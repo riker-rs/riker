@@ -9,7 +9,7 @@ use std::panic::AssertUnwindSafe;
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 use rand;
-use log::warn;
+use log::{log, warn};
 use futures::{Future, FutureExt, TryFutureExt};
 use futures::future::RemoteHandle;
 
@@ -356,25 +356,9 @@ impl<Msg> CellInternal for ActorCell<Msg>
     }
 }
 
-// impl<Msg> ExecutionContext for ActorCell<Msg>
-//     where Msg: Message
-// {
-//     fn execute<F: Future>(&self, f: F) -> DispatchHandle<F::Item, F::Error>
-//         where F: Future + Send + 'static,
-//                 F::Output: Send + 'static
-//     {
-//         self.inner.kernel.execute(f)
-//     }
-// }
-
 impl<Msg> ExecutionContext for ActorCell<Msg>
     where Msg: Message
 {
-    // fn execute<F: Future>(&self, f: F)
-    //     where F: Future<Output=()> + Send + 'static
-    // {
-    //     self.inner.kernel.execute(f)
-    // }
     fn execute<F>(&self, f: F) -> RemoteHandle<ExecResult<F::Output>>
         where F: Future + Send + 'static,
                 <F as Future>::Output: std::marker::Send
@@ -723,26 +707,9 @@ impl<Msg> Timer for Context<Msg>
     }
 }
 
-// impl<Msg> ExecutionContext for Context<Msg>
-//     where Msg: Message
-// {
-//     fn execute<F: Future>(&self, f: F) -> DispatchHandle<F::Item, F::Error>
-//         where F: Future + Send + 'static,
-//                 F::Item: Send + 'static,
-//                 F::Error: Send + 'static,
-//     {
-//         self.kernel.execute(f)
-//     }
-// }
-
 impl<Msg> ExecutionContext for Context<Msg>
     where Msg: Message
 {
-    // fn execute<F: Future>(&self, f: F)
-    //     where F: Future<Output=()> + Send + 'static
-    // {
-    //     self.kernel.execute(f)
-    // }
     fn execute<F>(&self, f: F) -> RemoteHandle<ExecResult<F::Output>>
         where F: Future + Send + 'static,
                 <F as Future>::Output: std::marker::Send

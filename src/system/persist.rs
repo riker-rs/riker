@@ -4,7 +4,7 @@ use std::pin::Pin;
 
 use chrono::prelude::{DateTime, Utc};
 use config::Config;
-use log::warn;
+use log::{log, warn};
 
 use futures::{Future, FutureExt};
 use futures::channel::oneshot::{channel, Sender, Canceled};

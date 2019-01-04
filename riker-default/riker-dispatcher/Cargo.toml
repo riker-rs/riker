@@ -10,14 +10,7 @@ license = "MIT"
 readme = "README.md"
 
 [dependencies]
-<<<<<<< d48c2e162dbd2825d597bae1d5ae92e8e352980b
 riker = { path = "../../", version = "0.1.9" }
 config = "0.9"
-futures-preview = "0.2.2"
-=======
-riker = { path = "../../", version = "0.1.8" }
-config = "0.8"
-# futures-preview = "0.2.2"
 futures-preview = "0.3.0-alpha.10"
->>>>>>> Actors and Futures run with catch_unwind
 futures-cpupool = "0.1.8"

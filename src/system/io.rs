@@ -5,7 +5,7 @@ use std::net::SocketAddr;
 use std::marker::PhantomData;
 
 use config::Config;
-use log::{error, trace, warn};
+use log::{log, error, trace, warn};
 
 use crate::protocol::{Message, ActorMsg, IOMsg};
 use crate::actors::{Actor, ActorRef, Context, Tell, BoxActor, BoxActorProd, Props, ActorRefFactory};

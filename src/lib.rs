@@ -78,7 +78,7 @@ pub fn load_config() -> Config {
 pub mod actors {
     pub use crate::model::Model;
     pub use crate::protocol::{Message, ActorMsg, ChannelMsg, Identify, SystemEnvelope, SystemMsg, SystemEvent, IOMsg, ESMsg, CQMsg};
-    pub use crate::ExecutionContext;
+    pub use crate::{ExecutionContext, ExecResult};
     pub use crate::actor::*;
     pub use crate::system::{ActorSystem, Evt,Timer};
     pub use crate::load_config;

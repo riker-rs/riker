@@ -1,9 +1,5 @@
-extern crate riker;
-extern crate riker_default;
 #[macro_use]
 extern crate riker_testkit;
-
-extern crate futures;
 
 use riker::actors::*;
 use riker_default::DefaultModel;

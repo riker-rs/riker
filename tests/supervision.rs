@@ -1,5 +1,3 @@
-extern crate riker;
-extern crate riker_default;
 #[macro_use]
 extern crate riker_testkit;
 

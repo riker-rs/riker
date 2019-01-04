@@ -97,16 +97,7 @@ impl<Msg> KernelRef<Msg>
         let (r, rh) = f.remote_handle();
         send(RunFuture(r.boxed()), &self.kernel_tx);
         rh
-        // unimplemented!()
     }
-
-    // pub fn execute<F: Future>(&self, f: F)
-    //     where F: Future<Output=()> + Send + 'static
-    // {
-    //     send(RunFuture(Box::new(f)), &self.kernel_tx);
-    // }
-
-    // Scheduler
 
     pub fn schedule(&self, job: Job<Msg>) {
         drop(self.timer_tx.send(job))

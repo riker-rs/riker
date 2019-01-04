@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::marker::PhantomData;
 
-use log::trace;
+use log::{log, trace};
 
 use crate::protocol::Message;
 use crate::actor::{ActorId, Actor, ActorRef, ActorUri, Context, ActorCell, CellInternal};

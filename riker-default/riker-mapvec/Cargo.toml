@@ -15,5 +15,5 @@ riker = { path = "../../", version = "0.1.9" }
 config = "0.9"
 
 [dev-dependencies]
-riker-default = { path = "../", version = "0.1.8" }
+riker-default = { path = "../", version = "0.1.9" }
 riker-testkit = "0.1.0"

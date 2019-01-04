@@ -11,7 +11,7 @@ use uuid::Uuid;
 use futures::{Future, FutureExt, TryFutureExt};
 use futures::future::RemoteHandle;
 use futures::channel::oneshot::{channel, Sender};
-use log::{debug, Level};
+use log::{log, debug, Level};
 
 use crate::model::Model;
 use crate::protocol::{Message, ActorMsg, SystemMsg, ChannelMsg, ActorCmd, SystemEvent, IOMsg};
@@ -480,16 +480,6 @@ impl<Msg> ExecutionContext for ActorSystem<Msg>
         self.kernel.as_ref().unwrap().execute(f)
     }
 }
-
-// impl<Msg> ExecutionContext for ActorSystem<Msg>
-//     where Msg: Message
-// {
-//     fn execute<F: Future>(&self, f: F)
-//         where F: Future<Output=()> + Send + 'static
-//     {
-//         self.kernel.as_ref().unwrap().execute(f)
-//     }
-// }
 
 impl<Msg> fmt::Debug for ActorSystem<Msg>
     where Msg: Message
