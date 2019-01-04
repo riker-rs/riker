@@ -36,5 +36,5 @@ uuid = { version = "0.6", features = ["v4"] }
 pin-utils = "0.1.0-alpha.3"
 
 [dev-dependencies]
-riker-default = { path = "riker-default", version = "0.1.9" }
+riker-default = { path = "riker-default", version = "0.2.0" }
 riker-testkit = "0.1.0"
