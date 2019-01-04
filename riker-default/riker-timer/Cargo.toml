@@ -15,6 +15,6 @@ config = "0.9"
 uuid = { version = "0.6", features = ["v4"] }
 
 [dev-dependencies]
-riker-default = { path = "../", version = "0.2.0" }
+# riker-default = { path = "../", version = "0.2.0" }
 riker-testkit = "0.1.0"
 chrono = "0.4"
