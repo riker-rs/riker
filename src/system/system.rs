@@ -2,20 +2,19 @@ use std::fmt;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, Duration};
-use std::panic::AssertUnwindSafe;
 
 use chrono::prelude::*;
 use config::Config;
 use rand;
 use uuid::Uuid;
-use futures::{Future, FutureExt, TryFutureExt};
+use futures::Future;
 use futures::future::RemoteHandle;
 use futures::channel::oneshot::{channel, Sender};
 use log::{log, debug, Level};
 
 use crate::model::Model;
 use crate::protocol::{Message, ActorMsg, SystemMsg, ChannelMsg, ActorCmd, SystemEvent, IOMsg};
-use crate::{ExecutionContext, ExecResult, ExecError};
+use crate::ExecutionContext;
 
 use crate::system::timer::{Timer, TimerFactory, Job, OnceJob, RepeatJob};
 use crate::system::persist::EsManager;
@@ -470,13 +469,10 @@ impl<Msg> Timer for ActorSystem<Msg>
 impl<Msg> ExecutionContext for ActorSystem<Msg>
     where Msg: Message
 {
-    fn execute<F>(&self, f: F) -> RemoteHandle<ExecResult<F::Output>>
+    fn execute<F>(&self, f: F) -> RemoteHandle<F::Output>
         where F: Future + Send + 'static,
             <F as Future>::Output: std::marker::Send
     {
-        let f = AssertUnwindSafe(f)
-            .catch_unwind()
-            .map_err(|_|ExecError);
         self.kernel.as_ref().unwrap().execute(f)
     }
 }

@@ -4,17 +4,16 @@ use std::sync::{Arc, RwLock};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::collections::HashMap;
 use std::ops::Deref;
-use std::panic::AssertUnwindSafe;
 
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 use rand;
 use log::{log, warn};
-use futures::{Future, FutureExt, TryFutureExt};
+use futures::Future;
 use futures::future::RemoteHandle;
 
 use crate::protocol::*;
-use crate::{ExecutionContext, ExecResult, ExecError};
+use crate::ExecutionContext;
 use crate::actor::*;
 use crate::actor::dead_letter;
 use crate::kernel::{KernelRef, MailboxSender};
@@ -323,16 +322,12 @@ impl<Msg> CellInternal for ActorCell<Msg>
 
         match (actor, event_store, perconf) {
             (Some(_), Some(es), Some(perconf)) => {
-                let q = query(&perconf.id, &perconf.keyspace, &es, self);
                 let myself = self.myself();
-
-                let _ = self.execute(
-                    q.map(move |evts| {
-                        if let Ok(evts) = evts {
-                            myself.sys_tell(SystemMsg::Replay(evts), None);
-                        }
-                    })
-                );
+                query(&perconf.id,
+                        &perconf.keyspace,
+                        &es,
+                        self,
+                        myself);
                 
                 false
             }
@@ -356,27 +351,13 @@ impl<Msg> CellInternal for ActorCell<Msg>
     }
 }
 
-// impl<Msg> ExecutionContext for ActorCell<Msg>
-//     where Msg: Message
-// {
-//     fn execute<F: Future>(&self, f: F) -> DispatchHandle<F::Item, F::Error>
-//         where F: Future + Send + 'static,
-//                 F::Output: Send + 'static
-//     {
-//         self.inner.kernel.execute(f)
-//     }
-// }
-
 impl<Msg> ExecutionContext for ActorCell<Msg>
     where Msg: Message
 {
-    fn execute<F>(&self, f: F) -> RemoteHandle<ExecResult<F::Output>>
+    fn execute<F>(&self, f: F) -> RemoteHandle<F::Output>
         where F: Future + Send + 'static,
                 <F as Future>::Output: std::marker::Send
     {
-        let f = AssertUnwindSafe(f)
-            .catch_unwind()
-            .map_err(|_|ExecError);
         self.inner.kernel.execute(f)
     }
 }
@@ -721,13 +702,10 @@ impl<Msg> Timer for Context<Msg>
 impl<Msg> ExecutionContext for Context<Msg>
     where Msg: Message
 {
-    fn execute<F>(&self, f: F) -> RemoteHandle<ExecResult<F::Output>>
+    fn execute<F>(&self, f: F) -> RemoteHandle<F::Output>
         where F: Future + Send + 'static,
                 <F as Future>::Output: std::marker::Send
     {
-        let f = AssertUnwindSafe(f)
-            .catch_unwind()
-            .map_err(|_|ExecError);
         self.kernel.execute(f)
     }
 }

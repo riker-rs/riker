@@ -15,39 +15,15 @@ pub mod protocol;
 pub mod system;
 
 use std::env;
-use std::error::Error;
-use std::fmt;
 
 use futures::Future;
 use futures::future::RemoteHandle;
 use config::{Config, File};
 
 pub trait ExecutionContext {
-    fn execute<F>(&self, f: F) -> RemoteHandle<ExecResult<F::Output>>
+    fn execute<F>(&self, f: F) -> RemoteHandle<F::Output>
         where F: Future + Send + 'static,
                 <F as Future>::Output: std::marker::Send;
-}
-
-pub type ExecResult<T> = Result<T, ExecError>;
-
-pub struct ExecError;
-
-impl Error for ExecError {
-    fn description(&self) -> &str {
-        "Panic occurred during execution of the task."
-    }
-}
-
-impl fmt::Display for ExecError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str("Panic occurred during execution of the task.")
-    }
-}
-
-impl fmt::Debug for ExecError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(self.description())
-    }
 }
 
 pub fn load_config() -> Config {
@@ -78,7 +54,7 @@ pub fn load_config() -> Config {
 pub mod actors {
     pub use crate::model::Model;
     pub use crate::protocol::{Message, ActorMsg, ChannelMsg, Identify, SystemEnvelope, SystemMsg, SystemEvent, IOMsg, ESMsg, CQMsg};
-    pub use crate::{ExecutionContext, ExecResult};
+    pub use crate::ExecutionContext;
     pub use crate::actor::*;
     pub use crate::system::{ActorSystem, Evt,Timer};
     pub use crate::load_config;

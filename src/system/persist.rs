@@ -1,33 +1,13 @@
 use std::sync::{Arc, Mutex};
 use std::marker::PhantomData;
-use std::pin::Pin;
 
 use chrono::prelude::{DateTime, Utc};
 use config::Config;
 use log::{log, warn};
 
-use futures::{Future, FutureExt};
-use futures::channel::oneshot::{channel, Sender, Canceled};
-
 use crate::protocol::{Message, ActorMsg, ESMsg, SystemMsg};
 use crate::actors::{Actor, BoxActor, Context, ActorRef, BoxActorProd};
 use crate::actors::{Props, ActorRefFactory, TmpActorRefFactory, Tell, SysTell};
-
-// use actor::BoxActorProd;
-
-// pub trait EsManagerProps {
-//     type Msg: Message;
-//     type Evs: EventStore;
-
-//     fn props(config: &Config) -> Option<BoxActorProd<Self::Msg>>;
-// }
-
-// pub fn es_manager<Evs>(config: &Config) -> BoxActor<Evs::Msg>
-//     where Evs: EventStore
-// {
-    
-
-// }
 
 pub struct EsManager<Evs: EventStore> {
     es: Evs,
@@ -60,7 +40,6 @@ impl<Evs: EventStore> Actor for EsManager<Evs> {
             match msg {
                 ESMsg::Persist(evt, id, keyspace) => {
                     self.es.insert(&id, &keyspace, evt.clone());
-
                     sender.unwrap().sys_tell(SystemMsg::Persisted(evt.msg), None);
                 }
                 ESMsg::Load(id, keyspace) => {
@@ -100,39 +79,6 @@ impl<Msg: Message> Evt<Msg> {
     }
 }
 
-// #[allow(dead_code)]
-// pub struct NoPersist<Evs: EventStore> {
-//     es: Evs,
-// }
-
-// #[allow(dead_code)]
-// impl<Evs: EventStore> NoPersist<Evs> {
-//     fn new(es: Evs) -> BoxActor<Evs::Msg>
-//     {
-//         let actor: NoPersist<Evs> = NoPersist {
-//             es: es,
-//         };
-
-//         Box::new(actor)
-//     }
-// }
-
-// impl<Evs: EventStore> Actor for NoPersist<Evs> {
-//     type Msg = Evs::Msg;
-
-//     fn receive(&mut self, _: &Context<Self::Msg>, _: Self::Msg, _: Option<ActorRef<Self::Msg>>) {}
-// }
-
-// impl<Evs: EventStore> EsManagerProps for NoPersist<Evs> {
-//     type Msg = Evs::Msg;
-//     type Evs = Evs;
-
-//     fn props(_config: &Config) -> Option<BoxActorProd<Self::Msg>> {
-//         None
-//     }
-// }
-
-
 #[derive(Clone)]
 pub struct NoEventStore<Msg: Message> {
     msg: Arc<Mutex<PhantomData<Msg>>>,
@@ -159,22 +105,19 @@ impl<Msg: Message> EventStore for NoEventStore<Msg> {
 }
 
 struct EsQueryActor<Msg: Message> {
-    tx: Arc<Mutex<Option<Sender<Vec<Msg>>>>>,
+    rec: ActorRef<Msg>,
 }
 
 impl<Msg: Message> EsQueryActor<Msg> {
-    fn new(tx: Arc<Mutex<Option<Sender<Vec<Msg>>>>>) -> BoxActor<Msg> {
-        let ask = EsQueryActor {
-            tx: tx
+    fn actor(rec: ActorRef<Msg>) -> BoxActor<Msg> {
+        let actor = EsQueryActor {
+            rec
         };
-        Box::new(ask)
+        Box::new(actor)
     }
 
-    fn fulfill_query(&self, events: Vec<Msg>) {
-        match self.tx.lock() {
-            Ok(mut tx) => drop(tx.take().unwrap().send(events)),
-            _ => {}
-        }
+    fn fulfill_query(&self, evts: Vec<Msg>) {
+        self.rec.sys_tell(SystemMsg::Replay(evts), None);
     }
 }
 
@@ -198,21 +141,16 @@ impl<Msg: Message> Actor for EsQueryActor<Msg> {
     }
 }
 
-type QueryFuture<Msg> = Pin<Box<dyn Future<Output=Result<Vec<Msg>, Canceled>> + Send>>;
+// type QueryFuture<Msg> = Pin<Box<dyn Future<Output=Result<Vec<Msg>, Canceled>> + Send>>;
 
 pub fn query<Msg, Ctx>(id: &String,
                         keyspace: &String,
                         es: &ActorRef<Msg>,
-                        ctx: &Ctx) -> QueryFuture<Msg>
+                        ctx: &Ctx,
+                        rec: ActorRef<Msg>)
     where Msg: Message, Ctx: TmpActorRefFactory<Msg=Msg>
 {
-    let (tx, rx) = channel::<Vec<Msg>>();
-    let tx = Arc::new(Mutex::new(Some(tx)));
-
-    let props = Props::new_args(Box::new(EsQueryActor::new), tx);
+    let props = Props::new_args(Box::new(EsQueryActor::actor), rec);
     let actor = ctx.tmp_actor_of(props).unwrap();
     es.tell(ESMsg::Load(id.clone(), keyspace.clone()), Some(actor));
-
-    // Box::new(rx)
-    rx.boxed()
 }
