@@ -83,7 +83,27 @@ fn system_execute_futures() {
             format!("some_val_{}", i)
         });
         
-        assert_eq!(block_on(handle).unwrap(), format!("some_val_{}", i));
+        assert_eq!(block_on(handle), format!("some_val_{}", i));
+    }
+}
+
+#[test]
+fn system_panic_futures() {
+    let model: DefaultModel<TestMsg> = DefaultModel::new();
+    let system = ActorSystem::new(&model).unwrap();
+
+    for _ in 0..100 {
+        system.execute(async move {
+            panic!("// TEST PANIC // TEST PANIC // TEST PANIC //");
+        });
+    }
+
+    for i in 0..100 {
+        let handle = system.execute(async move {
+            format!("some_val_{}", i)
+        });
+        
+        assert_eq!(block_on(handle), format!("some_val_{}", i));
     }
 }
 
