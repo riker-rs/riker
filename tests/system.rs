@@ -94,11 +94,11 @@ fn system_panic_futures() {
 
     for _ in 0..100 {
         system.execute(async move {
-            panic!("** TEST **");
+            panic!("// TEST PANIC // TEST PANIC // TEST PANIC //");
         });
     }
 
-    for _ in 0..100 {
+    for i in 0..100 {
         let handle = system.execute(async move {
             format!("some_val_{}", i)
         });
