@@ -1,6 +1,6 @@
 [package]
 name = "riker-log"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["Lee Smith <leenozara@gmail.com>"]
 edition = "2018"
 description = "A Log module for Riker."
@@ -10,7 +10,7 @@ license = "MIT"
 readme = "README.md"
 
 [dependencies]
-riker = { path = "../../", version = "0.2.1" }
+riker = { path = "../../", version = "0.2.2" }
 chrono = "0.4"
 config = "0.9"
 runtime-fmt = "0.3.0"

@@ -1,6 +1,6 @@
 [package]
 name = "riker-mapvec"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["Lee Smith <leenozara@gmail.com>"]
 edition = "2018"
 description = "Simple in-memory datastore for Riker persistent actors"
@@ -11,7 +11,7 @@ readme = "README.md"
 
 
 [dependencies]
-riker = { path = "../../", version = "0.2.1" }
+riker = { path = "../../", version = "0.2.2" }
 config = "0.9"
 
 [dev-dependencies]
