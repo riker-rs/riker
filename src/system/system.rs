@@ -2,6 +2,7 @@ use std::fmt;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, Duration};
+use std::ops::Deref;
 
 use chrono::prelude::*;
 use config::Config;
@@ -382,7 +383,20 @@ impl<Msg> ActorSelectionFactory for ActorSystem<Msg>
 
     fn select(&self, path: &str)
                 -> Result<ActorSelection<Msg>, InvalidPath> {
-        ActorSelection::new(self.user_root(), path)
+        let anchor = self.user_root();
+        let (anchor, path_str) = if path.starts_with("/") {
+            let anchor = self.user_root();
+            let anchor_path = format!("{}/",anchor.uri.path.deref().clone());
+            let path = path.to_string().replace(&anchor_path, "");
+            
+            (anchor, path)
+        } else {
+            (anchor, path.to_string())
+        };
+
+        ActorSelection::new(anchor.clone(),
+                            self.dead_letters(),
+                            path_str)
     }
 }
 

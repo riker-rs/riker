@@ -126,12 +126,12 @@ fn select_all_children_of_child() {
     p_assert_eq!(listen, ());
 
     // select absolute test actors through actor selection: /root/user/select-actor/*
-    // let selection = system.select("/user/select-actor/*").unwrap();
-    // selection.tell(TestMsg(probe), None);
+    let selection = system.select("/user/select-actor/*").unwrap();
+    selection.tell(TestMsg(probe), None);
 
-    // // actors 'child_a' and 'child_b' should both fire a probe event
-    // p_assert_eq!(listen, ());
-    // p_assert_eq!(listen, ());
+    // actors 'child_a' and 'child_b' should both fire a probe event
+    p_assert_eq!(listen, ());
+    p_assert_eq!(listen, ());
 }
 
 #[derive(Clone)]
@@ -170,6 +170,10 @@ impl Actor for SelectTestActorCtx {
         let sel = ctx.select("/user/select-actor/child_a").unwrap();
         sel.tell(msg.clone(), None);
 
+        // // absolute all: /user/select-actor/*
+        let sel = ctx.select("/user/select-actor/*").unwrap();
+        sel.tell(msg.clone(), None);
+
         // all: *
         let sel = ctx.select("*").unwrap();
         sel.tell(msg, None);
@@ -187,11 +191,72 @@ fn select_ctx() {
     let (probe, listen) = probe();
     actor.tell(TestMsg(probe), None);
 
-    // five test results expected:
+    // seven test results expected:
+    p_assert_eq!(listen, ());
+    p_assert_eq!(listen, ());
+    p_assert_eq!(listen, ());
+    p_assert_eq!(listen, ());
+    p_assert_eq!(listen, ());
+    p_assert_eq!(listen, ());
+    p_assert_eq!(listen, ());
+}
 
-    p_assert_eq!(listen, ());
-    p_assert_eq!(listen, ());
-    p_assert_eq!(listen, ());
-    p_assert_eq!(listen, ());
+
+// *** Dead letters test ***
+struct DeadLettersActor {
+    probe: Option<TestProbe>,
+}
+
+impl DeadLettersActor {
+    fn new() -> BoxActor<TestMsg> {
+        let actor = DeadLettersActor {
+            probe: None
+        };
+
+        Box::new(actor)
+    }
+}
+
+impl Actor for DeadLettersActor {
+    type Msg = TestMsg;
+
+    fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
+        // subscribe to dead_letters
+        let msg = ChannelMsg::Subscribe(All.into(), ctx.myself());
+        ctx.system.dead_letters().tell(msg, None);
+    }
+
+    fn receive(&mut self, _: &Context<Self::Msg>, msg: Self::Msg, _: Option<ActorRef<Self::Msg>>) {
+        msg.0.event(()); // notify listen then probe has been received.
+        self.probe = Some(msg.0);
+    }
+
+    fn other_receive(&mut self, _: &Context<Self::Msg>, msg: ActorMsg<Self::Msg>, _: Option<ActorRef<Self::Msg>>) {
+        if let ActorMsg::DeadLetter(dl) = msg {
+            println!("DeadLetter: {} => {} ({:?})", dl.sender, dl.recipient, dl.msg);
+            self.probe.event(());
+        }
+    }
+}
+
+#[test]
+fn select_no_actors() {
+    let model: DefaultModel<TestMsg> = DefaultModel::new();
+    let sys = ActorSystem::new(&model).unwrap();
+
+
+    let props = Props::new(Box::new(DeadLettersActor::new));
+    let act = sys.actor_of(props, "dl-subscriber").unwrap();
+
+    let (probe, listen) = probe();
+    act.tell(TestMsg(probe.clone()), None);
+    
+    // wait for the probe to arrive at the dl sub before doing select
+    listen.recv();
+
+    let sel = sys.select("nothing-here").unwrap();
+    
+    sel.tell(TestMsg(probe), None);
+
     p_assert_eq!(listen, ());
 }

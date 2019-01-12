@@ -48,7 +48,7 @@ pub struct InvalidPath {
 
 impl Error for InvalidPath {
     fn description(&self) -> &str {
-        "Invalid path. Must contain only a-Z, 0-9, /, _, .., or -"
+        "Invalid path. Must contain only a-Z, 0-9, /, _, .., - or *"
     }
 }
 

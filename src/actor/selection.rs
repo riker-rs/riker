@@ -3,7 +3,6 @@ use std::ops::Deref;
 
 use crate::protocol::{Message, SystemMsg, ActorMsg};
 use crate::actor::{Tell, SysTell};
-use crate::actor::CellInternal;
 use crate::actor::actor_ref::ActorRef;
 use crate::actor::channel::dead_letter;
 use crate::validate::{InvalidPath, validate_path};
@@ -33,24 +32,18 @@ use crate::validate::{InvalidPath, validate_path};
 #[derive(Debug)]
 pub struct ActorSelection<Msg: Message> {
     anchor: ActorRef<Msg>,
-    path: Vec<Selection>,
-    path_str: String,
+    dl: ActorRef<Msg>,
+    path_vec: Vec<Selection>,
+    path: String,
 }
 
 impl<Msg: Message> ActorSelection<Msg> {
-    pub fn new(anchor: &ActorRef<Msg>, path: &str) -> Result<ActorSelection<Msg>, InvalidPath> {
-        validate_path(path)?;
+    pub fn new(anchor: ActorRef<Msg>,
+                dl: &ActorRef<Msg>,
+                path: String) -> Result<ActorSelection<Msg>, InvalidPath> {
+        validate_path(&path)?;
 
-        let (anchor, path_str) = if path.starts_with("/") {
-            let anchor = anchor.user_root();
-            let anchor_path: String = format!("{}/", anchor.uri.path.deref().clone());
-            let path = path.to_string().replace(&anchor_path, "");
-            (anchor, path)
-        } else {
-            (anchor.clone(), path.to_string())
-        };
-
-        let path: Vec<Selection> = path_str.split_terminator('/').map({|seg|
+        let path_vec: Vec<Selection> = path.split_terminator('/').map({|seg|
             match seg {
                 ".." => Selection::SelectParent,
                 "*" => Selection::SelectAllChildren,
@@ -60,7 +53,12 @@ impl<Msg: Message> ActorSelection<Msg> {
             }
         }).collect();
 
-        Ok(ActorSelection { anchor: anchor, path: path, path_str: path_str })
+        Ok(ActorSelection {
+            anchor,
+            dl: dl.clone(),
+            path_vec,
+            path
+        })
     }
 }
 
@@ -86,21 +84,22 @@ impl<Msg: Message> Tell for ActorSelection<Msg> {
         where T: Into<ActorMsg<Self::Msg>>
     {
         fn walk<'a, I, Msg>(anchor: &ActorRef<Msg>,
-                            mut path: Peekable<I>,
+                            dl: &ActorRef<Msg>,
+                            mut path_vec: Peekable<I>,
                             msg: ActorMsg<Msg>,
                             sender: &Option<ActorRef<Msg>>,
-                            path_str: &String)
+                            path: &String)
             where I: Iterator<Item=&'a Selection>, Msg: Message
         {
-            let seg = path.next();
+            let seg = path_vec.next();
 
             match seg {
                 Some(&Selection::SelectParent) => {
-                    if path.peek().is_none() {
+                    if path_vec.peek().is_none() {
                         let parent = anchor.parent();
                         parent.tell(msg, sender.clone());
                     } else {
-                        walk(&anchor.parent(), path, msg, sender, path_str);
+                        walk(&anchor.parent(), dl, path_vec, msg, sender, path);
                     }
                 },
                 Some(&Selection::SelectAllChildren) => {
@@ -110,15 +109,24 @@ impl<Msg: Message> Tell for ActorSelection<Msg> {
                 },
                 Some(&Selection::SelectChildName(ref name)) => {
                     let child = anchor.children().filter({|c| c.name() == name}).last();
-                    if path.peek().is_none() && child.is_some() {
-                        child.unwrap().tell(msg, sender.clone());
-                    } else if path.peek().is_some() && child.is_some() {
-                        walk(&child.as_ref().unwrap(), path, msg, sender, path_str);
+                    if path_vec.peek().is_none() && child.is_some() {
+                        child.unwrap()
+                            .tell(msg, sender.clone());
+                    } else if path_vec.peek().is_some() && child.is_some() {
+                        walk(&child.as_ref().unwrap(),
+                            dl,
+                            path_vec,
+                            msg,
+                            sender,
+                            path);
                     } else {
-                        let sp = sender.clone().map(|s| s.uri.path.deref().clone());
-                        dead_letter(&anchor.cell.dead_letters(),
+                        let sp = sender.clone()
+                                        .map(|s| {
+                                            s.uri.path.deref().clone()
+                                        });
+                        dead_letter(dl,
                                     sp,
-                                    path_str.clone(),
+                                    path.clone(),
                                     msg);
                     }
                 },
@@ -126,7 +134,12 @@ impl<Msg: Message> Tell for ActorSelection<Msg> {
             }
         }
 
-        walk(&self.anchor, self.path.iter().peekable(), msg.into(), &sender, &self.path_str);
+        walk(&self.anchor,
+            &self.dl,
+            self.path_vec.iter().peekable(),
+            msg.into(),
+            &sender,
+            &self.path);
     }
 }
 
@@ -135,20 +148,20 @@ impl<Msg: Message> SysTell for ActorSelection<Msg> {
 
     fn sys_tell(&self, msg: SystemMsg<Msg>, sender: Option<ActorRef<Msg>>) {
         fn walk<'a, I, Msg>(anchor: &ActorRef<Msg>,
-            mut path: Peekable<I>,
+            mut path_vec: Peekable<I>,
             msg: SystemMsg<Msg>,
             sender: &Option<ActorRef<Msg>>)
             where I: Iterator<Item=&'a Selection>, Msg: Message
         {
-            let seg = path.next();
+            let seg = path_vec.next();
 
             match seg {
                 Some(&Selection::SelectParent) => {
-                    if path.peek().is_none() {
+                    if path_vec.peek().is_none() {
                         let parent = anchor.parent();
                         parent.sys_tell(msg, sender.clone());
                     } else {
-                        walk(&anchor.parent(), path, msg, sender);
+                        walk(&anchor.parent(), path_vec, msg, sender);
                     }
                 },
                 Some(&Selection::SelectAllChildren) => {
@@ -158,10 +171,10 @@ impl<Msg: Message> SysTell for ActorSelection<Msg> {
                 },
                 Some(&Selection::SelectChildName(ref name)) => {
                     let child = anchor.children().filter({|c| c.name() == name}).last();
-                    if path.peek().is_none() && child.is_some() {
+                    if path_vec.peek().is_none() && child.is_some() {
                         child.unwrap().sys_tell(msg, sender.clone());
-                    } else if path.peek().is_some() && child.is_some() {
-                        walk(&child.as_ref().unwrap(), path, msg, sender);
+                    } else if path_vec.peek().is_some() && child.is_some() {
+                        walk(&child.as_ref().unwrap(), path_vec, msg, sender);
                     } else {
                         // dead_letter(&anchor.cell.system().dead_letters(), sender.clone().map(|s| s.path().clone().location.path), path_str.clone(), msg);
                     }
@@ -170,6 +183,6 @@ impl<Msg: Message> SysTell for ActorSelection<Msg> {
             }
         }
 
-        walk(&self.anchor, self.path.iter().peekable(), msg, &sender);
+        walk(&self.anchor, self.path_vec.iter().peekable(), msg, &sender);
     }
 }
