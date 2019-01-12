@@ -244,7 +244,6 @@ fn select_no_actors() {
     let model: DefaultModel<TestMsg> = DefaultModel::new();
     let sys = ActorSystem::new(&model).unwrap();
 
-
     let props = Props::new(Box::new(DeadLettersActor::new));
     let act = sys.actor_of(props, "dl-subscriber").unwrap();
 
@@ -259,4 +258,23 @@ fn select_no_actors() {
     sel.tell(TestMsg(probe), None);
 
     p_assert_eq!(listen, ());
+}
+
+#[test]
+fn select_invalid_path() {
+    let model: DefaultModel<TestMsg> = DefaultModel::new();
+    let sys = ActorSystem::new(&model).unwrap();
+
+    // todo randomize the invalid character
+
+    let sel = sys.select("foo/`");
+    assert!(sel.is_err());
+    let sel = sys.select("foo/@");
+    assert!(sel.is_err());
+    let sel = sys.select("!");
+    assert!(sel.is_err());
+    let sel = sys.select("foo/$");
+    assert!(sel.is_err());
+    let sel = sys.select("&");
+    assert!(sel.is_err());
 }

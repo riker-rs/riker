@@ -8,7 +8,7 @@ homepage = "https://riker.rs"
 repository = "https://github.com/riker-rs/riker"
 license = "MIT"
 readme = "README.md"
-keywords = ["actors", "actor-model", "async", "cqrs"]
+keywords = ["actors", "actor-model", "async", "cqrs", "event_sourcing"]
 
 [badges]
 travis-ci = { repository = "riker-rs/riker" }
