@@ -614,7 +614,19 @@ impl<Msg> ActorSelectionFactory for Context<Msg>
     type Msg = Msg;
 
     fn select(&self, path: &str) -> Result<ActorSelection<Msg>, InvalidPath> {
-        ActorSelection::new(&self.myself.clone(), path)
+        let (anchor, path_str) = if path.starts_with("/") {
+            let anchor = self.system.user_root().clone();
+            let anchor_path = format!("{}/", anchor.uri.path.deref().clone());
+            let path = path.to_string().replace(&anchor_path, "");
+
+            (anchor, path)
+        } else {
+            (self.myself.clone(), path.to_string())
+        };
+
+        ActorSelection::new(anchor,
+                            self.system.dead_letters(),
+                            path_str)
     }
 }
 
