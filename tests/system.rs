@@ -93,7 +93,7 @@ fn system_panic_futures() {
     let system = ActorSystem::new(&model).unwrap();
 
     for _ in 0..100 {
-        system.execute(async move {
+        let _ = system.execute(async move {
             panic!("// TEST PANIC // TEST PANIC // TEST PANIC //");
         });
     }

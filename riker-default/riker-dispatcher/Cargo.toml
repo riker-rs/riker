@@ -1,6 +1,6 @@
 [package]
 name = "riker-dispatcher"
-version = "0.2.2"
+version = "0.2.3"
 authors = ["Lee Smith <leenozara@gmail.com>"]
 edition = "2018"
 description = "A Dispatcher module for Riker powered by `Futures::execution::ThreadPool`"
@@ -10,6 +10,6 @@ license = "MIT"
 readme = "README.md"
 
 [dependencies]
-riker = { path = "../../", version = "0.2.2" }
+riker = { path = "../../", version = "0.2.3" }
 config = "0.9"
-futures-preview = "0.3.0-alpha.10"
+futures-preview = "0.3.0-alpha.12"
