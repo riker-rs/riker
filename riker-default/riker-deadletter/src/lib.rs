@@ -1,7 +1,7 @@
 use riker::actors::*;
 use riker::actor::All;
 use riker::system::DeadLetterProps;
-use log::{log, info};
+use log::info;
 
 pub struct DeadLettersActor<Msg: Message> {
     dl: ActorRef<Msg>,

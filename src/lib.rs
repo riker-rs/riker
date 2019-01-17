@@ -6,6 +6,9 @@
         arbitrary_self_types
 )]
 
+#[allow(unused_imports)]
+extern crate log;
+
 mod validate;
 
 pub mod actor;

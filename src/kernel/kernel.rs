@@ -8,7 +8,7 @@ use std::ops::Deref;
 
 use futures::FutureExt;
 use config::Config;
-use log::{log, trace, warn};
+use log::{trace, warn};
 
 use crate::protocol::{Message, SystemMsg, SystemEvent, ChannelMsg};
 use crate::actor::{BoxActor, ActorCell, CellInternal};
