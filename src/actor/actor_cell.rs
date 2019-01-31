@@ -8,7 +8,7 @@ use std::ops::Deref;
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 use rand;
-use log::{log, warn};
+use log::warn;
 use futures::Future;
 use futures::future::RemoteHandle;
 

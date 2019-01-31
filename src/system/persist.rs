@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 
 use chrono::prelude::{DateTime, Utc};
 use config::Config;
-use log::{log, warn};
+use log::warn;
 
 use crate::protocol::{Message, ActorMsg, ESMsg, SystemMsg};
 use crate::actors::{Actor, BoxActor, Context, ActorRef, BoxActorProd};

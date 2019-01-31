@@ -11,7 +11,7 @@ use uuid::Uuid;
 use futures::Future;
 use futures::future::RemoteHandle;
 use futures::channel::oneshot::{channel, Sender};
-use log::{log, debug, Level};
+use log::{debug, Level};
 
 use crate::model::Model;
 use crate::protocol::{Message, ActorMsg, SystemMsg, ChannelMsg, ActorCmd, SystemEvent, IOMsg};
