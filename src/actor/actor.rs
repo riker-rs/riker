@@ -147,7 +147,12 @@ pub trait Actor : Send {
     ///     }
     /// }
     /// ```
-    fn apply_event(&mut self, ctx: &Context<Self::Msg>, evt: Self::Msg) {
+    fn apply_event(
+        &mut self,
+        ctx: &Context<Self::Msg>,
+        evt: Self::Msg,
+        sender: Option<ActorRef<Self::Msg>>
+    ) {
     
     }
 
@@ -243,12 +248,17 @@ impl<A: Actor + ?Sized> Actor for Box<A> {
         (**self).persistence_conf()
     }
 
-    fn apply_event(&mut self, ctx: &Context<Self::Msg>, evt: Self::Msg) {
-        (**self).apply_event(ctx, evt)
+    fn apply_event(
+        &mut self,
+        ctx: &Context<Self::Msg>,
+        evt: Self::Msg,
+        sender: Option<ActorRef<Self::Msg>>
+    ) {
+        (**self).apply_event(ctx, evt, sender)
     }
 
     fn replay_event(&mut self, ctx: &Context<Self::Msg>, evt: Self::Msg) {
-        (**self).apply_event(ctx, evt)
+        (**self).apply_event(ctx, evt, None)
     }
 
     fn supervisor_strategy(&self) -> Strategy {

@@ -319,7 +319,7 @@ fn handle_sys_msg<Msg>(msg: SystemEnvelope<Msg>,
         SystemMsg::ActorCmd(cmd) => handle_cmd(cmd, cell, actor),
         SystemMsg::Event(ref evt) => handle_evt(evt.clone(), msg.clone(), cell, ctx, actor),
         SystemMsg::Failed(failed) => handle_failed(failed, cell, actor),
-        SystemMsg::Persisted(evt) => handle_persisted(evt, cell, ctx, actor),
+        SystemMsg::Persisted(evt, sender) => handle_persisted(evt, cell, ctx, actor, sender),
         SystemMsg::Replay(evts) => handle_replay(evts, cell, ctx, actor, mbox),
         SystemMsg::Log(entry) => handle_log_msg(entry, ctx, actor),
     }
@@ -388,12 +388,13 @@ fn handle_failed<Msg>(failed: ActorRef<Msg>,
 fn handle_persisted<Msg>(evt: Msg,
                         cell: &ActorCell<Msg>,
                         ctx: &Context<Msg>,
-                        actor: &mut Option<BoxActor<Msg>>)
+                        actor: &mut Option<BoxActor<Msg>>,
+                        sender: Option<ActorRef<Msg>>)
     where Msg: Message
 {
     trace!("ACTOR HANDLE PERSISTED");
     cell.set_persisting(false);
-    actor.as_mut().unwrap().apply_event(ctx, evt);
+    actor.as_mut().unwrap().apply_event(ctx, evt, sender);
 }
 
 fn handle_replay<Msg>(evts: Vec<Msg>,

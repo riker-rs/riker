@@ -38,9 +38,9 @@ impl<Evs: EventStore> Actor for EsManager<Evs> {
 
         if let ActorMsg::ES(msg) = msg {
             match msg {
-                ESMsg::Persist(evt, id, keyspace) => {
+                ESMsg::Persist(evt, id, keyspace, og_sender) => {
                     self.es.insert(&id, &keyspace, evt.clone());
-                    sender.unwrap().sys_tell(SystemMsg::Persisted(evt.msg), None);
+                    sender.unwrap().sys_tell(SystemMsg::Persisted(evt.msg, og_sender), None);
                 }
                 ESMsg::Load(id, keyspace) => {
                     let result = self.es.load(&id, &keyspace);
