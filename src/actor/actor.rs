@@ -258,7 +258,7 @@ impl<A: Actor + ?Sized> Actor for Box<A> {
     }
 
     fn replay_event(&mut self, ctx: &Context<Self::Msg>, evt: Self::Msg) {
-        (**self).apply_event(ctx, evt, None)
+        (**self).replay_event(ctx, evt)
     }
 
     fn supervisor_strategy(&self) -> Strategy {

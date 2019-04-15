@@ -1,4 +1,6 @@
 # Riker
+NOTE: April 2019. We're making some major design changes to Riker. During this time PRs and issues aren't getting processed as fast as usual. We hope to get a new major release out soon!
+
 [![Build Status](https://travis-ci.org/riker-rs/riker.svg?branch=master)](https://travis-ci.org/riker-rs/riker)
 [![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 [![crates.io](https://meritbadge.herokuapp.com/riker)](https://crates.io/crates/riker)
