@@ -151,8 +151,8 @@ impl<Msg: Message> Into<ActorMsg<Msg>> for IOMsg<Msg> {
 
 #[derive(Debug, Clone)]
 pub enum ESMsg<Msg: Message> {
-    /// Persist given Evt to the event store. (Event to store, Unique ID, Keyspace)
-    Persist(Evt<Msg>, String, String),
+    /// Persist given Evt to the event store. (Event to store, Unique ID, Keyspace, Optional Sender)
+    Persist(Evt<Msg>, String, String, Option<ActorRef<Msg>>),
 
     /// Load all events from the event store. (Unique ID, Keyspace)
     Load(String, String),
@@ -204,7 +204,7 @@ pub enum SystemMsg<Msg: Message> {
     ActorCmd(ActorCmd),
     Event(SystemEvent<Msg>),
     Failed(ActorRef<Msg>),
-    Persisted(Msg),
+    Persisted(Msg, Option<ActorRef<Msg>>),
     Replay(Vec<Msg>),
     Log(LogEntry),
 }

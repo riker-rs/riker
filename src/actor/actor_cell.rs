@@ -546,7 +546,7 @@ impl<Msg> Context<Msg>
     /// to get all the events for the actor. Each event is then replayed,
     /// in their original order, which effectively results in an actor
     /// being in the latest state.
-    pub fn persist_event(&self, evt: Msg) {
+    pub fn persist_event(&self, evt: Msg, sender: Option<ActorRef<Msg>>) {
         let event_store = &self.persistence.event_store;
         let perconf = &self.persistence.persistence_conf;
 
@@ -557,7 +557,8 @@ impl<Msg> Context<Msg>
                 let evt = Evt::new(evt);
                 es.tell(ESMsg::Persist(evt,
                                         perconf.id.clone(),
-                                        perconf.keyspace.clone()
+                                        perconf.keyspace.clone(),
+                                        sender
                                         ), Some(self.myself.clone()));
             }
             (&Some(_), &None) => {
