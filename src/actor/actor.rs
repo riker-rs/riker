@@ -135,10 +135,13 @@ pub trait Actor : Send {
     ///                 msg: Self::Msg,
     ///                 sender: Option<ActorRef<Self::Msg>>) {
     ///         // Receive a new sensor reading and store it
-    ///         ctx.persist_event(msg);
+    ///         ctx.persist_event(msg, sender);
     ///     }
     /// 
-    ///     fn apply_event(&mut self, _ctx: &Context<Self::Msg>, evt: Self::Msg) {
+    ///     fn apply_event(&mut self,
+    ///                     _ctx: &Context<Self::Msg>,
+    ///                     evt: Self::Msg,
+    ///                     sender: Option<ActorRef<Self::Msg>>) {
     ///         // Sensor reading has been stored
     ///         // Local state can be updated
     ///         self.last = evt;
@@ -195,7 +198,7 @@ pub trait Actor : Send {
     ///                 msg: Self::Msg,
     ///                 sender: Option<ActorRef<Self::Msg>>) {
     ///         // Receive a new sensor reading and store it
-    ///         ctx.persist_event(msg);
+    ///         ctx.persist_event(msg, sender);
     ///     }
     ///
     ///     fn replay_event(&mut self, _ctx: &Context<Self::Msg>, evt: Self::Msg) {
