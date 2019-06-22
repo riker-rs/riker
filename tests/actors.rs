@@ -2,150 +2,194 @@
 extern crate riker_testkit;
 
 use riker::actors::*;
-use riker_default::DefaultModel;
 
 use riker_testkit::probe::{Probe, ProbeReceive};
 use riker_testkit::probe::channel::{probe, ChannelProbe};
 
 #[derive(Clone, Debug)]
-enum TestMsg {
-    Probe(TestProbe),
-    Add,
-}
-type TestProbe = ChannelProbe<(), ()>;
+pub struct Add;
 
-impl Into<ActorMsg<TestMsg>> for TestMsg {
-    fn into(self) -> ActorMsg<TestMsg> {
-        ActorMsg::User(self)
-    }
-}
+#[derive(Clone, Debug)]
+pub struct TestProbe(ChannelProbe<(), ()>);
 
-#[derive(Clone)]
-struct TellActor {
+#[actor(TestProbe, Add)]
+struct Counter {
     probe: Option<TestProbe>,
     count: u32,
 }
 
-impl TellActor {
-    fn actor() -> BoxActor<TestMsg> {
-        let a = TellActor {
+impl Counter {
+    fn actor() -> Counter {
+        Counter {
             probe: None,
             count: 0
-        };
-
-        Box::new(a)
+        }
     }
 }
 
-impl Actor for TellActor {
-    type Msg = TestMsg;
+impl Actor for Counter {
+    type Msg = CounterMsg; // we used the #[actor] attribute so CounterMsg is the Msg type
+    type Evt = ();
+
+    fn recv(&mut self,
+                ctx: &Context<Self::Msg>,
+                msg: Self::Msg,
+                sender: Sender) {
+        self.receive(ctx, msg, sender);
+    }
+}
+
+impl Receive<TestProbe> for Counter {
+    type Msg = CounterMsg;
 
     fn receive(&mut self,
                 _ctx: &Context<Self::Msg>,
-                msg: Self::Msg,
-                _sender: Option<ActorRef<Self::Msg>>) {
-        match msg {
-            TestMsg::Probe(p) => self.probe = Some(p),
-            TestMsg::Add => {
-                self.count += 1;
-                if self.count == 1_000_000 {
-                    self.probe.event(())
-                }
-            }
+                msg: TestProbe,
+                _sender: Sender) {
+        self.probe = Some(msg)
+    }
+}
+
+impl Receive<Add> for Counter {
+    type Msg = CounterMsg;
+
+    fn receive(&mut self,
+                _ctx: &Context<Self::Msg>,
+                _msg: Add,
+                _sender: Sender) {
+        self.count += 1;
+        if self.count == 1_000_000 {
+            self.probe.as_ref().unwrap().0.event(())
         }
     }
 }
 
 #[test]
-fn tell_actor() {
-    let model: DefaultModel<TestMsg> = DefaultModel::new();
-    let system = ActorSystem::new(&model).unwrap();
+fn actor_create() {
+    let sys = ActorSystem::new().unwrap();
 
-    let props = Props::new(Box::new(TellActor::actor));
-    let actor = system.actor_of(props, "me").unwrap();
+    let props = Props::new(Box::new(Counter::actor));
+    assert!(sys.actor_of(props.clone(), "valid-name").is_ok());
+
+    assert!(sys.actor_of(props.clone(), "/").is_err());
+    assert!(sys.actor_of(props.clone(), "*").is_err());
+    assert!(sys.actor_of(props.clone(), "/a/b/c").is_err());
+    assert!(sys.actor_of(props.clone(), "@").is_err());
+    assert!(sys.actor_of(props.clone(), "#").is_err());
+    assert!(sys.actor_of(props.clone(), "abc*").is_err());
+    assert!(sys.actor_of(props, "!").is_err());
+}
+
+#[test]
+fn actor_tell() {
+    let sys = ActorSystem::new().unwrap();
+
+    let props = Props::new(Box::new(Counter::actor));
+    let actor = sys.actor_of(props, "me").unwrap();
 
     let (probe, listen) = probe();
-    actor.tell(TestMsg::Probe(probe), None);
+    actor.tell(TestProbe(probe), None);
 
     for _ in 0..1_000_000 {
-        actor.tell(TestMsg::Add, None);
+        actor.tell(Add, None);
     }
 
     p_assert_eq!(listen, ());
 }
 
-struct ParentActor {
+#[test]
+fn actor_try_tell() {
+    let sys = ActorSystem::new().unwrap();
+
+    let props = Props::new(Box::new(Counter::actor));
+    let actor = sys.actor_of(props, "me").unwrap();
+    let actor: BasicActorRef = actor.into();
+
+    let (probe, listen) = probe();
+    actor.try_tell(CounterMsg::TestProbe(TestProbe(probe)), None);
+
+    assert!(actor.try_tell(CounterMsg::Add(Add), None).is_ok());
+
+    for _ in 0..1_000_000 {
+        actor.try_tell(CounterMsg::Add(Add), None).unwrap();
+    }
+
+    p_assert_eq!(listen, ());
+}
+
+struct Parent {
     probe: Option<TestProbe>,
 }
 
-impl ParentActor {
-    fn new() -> BoxActor<TestMsg> {
-        let actor = ParentActor {
+impl Parent {
+    fn actor() -> Self {
+        Parent {
             probe: None
-        };
-
-        Box::new(actor)
+        }
     }
 }
 
-impl Actor for ParentActor {
-    type Msg = TestMsg;
+impl Actor for Parent {
+    type Msg = TestProbe;
+    type Evt = ();
 
     fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
-        let props = Props::new(Box::new(ChildActor::new));
+        let props = Props::new(Box::new(Child::actor));
         ctx.actor_of(props, "child_a").unwrap();
 
-        let props = Props::new(Box::new(ChildActor::new));
+        let props = Props::new(Box::new(Child::actor));
         ctx.actor_of(props, "child_b").unwrap();
 
-        let props = Props::new(Box::new(ChildActor::new));
+        let props = Props::new(Box::new(Child::actor));
         ctx.actor_of(props, "child_c").unwrap();
 
-        let props = Props::new(Box::new(ChildActor::new));
+        let props = Props::new(Box::new(Child::actor));
         ctx.actor_of(props, "child_d").unwrap();
     }
 
     fn post_stop(&mut self) {
         // All children have been terminated at this point
         // and we can signal back that the parent has stopped
-        self.probe.as_ref().unwrap().event(());
+        self.probe.as_ref().unwrap().0.event(());
     }
 
-    fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: Self::Msg, _sender: Option<ActorRef<Self::Msg>>) {
-        if let TestMsg::Probe(p) = msg {
-            self.probe = Some(p);
-            self.probe.event(());
-        }
-    }
-}
+    fn recv(&mut self,
+                _ctx: &Context<Self::Msg>,
+                msg: Self::Msg,
+                _sender: Sender) {
 
-struct ChildActor;
-
-impl ChildActor {
-    fn new() -> BoxActor<TestMsg> {
-        Box::new(ChildActor)
+        self.probe = Some(msg);
+        self.probe.as_ref().unwrap().0.event(());
     }
 }
 
-impl Actor for ChildActor {
-    type Msg = TestMsg;
+struct Child;
 
-    fn receive(&mut self, _: &Context<Self::Msg>, _: Self::Msg, _: Option<ActorRef<Self::Msg>>) {}
+impl Child {
+    fn actor() -> Self {
+        Child
+    }
+}
+
+impl Actor for Child {
+    type Msg = ();
+    type Evt = ();
+
+    fn recv(&mut self, _: &Context<Self::Msg>, _: Self::Msg, _: Sender) {}
 }
 
 #[test]
 #[allow(dead_code)]
-fn stop_actor() {
-    let model: DefaultModel<TestMsg> = DefaultModel::new();
-    let system = ActorSystem::new(&model).unwrap();
+fn actor_stop() {
+    let system = ActorSystem::new().unwrap();
 
-    let props = Props::new(Box::new(ParentActor::new));
+    let props = Props::new(Box::new(Parent::actor));
     let parent = system.actor_of(props, "parent").unwrap();
 
-    std::thread::sleep(std::time::Duration::from_secs(2));
+    // std::thread::sleep(std::time::Duration::from_secs(2)); // todo ??
 
     let (probe, listen) = probe();
-    parent.tell(TestMsg::Probe(probe), None);
+    parent.tell(TestProbe(probe), None);
     system.print_tree();
 
     // wait for the probe to arrive at the actor before attempting to stop the actor
@@ -155,3 +199,8 @@ fn stop_actor() {
     p_assert_eq!(listen, ());
 }
 
+// impl Into<AnyMessage> for Add {
+//     fn into(self) -> AnyMessage {
+//         AnyMessage { msg: Box::new(self) }
+//     }
+// }

@@ -1,10 +1,12 @@
-use std::sync::Mutex;
-use std::sync::mpsc::{channel, Sender, Receiver};
+use std::sync::{
+    Mutex,
+    mpsc::{channel, Sender, Receiver}
+};
 
-use crate::protocol::{Message, Enqueued};
+use crate::{Message, Envelope};
 
 pub fn queue<Msg: Message>() -> (QueueWriter<Msg>, QueueReader<Msg>) {
-    let (tx, rx) = channel::<Enqueued<Msg>>();
+    let (tx, rx) = channel::<Envelope<Msg>>();
    
     let qw = QueueWriter {
         tx: tx,
@@ -24,11 +26,11 @@ pub fn queue<Msg: Message>() -> (QueueWriter<Msg>, QueueReader<Msg>) {
 
 #[derive(Clone)]
 pub struct QueueWriter<Msg: Message> {
-    tx: Sender<Enqueued<Msg>>,
+    tx: Sender<Envelope<Msg>>,
 }
 
 impl<Msg: Message> QueueWriter<Msg> {
-    pub fn try_enqueue(&self, msg: Enqueued<Msg>) -> EnqueueResult<Msg> {
+    pub fn try_enqueue(&self, msg: Envelope<Msg>) -> EnqueueResult<Msg> {
         self.tx.send(msg)
             .map(|_| ())
             .map_err(|e| EnqueueError { msg: e.0 })
@@ -40,12 +42,13 @@ pub struct QueueReader<Msg: Message> {
 }
 
 struct QueueReaderInner<Msg: Message> {
-    rx: Receiver<Enqueued<Msg>>,
-    next_item: Option<Enqueued<Msg>>
+    rx: Receiver<Envelope<Msg>>,
+    next_item: Option<Envelope<Msg>>
 }
 
 impl<Msg: Message> QueueReader<Msg> {
-    pub fn dequeue(&self) -> Enqueued<Msg> {
+    #[allow(dead_code)]
+    pub fn dequeue(&self) -> Envelope<Msg> {
         let mut inner = self.inner.lock().unwrap();
         if let Some(item) = inner.next_item.take() {
             item
@@ -55,7 +58,7 @@ impl<Msg: Message> QueueReader<Msg> {
         
     }
 
-    pub fn try_dequeue(&self) -> DequeueResult<Enqueued<Msg>> {
+    pub fn try_dequeue(&self) -> DequeueResult<Envelope<Msg>> {
         let mut inner = self.inner.lock().unwrap();
         if let Some(item) = inner.next_item.take() {
             Ok(item)
@@ -83,7 +86,7 @@ pub struct EnqueueError<T> {
     pub msg: T
 }
 
-pub type EnqueueResult<Msg> = Result<(), EnqueueError<Enqueued<Msg>>>;
+pub type EnqueueResult<Msg> = Result<(), EnqueueError<Envelope<Msg>>>;
 
 pub struct QueueEmpty;
 pub type DequeueResult<Msg> = Result<Msg, QueueEmpty>;

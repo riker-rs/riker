@@ -1,75 +1,42 @@
-mod actor;
-mod actor_cell;
-mod actor_ref;
-mod channel;
-mod props;
-mod selection;
-mod uri;
+pub(crate) mod actor;
+pub(crate) mod actor_cell;
+pub(crate) mod actor_ref;
+pub(crate) mod channel;
+pub(crate) mod macros;
+pub(crate) mod props;
+pub(crate) mod uri;
 
-use std::error::Error;
-use std::fmt;
+use std::{
+    fmt,
+    error::Error
+};
 
-use crate::protocol::{Message, ActorMsg, SystemMsg};
-pub use crate::actor::props::{Props, BoxActorProd, ActorProducer, ActorArgs};
-// use self::actor_ref::ActorRef;
+use crate::validate::InvalidName;
 
-
-// pub mod public {
-//     pub use actor::actor::{Actor, BoxActor, Strategy};
-//     pub use actor::actor_cell::{ActorCell, CellPublic, Context, PersistenceConf};
-//     pub use actor::actor_ref::{ActorRef, ActorRefFactory, TmpActorRefFactory};
-//     pub use actor::uri::{ActorUri, ActorId};
-//     pub use actor::selection::{ActorSelection, ActorSelectionFactory};
-//     pub use actor::props::{Props, BoxActorProd, ActorProducer, ActorArgs};
-//     pub use actor::channel::{Channel, SystemChannel, Topic, All, SysTopic, SysChannels, dead_letter};
-// }
-
-pub use self::actor::{Actor, BoxActor, Strategy};
-pub use self::actor_cell::{ActorCell, CellPublic, Context, PersistenceConf};
-pub use self::actor_ref::{ActorRef, ActorRefFactory, TmpActorRefFactory};
-pub use self::uri::{ActorUri, ActorId};
-pub use self::selection::{ActorSelection, ActorSelectionFactory};
-pub use self::channel::{Channel, SystemChannel, Topic, All, SysTopic, SysChannels, dead_letter};
-pub use self::actor_cell::CellInternal;
-
-pub trait Tell {
-    type Msg: Message;
-    
-    /// Implement to provide message routing to actors, e.g. `ActorRef` and `ActorSelection`
-    #[allow(unused)]
-    fn tell<T>(&self,
-                msg: T,
-                sender: Option<ActorRef<Self::Msg>>)
-        where T: Into<ActorMsg<Self::Msg>>;
-            
-}
-
-/// Implement to provide possible message routing to actors, e.g. `Option<ActorRef>`
-pub trait TryTell {
-    type Msg: Message;
-    
-    #[allow(unused)]
-    fn try_tell<T>(&self,
-                msg: T,
-                sender: Option<ActorRef<Self::Msg>>) -> Result<(), TryMsgError<T>>
-        where T: Into<ActorMsg<Self::Msg>>;
-            
-}
-
-/// Implement to provide system message routing to actors, e.g. `ActorRef` and `ActorSelection`
-pub trait SysTell {
-    type Msg: Message;
-
-    fn sys_tell(&self,
-                sys_msg: SystemMsg<Self::Msg>,
-                sender: Option<ActorRef<Self::Msg>>);
-}
+// Public riker::actor API (plus the pub data types in this file)
+pub use self::{
+    actor::{Actor, BoxActor, Receive, Strategy},
+    actor_ref::{
+        ActorRef, BasicActorRef, ActorReference,
+        ActorRefFactory, Tell, BoxedTell, Sender
+    },
+    actor_cell::Context,
+    channel::{
+        Channel, EventsChannel, Topic, All,
+        Publish, Subscribe, Unsubscribe, UnsubscribeAll,
+        ChannelMsg, ChannelRef, DLChannelMsg, DeadLetter, channel // todo channel prob shouldn't be exported
+    },
+    macros::actor,
+    uri::{ActorId, ActorUri, ActorPath},
+    props::{Props, BoxActorProd, ActorProducer, ActorArgs}
+};
 
 #[allow(unused)]
 pub type MsgResult<T> = Result<(), MsgError<T>>;
 
 /// Internal message error when a message can't be added to an actor's mailbox
 #[doc(hidden)]
+#[derive(Clone)]
 pub struct MsgError<T> {
     pub msg: T,
 }
@@ -134,6 +101,7 @@ impl<T> fmt::Debug for TryMsgError<T> {
 /// Error type when an actor fails to start during `actor_of`.
 pub enum CreateError {
     Panicked,
+    System,
     InvalidName(String),
     AlreadyExists(String),
 }
@@ -142,6 +110,7 @@ impl Error for CreateError {
     fn description(&self) -> &str {
         match *self {
             CreateError::Panicked => "Failed to create actor. Cause: Actor panicked while starting",
+            CreateError::System => "Failed to create actor. Cause: System failure",
             CreateError::InvalidName(_) => "Failed to create actor. Cause: Invalid actor name",
             CreateError::AlreadyExists(_) => "Failed to create actor. Cause: An actor at the same path already exists"
         }
@@ -152,6 +121,7 @@ impl fmt::Display for CreateError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             CreateError::Panicked => f.write_str(self.description()),
+            CreateError::System => f.write_str(self.description()),
             CreateError::InvalidName(ref name) => f.write_str(&format!("{} ({})", self.description(), name)),
             CreateError::AlreadyExists(ref path) => f.write_str(&format!("{} ({})", self.description(), path))
         }
@@ -161,6 +131,12 @@ impl fmt::Display for CreateError {
 impl fmt::Debug for CreateError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(self.description())
+    }
+}
+
+impl From<InvalidName> for CreateError {
+    fn from(err: InvalidName) -> CreateError {
+        CreateError::InvalidName(err.name)
     }
 }
 
@@ -184,3 +160,4 @@ impl fmt::Debug for RestartError {
         f.write_str(self.description())
     }
 }
+

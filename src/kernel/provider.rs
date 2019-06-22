@@ -1,70 +1,180 @@
-use std::sync::Arc;
-use std::marker::PhantomData;
-
+use std::{
+    sync::{Arc, Mutex},
+    collections::HashSet,
+    ops::Deref
+};
 use log::trace;
 
-use crate::protocol::Message;
-use crate::actor::{ActorId, Actor, ActorRef, ActorUri, Context, ActorCell, CellInternal};
-use crate::actor::{Props, ActorProducer, BoxActor, BoxActorProd, PersistenceConf};
-use crate::kernel::{KernelRef, ActorDock, MailboxSender, mailbox};
-use crate::system::ActorSystem;
+use crate::{
+    actor::*,
+    actor::actor_cell::{ActorCell, ExtendedCell},
+    kernel::{
+        kernel::kernel,
+        mailbox::mailbox
+    },
+    system::{
+        ActorSystem, SystemMsg,
+        system::SysActors
+    },
+    validate::validate_name
+};
 
-pub struct BigBang<Msg: Message> {
-    pub root: ActorRef<Msg>,
-    pub user: (ActorRef<Msg>, Option<ActorDock<Msg>>),
-    pub sysm: (ActorRef<Msg>, Option<ActorDock<Msg>>),
-    pub temp: (ActorRef<Msg>, Option<ActorDock<Msg>>)
+#[derive(Clone)]
+pub struct Provider {
+    inner: Arc<Mutex<ProviderInner>>,
 }
 
-impl<Msg: Message> BigBang<Msg> {
-    pub fn new(kernel: &KernelRef<Msg>,
-                system: &ActorSystem<Msg>) -> Self {
-        let root = root(kernel, system);
+struct ProviderInner {
+    paths: HashSet<ActorPath>,
+    counter: ActorId,
+}
 
-        let bb = BigBang {
-            root: root.clone(),
-            user: guardian(1, "user", "/user", &root, kernel, system),
-            sysm: guardian(2, "system", "/system", &root, kernel, system),
-            temp: guardian(3, "temp", "/temp", &root, kernel, system)
+impl Provider {
+    pub fn new() -> Self {
+        let inner = ProviderInner {
+                paths: HashSet::new(),
+                counter: 100 // ActorIds start at 100
         };
 
-        root.cell.add_child("user", bb.user.0.clone());
-        root.cell.add_child("system", bb.sysm.0.clone());
-        root.cell.add_child("temp", bb.temp.0.clone());
+        Provider {
+            inner: Arc::new(Mutex::new(inner))
+        }
+    }
 
-        bb
+    pub fn create_actor<A>(&self,
+                        props: BoxActorProd<A>,
+                        name: &str,
+                        parent: &BasicActorRef,
+                        sys: &ActorSystem) -> Result<ActorRef<A::Msg>, CreateError>
+        where A: Actor + 'static
+    {
+        validate_name(name)?;
+        
+        let path = Arc::new(format!("{}/{}", parent.uri.path, name));
+        trace!("Attempting to create actor at: {}", path);
+
+        let uid = self.register(&path)?;
+
+        let uri = ActorUri {
+            uid,
+            path,
+            name: Arc::new(name.into()),
+            host: sys.host()
+        };
+
+        let (sender, sys_sender, mb) = mailbox::<A::Msg>(1000); // todo limit config
+
+        let cell = ExtendedCell::new(uri.uid,
+                                    uri.clone(),
+                                    Some(parent.clone()),
+                                    sys,
+                                    // None,/*perconf*/ // todo
+                                    Arc::new(sender.clone()),
+                                    sys_sender.clone(),
+                                    sender.clone());
+
+        let k = kernel(props, cell.clone(), mb, sys)?;
+        let cell = cell.init(&k);
+
+        let actor = ActorRef::new(&uri, cell); // todo don't need both params
+        let child = BasicActorRef::from(actor.clone());
+        parent.cell.add_child(child);
+        actor.sys_tell(SystemMsg::ActorInit);
+
+        Ok(actor)
+    }
+
+    fn register(&self, path: &ActorPath) -> Result<ActorId, CreateError> {
+        match self.inner.lock() {
+            Ok(mut inner) => {
+                if inner.paths.contains(path) {
+                    return Err(CreateError::AlreadyExists(path.deref().clone()));
+                }
+
+                inner.paths.insert(path.clone());
+                let id = inner.counter;
+                inner.counter += 1;
+
+                Ok(id)
+            }
+            Err(_) => {
+                Err(CreateError::System)
+            }
+        }
+    }
+
+    pub fn unregister(&self, path: &ActorPath) {
+        let mut inner = self.inner.lock().unwrap();
+        inner.paths.remove(path);
     }
 }
 
-fn root<Msg: Message>(kernel: &KernelRef<Msg>,
-                        system: &ActorSystem<Msg>) -> ActorRef<Msg> {
-    let root_uri = ActorUri {
+pub fn create_root(sys: &ActorSystem) -> SysActors {
+    let root = root(sys);
+
+    SysActors {
+        root: root.clone(),
+        user: guardian(1, "user", "/user", &root, sys),
+        sysm: guardian(2, "system", "/system", &root, sys),
+        temp: guardian(3, "temp", "/temp", &root, sys)
+    }
+}
+
+fn root(sys: &ActorSystem) -> BasicActorRef {
+    let uri = ActorUri {
         uid: 0,
         name: Arc::new("root".to_string()),
         path: Arc::new("/".to_string()),
         host: Arc::new("localhost".to_string())
     };
+    let (sender, sys_sender, _mb) = mailbox::<SystemMsg>(100);
 
-    let bb_cell = ActorCell::new(0, root_uri.clone(), None, kernel, system, None, None);
-    let bigbang = ActorRef::new(&root_uri, bb_cell);
+    // Big bang: all actors have a parent.
+    // This means root also needs a parent.
+    // An ActorCell, ActorRef and KernelRef are created
+    // independently without an actor being created.
+    // kernel is just a channel to nowhere
+    // let (mut tx, mut _rx) = channel::<KernelMsg>(1000);
+    // let bb_k = KernelRef {
+    //     tx
+    // };
 
-    create_actor_ref(&bigbang,
-                    &root_uri,
-                    kernel,
-                    system,
-                    None,
-                    None)
+    let bb_cell = ActorCell::new(0,
+                                uri.clone(),
+                                None,
+                                sys,
+                                // None, // old perfaconf
+                                Arc::new(sender),
+                                sys_sender);
+
+    let bigbang = BasicActorRef::new(&uri, bb_cell);
+
+    // root
+    let props: BoxActorProd<Guardian> = Props::new_args(Box::new(Guardian::new), "root".to_string());
+    let (sender, sys_sender, mb) = mailbox::<SystemMsg>(100);
+
+    let cell = ExtendedCell::new(uri.uid,
+                                uri.clone(),
+                                Some(bigbang.clone()),
+                                sys,
+                                // None,/*perconf*/ // todo
+                                Arc::new(sender.clone()),
+                                sys_sender.clone(),
+                                sender.clone());
+
+    let k = kernel(props, cell.clone(), mb, sys).unwrap();
+    let cell = cell.init(&k);
+    let actor_ref = ActorRef::new(&uri, cell);
+
+    BasicActorRef::from(actor_ref)
 }
 
-fn guardian<Msg>(uid: ActorId,
+fn guardian(uid: ActorId,
                 name: &str,
                 path: &str,
-                root: &ActorRef<Msg>,
-                kernel: &KernelRef<Msg>,
-                system: &ActorSystem<Msg>)
-                -> (ActorRef<Msg>, Option<ActorDock<Msg>>)
-    where Msg: Message
-{
+                root: &BasicActorRef,
+                sys: &ActorSystem)
+                -> BasicActorRef {
     let uri = ActorUri {
         uid,
         name: Arc::new(name.to_string()),
@@ -72,71 +182,48 @@ fn guardian<Msg>(uid: ActorId,
         host: Arc::new("localhost".to_string())
     };
 
-    let (sender, mailbox) = mailbox::<Msg>(uri.uid, 100, kernel.clone());
+    let props: BoxActorProd<Guardian> = Props::new_args(Box::new(Guardian::new), name.to_string());
+    let (sender, sys_sender, mb) = mailbox::<SystemMsg>(100);
 
-    let props: BoxActorProd<Msg> = Props::new_args(Box::new(Guardian::new), name.to_string());
-    let actor = props.produce();
-
-    let actor_ref = create_actor_ref(root,
-                        &uri,
-                        kernel,
-                        system,
-                        Some(sender.clone()),
-                        None);
-
-    let dock = ActorDock {
-        actor: Some(actor),
-        cell: actor_ref.cell.clone(),
-        actor_ref: actor_ref.clone(),
-        mailbox_sender: sender,
-        mailbox: mailbox,
-        props: props
-    };
-    (actor_ref, Some(dock))
-}
-
-pub fn create_actor_ref<Msg>(parent: &ActorRef<Msg>,
-                            uri: &ActorUri,
-                            kernel: &KernelRef<Msg>,
-                            system: &ActorSystem<Msg>,
-                            mailbox: Option<MailboxSender<Msg>>,
-                            perconf: Option<PersistenceConf>) -> ActorRef<Msg>
-    where Msg: Message
-{                                           
-    let cell = ActorCell::new(uri.uid,
+    let cell = ExtendedCell::new(uri.uid,
                                 uri.clone(),
-                                Some(parent.clone()),
-                                kernel,
-                                system,
-                                perconf,
-                                mailbox);
+                                Some(root.clone()),
+                                sys,
+                                // None,/*perconf*/ // todo
+                                Arc::new(sender.clone()),
+                                sys_sender.clone(),
+                                sender.clone());
 
-    ActorRef::new(uri, cell.clone())
+    let k = kernel(props, cell.clone(), mb, sys).unwrap();
+    let cell = cell.init(&k);
+    let actor_ref = ActorRef::new(&uri, cell);
+
+    let actor = BasicActorRef::from(actor_ref);
+    root.cell.add_child(actor.clone());
+    actor
 }
 
-struct Guardian<Msg> {
+struct Guardian {
     name: String,
-    t: PhantomData<Msg>,
 }
 
-impl<Msg: Message> Guardian<Msg> {
-    fn new(name: String) -> BoxActor<Msg> {
+impl Guardian {
+    fn new(name: String) -> Self {
         let actor = Guardian {
-            name: name,
-            t: PhantomData
+            name
         };
 
-        Box::new(actor)
+        actor
     }
 }
 
-impl<Msg: Message> Actor for Guardian<Msg> {
-    type Msg = Msg;
+impl Actor for Guardian {
+    type Msg = SystemMsg;
+    type Evt = ();
 
-    fn receive(&mut self, _: &Context<Self::Msg>, _: Self::Msg, _: Option<ActorRef<Self::Msg>>) {}
+    fn recv(&mut self, _: &Context<Self::Msg>, _: Self::Msg, _: Option<BasicActorRef>) {}
 
     fn post_stop(&mut self) {
         trace!("{} guardian stopped", self.name);
     }
 }
-

@@ -1,142 +1,92 @@
-use std::sync::mpsc::{channel, Sender};
+use std::sync::Arc;
 
-use futures::{Future, FutureExt};
-use futures::future::RemoteHandle;
+use futures::{
+    SinkExt,
+    channel::mpsc::Sender,
+    task::SpawnExt
+};
 
-use crate::protocol::{Message, Envelope, SystemEnvelope, Enqueued};
-use crate::actor::{BoxActor, ActorRef, ActorId, BoxActorProd};
-use crate::actor::{CreateError, MsgError, MsgResult};
-use crate::kernel::{KernelMsg, MailboxSender, MailboxSchedule};
-use crate::system::Job;
-
-use self::KernelMsg::{CreateActor, RestartActor, TerminateActor};
-use self::KernelMsg::{ParkActor, UnparkActor, Stop, RunFuture};
+use crate::{
+    Message, Envelope, AnyMessage,
+    actor::{MsgError, MsgResult},
+    kernel::{
+        KernelMsg,
+        mailbox::{MailboxSender, MailboxSchedule, AnySender}
+    },
+    system::ActorSystem
+};
 
 #[derive(Clone)]
-pub struct KernelRef<Msg: Message> {
-    pub kernel_tx: Sender<KernelMsg<Msg>>,
-    pub timer_tx: Sender<Job<Msg>>,
+pub struct KernelRef {
+    pub tx: Sender<KernelMsg>, // todo pub here not needed if moved to where it's used
 }
 
-impl<Msg> KernelRef<Msg>
+impl KernelRef {
+    pub(crate) fn schedule(&self, sys: &ActorSystem) {
+        self.send(KernelMsg::RunActor, sys);
+    }
+
+    pub(crate) fn restart(&self, sys: &ActorSystem) {
+        self.send(KernelMsg::RestartActor, sys);
+    }
+
+    pub(crate) fn terminate(&self, sys: &ActorSystem) {
+        self.send(KernelMsg::TerminateActor, sys);
+    }
+
+    pub(crate) fn sys_init(&self, sys: &ActorSystem) {
+        self.send(KernelMsg::Sys(sys.clone()), sys);
+    }
+
+    fn send(&self, msg: KernelMsg, sys: &ActorSystem) {
+        let mut tx = self.tx.clone();
+        let mut exec = sys.exec.clone(); 
+        exec.spawn(
+            async move {
+                await!(tx.send(msg)).unwrap();
+            }
+        ).unwrap();
+    } 
+}
+
+pub fn dispatch<Msg>(msg: Envelope<Msg>,
+                    mbox: &MailboxSender<Msg>,
+                    kernel: &KernelRef,
+                    sys: &ActorSystem)
+                    -> MsgResult<Envelope<Msg>>
     where Msg: Message
 {
-    pub fn dispatch(&self,
-                    msg: Envelope<Msg>,
-                    mbox: &MailboxSender<Msg>) -> MsgResult<Envelope<Msg>> {
-        let msg = Enqueued::ActorMsg(msg);
-
-        match mbox.try_enqueue(msg) {
-            Ok(_) => {
-                if !mbox.is_scheduled() {
-                    self.schedule_actor(mbox);
-                }
-                
-                Ok(())
+    match mbox.try_enqueue(msg) {
+        Ok(_) => {
+            if !mbox.is_scheduled() {
+                mbox.set_scheduled(true);
+                kernel.schedule(sys);
             }
-            Err(e) => Err(MsgError::new(e.msg.into()))
+            
+            Ok(())
         }
+        Err(e) => Err(MsgError::new(e.msg.into()))
     }
+}
 
-    pub fn dispatch_sys(&self,
-                        msg: SystemEnvelope<Msg>,
-                        mbox: &MailboxSender<Msg>) -> MsgResult<SystemEnvelope<Msg>> {
-        let msg = Enqueued::SystemMsg(msg);
-        match mbox.try_sys_enqueue(msg) {
-            Ok(_) => {
-                if !mbox.is_scheduled() {
-                    self.schedule_actor(mbox);
-                }
-                Ok(())
+pub fn dispatch_any(msg: Envelope<AnyMessage>,
+                    mbox: &Arc<AnySender>,
+                    kernel: &KernelRef,
+                    sys: &ActorSystem)
+                    -> Result<(), ()> {
+
+    match mbox.try_any_enqueue(msg) {
+        Ok(_) => {
+            if !mbox.is_sched() {
+                mbox.set_sched(true);
+                kernel.schedule(sys);
             }
-            Err(e) => Err(MsgError::new(e.msg.into()))
+            
+            Ok(())
         }
-    }
-
-    pub fn schedule_actor<Mbs>(&self, mbox: &Mbs)
-        where Mbs: MailboxSchedule<Msg=Msg>
-    {
-        mbox.set_scheduled(true);
-        send(UnparkActor(mbox.uid()), &self.kernel_tx);
-    }
-
-    pub fn create_actor(&self,
-                        props: BoxActorProd<Msg>,
-                        name: &str,
-                        parent: &ActorRef<Msg>) -> Result<ActorRef<Msg>, CreateError> {
-        let (tx, rx) = channel();
-        let msg = CreateActor(props,
-                                name.to_string(),
-                                parent.clone(),
-                                tx);
-        send(msg, &self.kernel_tx);
-
-        rx.recv().unwrap()
-    }
-
-    pub fn park_actor(&self, uid: ActorId, actor: Option<BoxActor<Msg>>) {
-        send(ParkActor(uid, actor), &self.kernel_tx);
-    }
-
-    pub fn terminate_actor(&self, uid: ActorId) {
-        send(TerminateActor(uid), &self.kernel_tx);
-    }
-
-    pub fn restart_actor(&self, uid: ActorId) {
-        send(RestartActor(uid), &self.kernel_tx);
-    }
-
-    pub fn stop_kernel(&self) {
-        send(Stop, &self.kernel_tx);
-    }
-
-    pub fn execute<F>(&self, f: F) -> RemoteHandle<F::Output>
-        where F: Future + Send + 'static,
-                <F as Future>::Output: std::marker::Send
-    {
-        let (r, rh) = f.remote_handle();
-        send(RunFuture(r.boxed()), &self.kernel_tx);
-        rh
-    }
-
-    pub fn schedule(&self, job: Job<Msg>) {
-        drop(self.timer_tx.send(job))
+        Err(e) => Err(())
     }
 }
 
-fn send<Msg>(msg: KernelMsg<Msg>, tx: &Sender<KernelMsg<Msg>>)
-    where Msg: Message
-{
-    drop(tx.send(msg))
-}
-
-unsafe impl<Msg: Message> Send for KernelRef<Msg> {}
-unsafe impl<Msg: Message> Sync for KernelRef<Msg> {}
-
-// This exists as a temporary solution to allow getting the original msg
-// out of the Enqueued wrapper.
-// Instead the mailbox and queue functions should be refactored
-// to not require Enqueued
-impl<Msg: Message> Into<Envelope<Msg>> for Enqueued<Msg> {
-    fn into(self) -> Envelope<Msg> {
-        match self {
-            Enqueued::ActorMsg(msg) => msg,
-            _ => panic!("")
-
-        }
-    }
-}
-
-// This exists as a temporary solution to allow getting the original msg
-// out of the Enqueued wrapper.
-// Instead the mailbox and queue functions should be refactored
-// to not require Enqueued
-impl<Msg: Message> Into<SystemEnvelope<Msg>> for Enqueued<Msg> {
-    fn into(self) -> SystemEnvelope<Msg> {
-        match self {
-            Enqueued::SystemMsg(msg) => msg,
-            _ => panic!("")
-
-        }
-    }
-}
+unsafe impl Send for KernelRef {}
+unsafe impl Sync for KernelRef {}

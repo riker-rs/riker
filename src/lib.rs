@@ -6,6 +6,8 @@
         arbitrary_self_types
 )]
 
+#![allow(warnings)] // todo
+
 #[allow(unused_imports)]
 extern crate log;
 
@@ -13,21 +15,17 @@ mod validate;
 
 pub mod actor;
 pub mod kernel;
-pub mod model;
-pub mod protocol;
 pub mod system;
 
 use std::env;
+use std::fmt::Debug;
+use std::fmt;
+use std::any::Any;
 
-use futures::Future;
-use futures::future::RemoteHandle;
+
 use config::{Config, File};
 
-pub trait ExecutionContext {
-    fn execute<F>(&self, f: F) -> RemoteHandle<F::Output>
-        where F: Future + Send + 'static,
-                <F as Future>::Output: std::marker::Send;
-}
+use crate::actor::BasicActorRef;
 
 pub fn load_config() -> Config {
     let mut cfg = Config::new();
@@ -53,12 +51,43 @@ pub fn load_config() -> Config {
     cfg
 }
 
-// Pub exports
+/// Wraps message and sender
+#[derive(Debug, Clone)]
+pub struct Envelope<T: Message> {
+    pub sender: Option<BasicActorRef>,
+    pub msg: T,
+}
+
+unsafe impl<T: Message> Send for Envelope<T> {}
+
+pub trait Message: Debug + Clone + Send + 'static {}
+impl<T: Debug + Clone + Send + 'static> Message for T {}
+
+
+pub struct AnyMessage {
+    pub msg: Box<Any + Send>,
+}
+
+impl Clone for AnyMessage {
+    fn clone(&self) -> Self {
+        panic!("Can't clone a message of type `AnyMessage`");
+    }
+}
+
+// impl fmt::Display for MsgError<T> {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         f.write_str(self.description())
+//     }
+// }
+
+impl Debug for AnyMessage {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("AnyMessage")
+    }
+}
+
 pub mod actors {
-    pub use crate::model::Model;
-    pub use crate::protocol::{Message, ActorMsg, ChannelMsg, Identify, SystemEnvelope, SystemMsg, SystemEvent, IOMsg, ESMsg, CQMsg};
-    pub use crate::ExecutionContext;
+    pub use crate::{Message, AnyMessage};
     pub use crate::actor::*;
-    pub use crate::system::{ActorSystem, Evt,Timer};
-    pub use crate::load_config;
+    pub use crate::system::{ActorSystem, SystemMsg, SystemEvent};
 }

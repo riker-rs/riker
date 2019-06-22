@@ -1,305 +1,377 @@
 #![allow(unused_variables)]
 
-use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
+use std::{
+    collections::HashMap,
+    hash::{Hash, Hasher}
+};
 
-use crate::protocol::{Message, ActorMsg, SystemMsg, ChannelMsg, SystemEvent, DeadLetter};
-use crate::actor::{Actor, BoxActor, Props, BoxActorProd, ActorRef, Context, Tell, SysTell};
+use crate::{
+    Message,
+    system::{SystemMsg, SystemEvent},
+    actor::{
+        Tell, BoxedTell, Actor, Props, BoxActorProd, CreateError, Sender,
+        ActorReference, ActorRef, BasicActorRef, Context, Receive, ActorRefFactory
+    }
+};
 
-type Subs<Msg> = HashMap<Topic, Vec<ActorRef<Msg>>>;
+
+type Subs<Msg> = HashMap<Topic, Vec<BoxedTell<Msg>>>;
 
 /// A specialized actor for providing Publish/Subscribe capabilities to users.
 /// 
-/// It is a common actor pattern to provide pub/sub features to other actors
-/// especially in cases where choreography (instead of orchestration) is used.
-/// [See: Service Choreography](https://en.wikipedia.org/wiki/Service_choreography)
-/// 
-/// A channel can be started as you would any other actor. A channel expects
-/// `ChannelMsg` messages.
-/// 
-/// To publish a message to a channel you send the channel a `ChannelMsg::Publish`
-/// message containing the topic and the message to publish.
-/// 
-/// A published message is cloned and sent to each subscriber to the channel where
-/// the topic matches.
-/// 
-/// To subscribe to a channel you send the channel a `ChannelMsg::Subscribe`
-/// message containing the topic to subscribe to and an `ActorRef` of the
-/// subscriber (e.g. `.myself()`).
-/// 
-/// Since channels are actors themselves they provide excellent lightweight
-/// facilitators of distributing data among actors that are working together to
-/// complete a single goal or interaction (even short lived interactions).
-/// 
-/// # Examples
-/// 
-/// ```
-/// # extern crate riker;
-/// # extern crate riker_default;
-/// 
-/// # use riker::actors::*;
-/// # use riker_default::DefaultModel;
-/// 
-/// use riker::actors::ChannelMsg::*;
-/// 
-/// struct MyActor;
-/// 
-/// impl Actor for MyActor {
-///     type Msg = String;
-///
-///     fn receive(&mut self,
-///                 ctx: &Context<Self::Msg>,
-///                 msg: Self::Msg,
-///                 sender: Option<ActorRef<Self::Msg>>) {
-///         println!("Received msg {:?}", msg);
-///     }
-/// }
-/// 
-/// impl MyActor {
-///     fn actor() -> BoxActor<String> {
-///         Box::new(MyActor)
-///     }
-/// }
-/// 
-/// // main
-/// let model: DefaultModel<String> = DefaultModel::new();
-/// let sys = ActorSystem::new(&model).unwrap();
-///
-/// // start two instances of MyActor
-/// let props = Props::new(Box::new(MyActor::actor));
-/// let sub1 = sys.actor_of(props.clone(), "sub1").unwrap();
-/// let sub2 = sys.actor_of(props, "sub2").unwrap();
-/// 
-/// // start a channel
-/// let chan = sys.actor_of(Channel::props(), "my-channel").unwrap();
-/// 
-/// // subscribe actors to channel
-/// chan.tell(Subscribe("my-topic".into(), sub1), None);
-/// chan.tell(Subscribe("my-topic".into(), sub2), None);
-/// 
-/// // publish a message
-/// let msg = Publish("my-topic".into(), "Remember the cant!".into());
-/// chan.tell(msg, None);
-/// ```
+
+
+
+// Generic Channel
+pub type ChannelCtx<Msg> = Context<ChannelMsg<Msg>>;
+pub type ChannelRef<Msg> = ActorRef<ChannelMsg<Msg>>;
+
+/// A specialized actor for providing Publish/Subscribe capabilities for user level messages
 pub struct Channel<Msg: Message> {
-    event_stream: Option<ActorRef<Msg>>,
     subs: Subs<Msg>,
 }
 
-impl<Msg: Message> Channel<Msg> {
-    pub fn new(event_stream: Option<ActorRef<Msg>>) -> BoxActor<Msg> {
-        let actor = Channel {
-            event_stream,
-            subs: Subs::new()
-        };
-
-        Box::new(actor)
-    }
-
-    pub fn props() -> BoxActorProd<Msg> {
-        Props::new_args(Box::new(Channel::new), None)
-    }
-
-    fn handle_channel_msg(&mut self, msg: ChannelMsg<Msg>, sender: Option<ActorRef<Msg>>) {
-        match msg {
-            ChannelMsg::Publish(topic, msg) => self.publish(&topic, msg, sender),
-            ChannelMsg::Subscribe(topic, actor) => self.subscribe(topic, actor),
-            ChannelMsg::Unsubscribe(topic, actor) => self.unsubscribe(&topic, &actor),
-            ChannelMsg::UnsubscribeAll(actor) => self.unsubscribe_from_all(&actor),
-            _ => {}
+impl<Msg> Channel<Msg>
+    where Msg: Message
+{
+    pub fn new() -> Self {
+        Channel {
+            subs: HashMap::new()
         }
     }
 
-    fn publish(&mut self, topic: &Topic, msg: Msg, sender: Option<ActorRef<Msg>>) {
-        // send message to actors subscribed to all topics
-        if let Some(subs) = self.subs.get(&All.into()) {
-            for sub in subs.iter() {
-                let msg = msg.clone();
-                sub.tell(msg, sender.clone());
-            }
-        }
-
-        // send message to actors subscribed to the topic
-        if let Some(subs) = self.subs.get(topic) {
-            for sub in subs.iter() {
-                let msg = msg.clone();
-                sub.tell(msg, sender.clone());
-            }
-        }
-    }
-
-    fn subscribe(&mut self, topic: Topic, actor: ActorRef<Msg>) {
-        if self.subs.contains_key(&topic) {
-            self.subs.get_mut(&topic).unwrap().push(actor);
-        } else {
-            self.subs.insert(topic.clone(), vec![actor]);
-        }
-    }
-
-    fn unsubscribe(&mut self, topic: &Topic, actor: &ActorRef<Msg>) {
-        // Nightly only: self.subs.get(msg_type).unwrap().remove_item(actor);
-        if self.subs.contains_key(topic) {
-            if let Some(pos) = self.subs.get(topic).unwrap().iter().position(|x| x == actor) {
-                self.subs.get_mut(topic).unwrap().remove(pos);
-            }
-        }
-    }
-
-    fn unsubscribe_from_all(&mut self, actor: &ActorRef<Msg>) {
-        //TODO using .clone here to work around multiple borrows on self. Need to find a better way.
-        let subs = self.subs.clone();
-
-        for topic in subs.keys() {
-            self.unsubscribe(&topic, &actor);
-        }
+    pub fn props() -> BoxActorProd<Channel<Msg>> {
+        Props::new(Box::new(Channel::new))
     }
 }
 
-impl<Msg: Message> Actor for Channel<Msg> {
-    type Msg = Msg;
+impl<Msg> Actor for Channel<Msg>
+    where Msg: Message
+{
+    type Msg = ChannelMsg<Msg>;
+    type Evt = ();
 
-    fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
-        let msg = ChannelMsg::Subscribe(SysTopic::ActorTerminated.into(), ctx.myself.clone());
+    // todo check this. I remember subscribing needing to be done elsewhere
+    // todo subscribe to events to unsub subscribers when they die
+    fn pre_start(&mut self, ctx: &ChannelCtx<Msg>) {
+        // let sub = Subscribe {
+        //     topic: SysTopic::ActorTerminated.into(),
+        //     actor: Box::new(ctx.myself.clone())//.into()
+        // };
 
-        match self.event_stream {
-            Some(ref es) => es.tell(msg, None),
-            None => ctx.system.event_stream().tell(msg, None)
-        };
+        // let msg = ChannelMsg::Subscribe(sub);
+        // ctx.myself.tell(msg, None);
     }
 
-    fn other_receive(&mut self, _: &Context<Msg>, msg: ActorMsg<Msg>, sender: Option<ActorRef<Msg>>) {
-        match msg {
-            ActorMsg::Channel(msg) => self.handle_channel_msg(msg, sender),
-            _ => {} //TODO send to dead letters?
-        }
+    fn recv(&mut self,
+            ctx: &ChannelCtx<Msg>,
+            msg: ChannelMsg<Msg>,
+            sender: Sender) {
+
+        self.receive(ctx, msg, sender);
     }
 
-    fn system_receive(&mut self, _: &Context<Self::Msg>, msg: SystemMsg<Self::Msg>, sender: Option<ActorRef<Self::Msg>>) {
+    // We expect to receive ActorTerminated messages because we subscribed
+    // to this system event. This allows us to remove actors that have been
+    // terminated but did not explicity unsubscribe before terminating.
+    fn sys_recv(&mut self,
+                        _: &ChannelCtx<Msg>,
+                        msg: SystemMsg,
+                        sender: Sender) {
         if let SystemMsg::Event(evt) = msg {
             match evt {
-                SystemEvent::ActorTerminated(actor) => {
-                    self.unsubscribe_from_all(&actor)
+                SystemEvent::ActorTerminated(terminated) => {
+                    //TODO using .clone here to work around multiple borrows on self. Need to find a better way.
+                    let subs = self.subs.clone();
+
+                    for topic in subs.keys() {
+                        unsubscribe(&mut self.subs, topic, &terminated.actor);
+                    }
                 }
                 _ => {}
             }
         }
     }
-
-    fn receive(&mut self, _: &Context<Msg>, _: Msg, _: Option<ActorRef<Msg>>) {}
 }
 
-/// A specialized actor for providing Publish/Subscribe capabilities for system messages.
-pub struct SystemChannel<Msg: Message> {
-    subs: Subs<Msg>,
-}
+impl<Msg> Receive<ChannelMsg<Msg>> for Channel<Msg>
+    where Msg: Message
+{
+    type Msg = ChannelMsg<Msg>;
 
-impl<Msg: Message> SystemChannel<Msg> {
-    pub fn new() -> BoxActor<Msg> {
-        let actor = SystemChannel {
-            subs: Subs::new()
-        };
-
-        Box::new(actor)
-    }
-
-    fn handle_channel_msg(&mut self, msg: ChannelMsg<Msg>, sender: Option<ActorRef<Msg>>) {
+    fn receive(&mut self,
+                ctx: &ChannelCtx<Msg>,
+                msg: Self::Msg,
+                sender: Sender) {
+        
         match msg {
-            ChannelMsg::PublishEvent(evt) => self.publish_event(evt, sender),
-            ChannelMsg::PublishDeadLetter(msg) => self.publish_deadleatter(*msg),
-            ChannelMsg::Subscribe(topic, actor) => self.subscribe(topic, actor),
-            ChannelMsg::Unsubscribe(topic, actor) => self.unsubscribe(&topic, &actor),
-            ChannelMsg::UnsubscribeAll(actor) => self.unsubscribe_from_all(&actor),
-            _ => {}
+            ChannelMsg::Publish(p) => self.receive(ctx, p, sender),
+            ChannelMsg::Subscribe(sub) => self.receive(ctx, sub, sender),
+            ChannelMsg::Unsubscribe(unsub) => self.receive(ctx, unsub, sender),
+            ChannelMsg::UnsubscribeAll(unsub) => self.receive(ctx, unsub, sender),
         }
     }
+}
 
-    fn publish_event(&mut self, evt: SystemEvent<Msg>, sender: Option<ActorRef<Msg>>) {
-        // send message to actors subscribed to all topics
+impl<Msg> Receive<Subscribe<Msg>> for Channel<Msg>
+    where Msg: Message
+{
+    type Msg = ChannelMsg<Msg>;
+
+    fn receive(&mut self,
+                ctx: &ChannelCtx<Msg>,
+                msg: Subscribe<Msg>,
+                sender: Sender) {
+        
+        if self.subs.contains_key(&msg.topic) {
+            self.subs.get_mut(&msg.topic).unwrap().push(msg.actor);
+        } else {
+            self.subs.insert(msg.topic, vec![msg.actor]);
+        }
+    }
+}
+
+impl<Msg> Receive<Unsubscribe<Msg>> for Channel<Msg>
+    where Msg: Message
+{
+    type Msg = ChannelMsg<Msg>;
+
+    fn receive(&mut self,
+                ctx: &ChannelCtx<Msg>,
+                msg: Unsubscribe<Msg>,
+                sender: Sender) {
+        
+        unsubscribe(&mut self.subs, &msg.topic, &msg.actor);
+    }
+}
+
+impl<Msg> Receive<UnsubscribeAll<Msg>> for Channel<Msg>
+    where Msg: Message
+{
+    type Msg = ChannelMsg<Msg>;
+
+    fn receive(&mut self,
+                ctx: &ChannelCtx<Msg>,
+                msg: UnsubscribeAll<Msg>,
+                sender: Sender) {
+        
+        //TODO using .clone here to work around multiple borrows on self. Need to find a better way.
+        let subs = self.subs.clone();
+
+        for topic in subs.keys() {
+            unsubscribe(&mut self.subs, topic, &msg.actor);
+        }
+    }
+}
+
+impl<Msg> Receive<Publish<Msg>> for Channel<Msg>
+    where Msg: Message
+{
+    type Msg = ChannelMsg<Msg>;
+
+    fn receive(&mut self,
+                ctx: &ChannelCtx<Msg>,
+                msg: Publish<Msg>,
+                sender: Sender) {
+                    
+        // send system event to actors subscribed to all topics
         if let Some(subs) = self.subs.get(&All.into()) {
             for sub in subs.iter() {
-                let msg = SystemMsg::Event(evt.clone());
-                sub.sys_tell(msg, sender.clone());
+                sub.tell(msg.msg.clone(), sender.clone());
             }
         }
 
-        // send message to actors subscribed to the topic
-        if let Some(subs) = self.subs.get(&Topic::from(&evt)) {
+        // send system event to actors subscribed to the topic
+        if let Some(subs) = self.subs.get(&msg.topic) {
             for sub in subs.iter() {
-                let msg = SystemMsg::Event(evt.clone());
-                sub.sys_tell(msg, sender.clone());
+                sub.tell(msg.msg.clone(), sender.clone());
             }
         }  
     }
+}
 
-    fn publish_deadleatter(&mut self, msg: DeadLetter<Msg>) {
-        if let Some(subs) = self.subs.get(&All.into()) {
-            for sub in subs.iter() {
-                sub.tell(msg.clone(), None);
-            }
-        }
-    }
-
-    fn subscribe(&mut self, topic: Topic, actor: ActorRef<Msg>) {
-        if self.subs.contains_key(&topic) {
-            self.subs.get_mut(&topic).unwrap().push(actor);
-        } else {
-            self.subs.insert(topic, vec![actor]);
-        }
-    }
-
-    fn unsubscribe(&mut self, topic: &Topic, actor: &ActorRef<Msg>) {
-        // Nightly only: self.subs.get(msg_type).unwrap().remove_item(actor);
-        if self.subs.contains_key(topic) {
-            if let Some(pos) = self.subs.get(topic).unwrap().iter().position(|x| x == actor) {
-                self.subs.get_mut(topic).unwrap().remove(pos);
-            }
-        }
-    }
-
-    fn unsubscribe_from_all(&mut self, actor: &ActorRef<Msg>) {
-        //TODO using .clone here to work around multiple borrows on self. Need to find a better way.
-        let subs = self.subs.clone();
-
-        for topic in subs.keys() {
-            self.unsubscribe(&topic, &actor);
+fn unsubscribe<Msg>(subs: &mut Subs<Msg>,
+                    topic: &Topic,
+                    actor: &dyn ActorReference) {
+    // Nightly only: self.subs.get(msg_type).unwrap().remove_item(actor);
+    if subs.contains_key(topic) {
+        if let Some(pos) = subs.get(topic).unwrap().iter().position(|x| x.path() == actor.path()) {
+            subs.get_mut(topic).unwrap().remove(pos);
         }
     }
 }
 
-impl<Msg: Message> Actor for SystemChannel<Msg> {
-    type Msg = Msg;
+/// A specialized channel that publishes messages as system messages
+pub struct EventsChannel(Channel<SystemEvent>);
 
-    fn pre_start(&mut self, ctx: &Context<Msg>) {
-        let msg = ChannelMsg::Subscribe(SysTopic::ActorTerminated.into(), ctx.myself.clone());
-        ctx.myself.tell(msg, None);
+impl EventsChannel {
+    pub fn new() -> Self {
+        EventsChannel(Channel::new())
     }
 
-    fn other_receive(&mut self, _: &Context<Msg>, msg: ActorMsg<Msg>, sender: Option<ActorRef<Msg>>) {
+    pub fn props() -> BoxActorProd<Channel<SystemEvent>> {
+        Props::new(Box::new(Channel::new))
+    }
+}
+
+impl Actor for EventsChannel {
+    type Msg = ChannelMsg<SystemEvent>;
+    type Evt = ();
+
+    fn pre_start(&mut self, ctx: &ChannelCtx<SystemEvent>) {
+        self.0.pre_start(ctx);
+    }
+
+    fn recv(&mut self,
+            ctx: &ChannelCtx<SystemEvent>,
+            msg: ChannelMsg<SystemEvent>,
+            sender: Sender) {
+
+        self.receive(ctx, msg, sender);
+    }
+
+    fn sys_recv(&mut self,
+                        ctx: &ChannelCtx<SystemEvent>,
+                        msg: SystemMsg,
+                        sender: Sender) {
+        self.0.sys_recv(ctx, msg, sender);
+    }
+}
+
+impl Receive<ChannelMsg<SystemEvent>> for EventsChannel {
+    type Msg = ChannelMsg<SystemEvent>;
+
+    fn receive(&mut self,
+                ctx: &ChannelCtx<SystemEvent>,
+                msg: Self::Msg,
+                sender: Sender) {
+        
+        // Publish variant uses specialized EventsChannel Receive
+        // All other variants use the wrapped Channel (self.0) Receive(s)
         match msg {
-            ActorMsg::Channel(msg) => self.handle_channel_msg(msg, sender),
-            _ => {} //TODO send to dead letters?
+            ChannelMsg::Publish(p) => self.receive(ctx, p, sender),
+            ChannelMsg::Subscribe(sub) => self.0.receive(ctx, sub, sender),
+            ChannelMsg::Unsubscribe(unsub) => self.0.receive(ctx, unsub, sender),
+            ChannelMsg::UnsubscribeAll(unsub) => self.0.receive(ctx, unsub, sender),
         }
     }
-
-    fn system_receive(&mut self, _: &Context<Self::Msg>, msg: SystemMsg<Self::Msg>, sender: Option<ActorRef<Self::Msg>>) {
-        if let SystemMsg::Event(evt) = msg {
-            match evt {
-                SystemEvent::ActorTerminated(actor) => {
-                    self.unsubscribe_from_all(&actor)
-                }
-                _ => {}
-            }
-        }
-    }
-
-    fn receive(&mut self, _: &Context<Msg>, _: Msg, _: Option<ActorRef<Msg>>) {}
 }
 
-/// Topics allow channel subscribers to filter messages by interest
+impl Receive<Publish<SystemEvent>> for EventsChannel {
+    type Msg = ChannelMsg<SystemEvent>;
+
+    fn receive(&mut self,
+                ctx: &ChannelCtx<SystemEvent>,
+                msg: Publish<SystemEvent>,
+                sender: Sender) {
+                    
+        // send system event to actors subscribed to all topics
+        if let Some(subs) = self.0.subs.get(&All.into()) {
+            for sub in subs.iter() {
+                let evt = SystemMsg::Event(msg.msg.clone());
+                sub.sys_tell(evt);
+            }
+        }
+
+        // send system event to actors subscribed to the topic
+        if let Some(subs) = self.0.subs.get(&msg.topic) {
+            for sub in subs.iter() {
+                let evt = SystemMsg::Event(msg.msg.clone());
+                sub.sys_tell(evt);
+            }
+        }  
+    }
+}
+
+// Deadletter channel implementations
+pub type DLChannelMsg = ChannelMsg<DeadLetter>;
+
+#[derive(Clone, Debug)]
+pub struct DeadLetter {
+    pub msg: String,
+    pub sender: Sender,
+    pub recipient: BasicActorRef,
+}
+
+#[derive(Debug, Clone)]
+pub struct Subscribe<Msg: Message> {
+    pub topic: Topic,
+    pub actor: BoxedTell<Msg>,
+}
+
+#[derive(Debug, Clone)]
+pub struct Unsubscribe<Msg: Message> {
+    pub topic: Topic,
+    pub actor: BoxedTell<Msg>,
+}
+
+#[derive(Debug, Clone)]
+pub struct UnsubscribeAll<Msg: Message> {
+    pub actor: BoxedTell<Msg>,
+}
+
+#[derive(Debug, Clone)]
+pub struct Publish<Msg: Message> {
+    pub topic: Topic,
+    pub msg: Msg,
+}
+
+#[derive(Debug, Clone)]
+pub enum ChannelMsg<Msg: Message> {
+    /// Publish message
+    Publish(Publish<Msg>),
+
+    /// Subscribe given `ActorRef` to a topic on a channel
+    Subscribe(Subscribe<Msg>),
+
+    /// Unsubscribe the given `ActorRef` from a topic on a channel
+    Unsubscribe(Unsubscribe<Msg>),
+
+    /// Unsubscribe the given `ActorRef` from all topics on a channel
+    UnsubscribeAll(UnsubscribeAll<Msg>),
+}
+
+// publish
+impl<Msg: Message> Into<ChannelMsg<Msg>> for Publish<Msg> {
+    fn into(self) -> ChannelMsg<Msg> {
+        ChannelMsg::Publish(self)
+    }
+}
+
+// subscribe
+impl<Msg: Message> Into<ChannelMsg<Msg>> for Subscribe<Msg> {
+    fn into(self) -> ChannelMsg<Msg> {
+        ChannelMsg::Subscribe(self)
+    }
+}
+
+// unsubscribe
+impl<Msg: Message> Into<ChannelMsg<Msg>> for Unsubscribe<Msg> {
+    fn into(self) -> ChannelMsg<Msg> {
+        ChannelMsg::Unsubscribe(self)
+    }
+}
+
+// unsubscribe
+impl<Msg: Message> Into<ChannelMsg<Msg>> for UnsubscribeAll<Msg> {
+    fn into(self) -> ChannelMsg<Msg> {
+        ChannelMsg::UnsubscribeAll(self)
+    }
+}
+
+// Topics allow channel subscribers to filter messages by interest
 /// 
 /// When publishing a message to a channel a Topic is provided.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Topic(String);
+
+impl Eq for Topic {}
+
+impl Hash for Topic {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.hash(state);
+    }
+}
 
 impl<'a> From<&'a str> for Topic {
     fn from(topic: &str) -> Self {
@@ -313,21 +385,13 @@ impl From<String> for Topic {
     }
 }
 
-impl<'a, Msg: Message> From<&'a SystemEvent<Msg>> for Topic {
-    fn from(evt: &SystemEvent<Msg>) -> Self {
+impl<'a> From<&'a SystemEvent> for Topic {
+    fn from(evt: &SystemEvent) -> Self {
         match evt {
             &SystemEvent::ActorCreated(_) => Topic::from("actor.created"),
             &SystemEvent::ActorTerminated(_) => Topic::from("actor.terminated"),
             &SystemEvent::ActorRestarted(_) => Topic::from("actor.restarted")
         }
-    }
-}
-
-impl Eq for Topic {}
-
-impl Hash for Topic {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.0.hash(state);
     }
 }
 
@@ -357,22 +421,9 @@ impl From<SysTopic> for Topic {
     }
 }
 
-// TODO update to use actorrefs
-pub fn dead_letter<Msg: Message>(dl: &ActorRef<Msg>, sender: Option<String>, recipient: String, msg: ActorMsg<Msg>) {
-    let dead_letter = DeadLetter {
-        sender: sender.unwrap_or("[unknown sender]".to_string()),
-        recipient: recipient,
-        msg: msg
-    };
-
-    let dead_letter = Box::new(dead_letter);
-    let dead_letter = ActorMsg::Channel(ChannelMsg::PublishDeadLetter(dead_letter));
-
-    dl.tell(dead_letter, None);
-}
-
-#[derive(Clone)]
-pub struct SysChannels<Msg: Message> {
-    pub event_stream: ActorRef<Msg>,
-    pub dead_letters: ActorRef<Msg>,
+pub fn channel<Msg>(name: &str, fact: impl ActorRefFactory)
+                    -> Result<ChannelRef<Msg>, CreateError>
+    where Msg: Message
+{
+    fact.actor_of(Channel::<Msg>::props(), name)
 }

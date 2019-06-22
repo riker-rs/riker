@@ -1,8 +1,11 @@
-use std::hash::{Hash, Hasher};
-use std::fmt;
-use std::sync::Arc;
+use std::{
+    fmt,
+    hash::{Hash, Hasher},
+    sync::Arc
+};
 
-pub type ActorId = u32;
+pub type ActorId = usize;
+pub type ActorPath = Arc<String>;
 
 /// An `ActorUri` represents the location of an actor, including the
 /// path and actor system host.
@@ -13,7 +16,7 @@ pub type ActorId = u32;
 pub struct ActorUri {
     pub uid: ActorId,
     pub name: Arc<String>,
-    pub path: Arc<String>,
+    pub path: ActorPath,
     pub host: Arc<String>,
 }
 
@@ -44,12 +47,12 @@ impl Hash for ActorUri {
 
 impl fmt::Display for ActorUri {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "ActorUri[{}]", self.path)
+        write!(f, "{}", self.path)
     }
 }
 
 impl fmt::Debug for ActorUri {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "ActorUri[{}://{}#{}]", self.host, self.path, self.uid)
+        write!(f, "{}://{}#{}", self.host, self.path, self.uid)
     }
 }

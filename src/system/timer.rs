@@ -5,7 +5,7 @@ use chrono::{DateTime, Utc};
 use config::Config;
 use uuid::Uuid;
 
-use crate::protocol::{Message, ActorMsg};
+use crate::protocol::Message;
 use crate::actor::{ActorRef, Tell};
 
 pub trait Timer {
@@ -56,7 +56,7 @@ pub struct OnceJob<Msg: Message> {
     pub send_at: SystemTime,
     pub receiver: ActorRef<Msg>,
     pub sender: Option<ActorRef<Msg>>,
-    pub msg: ActorMsg<Msg>,
+    pub msg: Msg,
 }
 
 impl<Msg: Message> OnceJob<Msg> {
@@ -71,7 +71,7 @@ pub struct RepeatJob<Msg: Message> {
     pub interval: Duration,
     pub receiver: ActorRef<Msg>,
     pub sender: Option<ActorRef<Msg>>,
-    pub msg: ActorMsg<Msg>,
+    pub msg: Msg,
 }
 
 impl<Msg: Message> RepeatJob<Msg> {

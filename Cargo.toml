@@ -13,28 +13,19 @@ keywords = ["actors", "actor-model", "async", "cqrs", "event_sourcing"]
 [badges]
 travis-ci = { repository = "riker-rs/riker" }
 
-[workspace]
-
-members = [
-  "./",
-  "riker-default/riker-deadletter",
-  "riker-default/riker-dispatcher",
-  "riker-default/riker-log",
-  "riker-default/riker-mapvec",
-  "riker-default/riker-timer"
-]
-
 [dependencies]
+riker-macros = { path = "riker-macros", version = "0.1" }
 bytes = "0.4"
 chrono = "0.4"
 config = "0.9"
-futures-preview = "0.3.0-alpha.12"
+futures-preview = "0.3.0-alpha.14"
 log = { version = "0.4", features = ["std"] }
 rand = "0.4"
 regex = "0.2"
+runtime-fmt = "0.3.0"
 uuid = { version = "0.6", features = ["v4"] }
-pin-utils = "0.1.0-alpha.3"
+pin-utils = "0.1.0-alpha.4"
+
 
 [dev-dependencies]
-riker-default = { path = "riker-default", version = "0.2.2" }
 riker-testkit = "0.1.0"
