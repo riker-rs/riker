@@ -6,7 +6,10 @@
 )]
 
 use riker::actors::*;
-use futures::executor::block_on;
+use futures::{
+    task::SpawnExt,
+    executor::block_on
+};
 
 #[test]
 fn system_create() {
@@ -61,39 +64,37 @@ fn system_shutdown() {
     block_on(sys.shutdown()).unwrap();
 }
 
-// #[test]
-// fn system_execute_futures() {
-//     let model: DefaultModel<TestMsg> = DefaultModel::new();
-//     let system = ActorSystem::new(&model).unwrap();
+#[test]
+fn system_futures_exec() {
+    let sys = ActorSystem::new().unwrap();
 
-//     for i in 0..100 {
-//         let handle = system.execute(async move {
-//             format!("some_val_{}", i)
-//         });
+    for i in 0..100 {
+        let f = sys.run(async move {
+            format!("some_val_{}", i)
+        }).unwrap();
         
-//         assert_eq!(block_on(handle), format!("some_val_{}", i));
-//     }
-// }
+        assert_eq!(block_on(f), format!("some_val_{}", i));
+    }
+}
 
-// #[test]
-// fn system_panic_futures() {
-//     let model: DefaultModel<TestMsg> = DefaultModel::new();
-//     let system = ActorSystem::new(&model).unwrap();
+#[test]
+fn system_futures_panic() {
+    let sys = ActorSystem::new().unwrap();
 
-//     for _ in 0..100 {
-//         let _ = system.execute(async move {
-//             panic!("// TEST PANIC // TEST PANIC // TEST PANIC //");
-//         });
-//     }
+    for _ in 0..100 {
+        let _ = sys.run(async move {
+            panic!("// TEST PANIC // TEST PANIC // TEST PANIC //");
+        }).unwrap();
+    }
 
-//     for i in 0..100 {
-//         let handle = system.execute(async move {
-//             format!("some_val_{}", i)
-//         });
+    for i in 0..100 {
+        let f = sys.run(async move {
+            format!("some_val_{}", i)
+        }).unwrap();
         
-//         assert_eq!(block_on(handle), format!("some_val_{}", i));
-//     }
-// }
+        assert_eq!(block_on(f), format!("some_val_{}", i));
+    }
+}
 
 #[test]
 fn system_load_app_config() {
@@ -102,4 +103,14 @@ fn system_load_app_config() {
     assert_eq!(sys.config()
                     .get_int("app.some_setting")
                     .unwrap() as i64, 1);
+}
+
+#[test]
+fn system_builder() {
+    let sys = SystemBuilder::new()
+                            .name("my-sys")
+                            .create()
+                            .unwrap();
+    
+    block_on(sys.shutdown()).unwrap();
 }

@@ -5,7 +5,7 @@ use crate::{
     system::{ActorSystem, SystemMsg},
     actor::{
         Actor, ActorUri, ActorPath, BoxActorProd,
-        CreateError, MsgResult, TryMsgError,
+        CreateError,
         actor_cell::{ActorCell, ExtendedCell}
     }
 };
@@ -47,11 +47,9 @@ pub trait Tell<T> : ActorReference + Send + 'static {
     fn box_clone(&self) -> BoxedTell<T>;
 }
 
-// pub trait TryTell : ActorReference + Send + 'static {
-//     fn tell(&self, msg: T, sender: Option<BasicActorRef>);
-// }
-
-impl<T: Message + Into<M>, M: Message> Tell<T> for ActorRef<M> {
+impl<T, M> Tell<T> for ActorRef<M>
+    where T: Message + Into<M>, M: Message
+{
     fn tell(&self, msg: T, sender: Sender) {
         self.send_msg(msg.into(), sender);
     }
@@ -139,22 +137,19 @@ impl<T: 'static> Clone for BoxedTell<T> {
 
 #[derive(Clone)]
 pub struct BasicActorRef {
-    pub uri: ActorUri, // todo remove and use cell.uri
     pub cell: ActorCell,
 }
 
 impl BasicActorRef {
     #[doc(hidden)]
-    pub fn new(uri: &ActorUri, cell: ActorCell) -> BasicActorRef {
+    pub fn new(cell: ActorCell) -> BasicActorRef {
         BasicActorRef {
-            uri: uri.clone(),
             cell,
         }
     }
 
     pub fn typed<Msg: Message>(&self, cell: ExtendedCell<Msg>) -> ActorRef<Msg> {
         ActorRef {
-            uri: self.uri.clone(),
             cell
         }
     }
@@ -168,24 +163,14 @@ impl BasicActorRef {
                             -> Result<(), ()>
         where Msg: Message + Send
     {
-
-        let envelope = Envelope {
-            msg: AnyMessage { msg: Box::new(msg) },
-            sender: sender.into(),
-        };
-
-        self.cell.send_any_msg(envelope)
+        self.try_tell_any(&mut AnyMessage::new(msg, true), sender)
     }
-    // pub fn try_tell(&self, msg: impl Into<AnyMessage>, sender: Sender)
-    //             -> Result<(), ()> {
 
-    //     let envelope = Envelope {
-    //         msg: msg.into(),
-    //         sender: sender.into(),
-    //     };
-
-    //     self.cell.send_any_msg(envelope)
-    // }
+    pub fn try_tell_any(&self, msg: &mut AnyMessage,
+                        sender: impl Into<Option<BasicActorRef>>)
+                        -> Result<(), ()> {
+        self.cell.send_any_msg(msg, sender.into())
+    }
 }
 
 impl ActorReference for BasicActorRef {
@@ -193,18 +178,18 @@ impl ActorReference for BasicActorRef {
     /// 
     /// Unique among siblings.
     fn name(&self) -> &str {
-        &self.uri.name.as_str()
+        self.cell.uri().name.as_str()
     }
 
     fn uri(&self) -> &ActorUri {
-        &self.uri
+        self.cell.uri()
     }
 
     /// Actor path.
     /// 
     /// e.g. `/user/actor_a/actor_b`
     fn path(&self) -> &ActorPath {
-        &self.uri.path
+        &self.cell.uri().path
     }
 
     fn is_root(&self) -> bool {
@@ -247,18 +232,18 @@ impl ActorReference for &BasicActorRef {
     /// 
     /// Unique among siblings.
     fn name(&self) -> &str {
-        &self.uri.name.as_str()
+        self.cell.uri().name.as_str()
     }
 
     fn uri(&self) -> &ActorUri {
-        &self.uri
+        self.cell.uri()
     }
 
     /// Actor path.
     /// 
     /// e.g. `/user/actor_a/actor_b`
     fn path(&self) -> &ActorPath {
-        &self.uri.path
+        &self.cell.uri().path
     }
 
     fn is_root(&self) -> bool {
@@ -298,19 +283,19 @@ impl ActorReference for &BasicActorRef {
 
 impl fmt::Debug for BasicActorRef {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "BasicActorRef[{:?}]", self.uri)
+        write!(f, "BasicActorRef[{:?}]", self.cell.uri())
     }
 }
 
 impl fmt::Display for BasicActorRef {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "BasicActorRef[{}]", self.uri)
+        write!(f, "BasicActorRef[{}]", self.cell.uri())
     }
 }
 
 impl PartialEq for BasicActorRef {
     fn eq(&self, other: &BasicActorRef) -> bool {
-        self.uri.path == other.uri.path
+        self.cell.uri().path == other.cell.uri().path
     }
 }
 
@@ -318,7 +303,7 @@ impl<Msg> From<ActorRef<Msg>> for BasicActorRef
     where Msg: Message
 {
     fn from(actor: ActorRef<Msg>) -> BasicActorRef {
-        BasicActorRef::new(&actor.uri, ActorCell::from(actor.cell))
+        BasicActorRef::new(ActorCell::from(actor.cell))
     }
 }
 
@@ -326,7 +311,7 @@ impl<Msg> From<ActorRef<Msg>> for Option<BasicActorRef>
     where Msg: Message
 {
     fn from(actor: ActorRef<Msg>) -> Option<BasicActorRef> {
-        Some(BasicActorRef::new(&actor.uri, ActorCell::from(actor.cell)))
+        Some(BasicActorRef::new(ActorCell::from(actor.cell)))
     }
 }
 
@@ -349,16 +334,13 @@ pub type Sender = Option<BasicActorRef>;
 /// be valid.
 #[derive(Clone)]
 pub struct ActorRef<Msg: Message> {
-    pub uri: ActorUri,
-    pub cell: ExtendedCell<Msg>, // todo doesn't cell have uri already?
+    pub cell: ExtendedCell<Msg>,
 }
 
 impl<Msg: Message> ActorRef<Msg> {
     #[doc(hidden)]
-    pub fn new(uri: &ActorUri,
-                cell: ExtendedCell<Msg>) -> ActorRef<Msg> {
+    pub fn new(cell: ExtendedCell<Msg>) -> ActorRef<Msg> {
         ActorRef {
-            uri: uri.clone(),
             cell
         }
     }
@@ -380,18 +362,18 @@ impl<Msg: Message> ActorReference for ActorRef<Msg> {
     /// 
     /// Unique among siblings.
     fn name(&self) -> &str {
-        &self.uri.name.as_str()
+        self.cell.uri().name.as_str()
     }
 
     fn uri(&self) -> &ActorUri {
-        &self.uri
+        self.cell.uri()
     }
 
     /// Actor path.
     /// 
     /// e.g. `/user/actor_a/actor_b`
     fn path(&self) -> &ActorPath {
-        &self.uri.path
+        &self.cell.uri().path
     }
 
     fn is_root(&self) -> bool {
@@ -434,18 +416,18 @@ impl<Msg: Message> ActorReference for &ActorRef<Msg> {
     /// 
     /// Unique among siblings.
     fn name(&self) -> &str {
-        &self.uri.name.as_str()
+        self.cell.uri().name.as_str()
     }
 
     fn uri(&self) -> &ActorUri {
-        &self.uri
+        self.cell.uri()
     }
 
     /// Actor path.
     /// 
     /// e.g. `/user/actor_a/actor_b`
     fn path(&self) -> &ActorPath {
-        &self.uri.path
+        &self.cell.uri().path
     }
 
     fn is_root(&self) -> bool {
@@ -506,19 +488,19 @@ impl<Msg: Message> ActorReference for &ActorRef<Msg> {
 
 impl<Msg: Message> fmt::Debug for ActorRef<Msg> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "ActorRef[{:?}]", self.uri)
+        write!(f, "ActorRef[{:?}]", self.uri())
     }
 }
 
 impl<Msg: Message> fmt::Display for ActorRef<Msg> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "ActorRef[{}]", self.uri)
+        write!(f, "ActorRef[{}]", self.uri())
     }
 }
 
 impl<Msg: Message> PartialEq for ActorRef<Msg> {
     fn eq(&self, other: &ActorRef<Msg>) -> bool {
-        self.uri.path == other.uri.path
+        self.uri().path == other.uri().path
     }
 }
 

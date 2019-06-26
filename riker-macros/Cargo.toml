@@ -1,7 +1,7 @@
 [package]
 name = "riker-macros"
 version = "0.1.0"
-authors = ["Lee Smith <leenozara@gmail.com>"]
+authors = ["Lee Smith <lee@riker.rs>"]
 edition = "2018"
 
 [lib]

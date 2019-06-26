@@ -1,5 +1,6 @@
 pub(crate) mod logger;
 pub(crate) mod system;
+pub(crate) mod timer;
 
 use std::{
     fmt,
@@ -10,7 +11,8 @@ use crate::actor::BasicActorRef;
 
 // Public riker::system API (plus the pub data types in this file)
 pub use self::{
-    system::{ActorSystem, SystemBuilder},
+    system::{ActorSystem, SystemBuilder, Run},
+    timer::{Timer, BasicTimer},
     logger::LogEntry
 };
 
@@ -20,8 +22,6 @@ pub enum SystemMsg {
     Command(SystemCmd),
     Event(SystemEvent),
     Failed(BasicActorRef),
-    // Persisted(Msg), // TODO implement OOB?
-    // Replay(Vec<Msg>),
 }
 
 unsafe impl Send for SystemMsg {}

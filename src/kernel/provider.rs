@@ -50,7 +50,7 @@ impl Provider {
     {
         validate_name(name)?;
         
-        let path = Arc::new(format!("{}/{}", parent.uri.path, name));
+        let path = Arc::new(format!("{}/{}", parent.path(), name));
         trace!("Attempting to create actor at: {}", path);
 
         let uid = self.register(&path)?;
@@ -62,13 +62,15 @@ impl Provider {
             host: sys.host()
         };
 
-        let (sender, sys_sender, mb) = mailbox::<A::Msg>(1000); // todo limit config
+        let (sender, sys_sender, mb) =
+                                    mailbox::<A::Msg>(sys.sys_settings()
+                                    .msg_process_limit);
 
         let cell = ExtendedCell::new(uri.uid,
                                     uri.clone(),
                                     Some(parent.clone()),
                                     sys,
-                                    // None,/*perconf*/ // todo
+                                    // None,/*perconf*/
                                     Arc::new(sender.clone()),
                                     sys_sender.clone(),
                                     sender.clone());
@@ -76,7 +78,7 @@ impl Provider {
         let k = kernel(props, cell.clone(), mb, sys)?;
         let cell = cell.init(&k);
 
-        let actor = ActorRef::new(&uri, cell); // todo don't need both params
+        let actor = ActorRef::new(cell);
         let child = BasicActorRef::from(actor.clone());
         parent.cell.add_child(child);
         actor.sys_tell(SystemMsg::ActorInit);
@@ -147,7 +149,7 @@ fn root(sys: &ActorSystem) -> BasicActorRef {
                                 Arc::new(sender),
                                 sys_sender);
 
-    let bigbang = BasicActorRef::new(&uri, bb_cell);
+    let bigbang = BasicActorRef::new(bb_cell);
 
     // root
     let props: BoxActorProd<Guardian> = Props::new_args(Box::new(Guardian::new), "root".to_string());
@@ -157,14 +159,14 @@ fn root(sys: &ActorSystem) -> BasicActorRef {
                                 uri.clone(),
                                 Some(bigbang.clone()),
                                 sys,
-                                // None,/*perconf*/ // todo
+                                // None,/*perconf*/
                                 Arc::new(sender.clone()),
                                 sys_sender.clone(),
                                 sender.clone());
 
     let k = kernel(props, cell.clone(), mb, sys).unwrap();
     let cell = cell.init(&k);
-    let actor_ref = ActorRef::new(&uri, cell);
+    let actor_ref = ActorRef::new(cell);
 
     BasicActorRef::from(actor_ref)
 }
@@ -189,14 +191,14 @@ fn guardian(uid: ActorId,
                                 uri.clone(),
                                 Some(root.clone()),
                                 sys,
-                                // None,/*perconf*/ // todo
+                                // None,/*perconf*/
                                 Arc::new(sender.clone()),
                                 sys_sender.clone(),
                                 sender.clone());
 
     let k = kernel(props, cell.clone(), mb, sys).unwrap();
     let cell = cell.init(&k);
-    let actor_ref = ActorRef::new(&uri, cell);
+    let actor_ref = ActorRef::new(cell);
 
     let actor = BasicActorRef::from(actor_ref);
     root.cell.add_child(actor.clone());

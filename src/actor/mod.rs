@@ -4,6 +4,7 @@ pub(crate) mod actor_ref;
 pub(crate) mod channel;
 pub(crate) mod macros;
 pub(crate) mod props;
+pub(crate) mod selection;
 pub(crate) mod uri;
 
 use std::{
@@ -18,15 +19,16 @@ pub use self::{
     actor::{Actor, BoxActor, Receive, Strategy},
     actor_ref::{
         ActorRef, BasicActorRef, ActorReference,
-        ActorRefFactory, Tell, BoxedTell, Sender
+        ActorRefFactory, TmpActorRefFactory, Tell, BoxedTell, Sender
     },
     actor_cell::Context,
     channel::{
-        Channel, EventsChannel, Topic, All,
+        Channel, EventsChannel, Topic, All, SysTopic,
         Publish, Subscribe, Unsubscribe, UnsubscribeAll,
-        ChannelMsg, ChannelRef, DLChannelMsg, DeadLetter, channel // todo channel prob shouldn't be exported
+        ChannelMsg, ChannelRef, DLChannelMsg, DeadLetter, channel
     },
     macros::actor,
+    selection::{ActorSelection, ActorSelectionFactory},
     uri::{ActorId, ActorUri, ActorPath},
     props::{Props, BoxActorProd, ActorProducer, ActorArgs}
 };

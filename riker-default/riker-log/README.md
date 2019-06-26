@@ -1,1 +1,0 @@
-# Riker Default Logger

@@ -4,8 +4,17 @@ use std::{
         Arc, RwLock,
         atomic::{AtomicBool, AtomicUsize, Ordering}
     },
+    time::{Duration, SystemTime},
     collections::HashMap,
     ops::Deref
+};
+
+use chrono::prelude::*;
+use uuid::Uuid;
+use futures::{
+    Future,
+    future::RemoteHandle,
+    task::SpawnError,
 };
 
 use rand;
@@ -13,13 +22,15 @@ use rand;
 use crate::{
     Envelope, Message, AnyMessage,
     actor::*,
-    actor::actor_ref::{ActorRefFactory, TmpActorRefFactory},
     kernel::{
         kernel_ref::{KernelRef, dispatch, dispatch_any},
         mailbox::{AnySender, MailboxSender},
     },
-    system::{ActorSystem, SystemMsg, SystemCmd},
-    validate::{validate_name, InvalidPath}
+    system::{
+        ActorSystem, SystemMsg, SystemCmd, Run,
+        timer::{Timer, Job, OnceJob, RepeatJob},
+    },
+    validate::InvalidPath
 };
 
 #[derive(Clone)]
@@ -98,13 +109,12 @@ impl ActorCell {
 
     pub(crate) fn myself(&self) -> BasicActorRef {
         BasicActorRef {
-            uri: self.inner.uri.clone(),
             cell: self.clone()
         }
     }
 
-    pub(crate) fn uri(&self) -> ActorUri {
-        self.inner.uri.clone()
+    pub(crate) fn uri(&self) -> &ActorUri {
+        &self.inner.uri
     }
 
     pub(crate) fn parent(&self) -> BasicActorRef {
@@ -134,12 +144,13 @@ impl ActorCell {
             .is_child(&self.myself())
     }
 
-    pub(crate) fn send_any_msg(&self, msg: Envelope<AnyMessage>)
+    pub(crate) fn send_any_msg(&self, msg: &mut AnyMessage,
+                                sender: crate::actor::Sender)
                                 -> Result<(), ()> {
         let mb = &self.inner.mailbox;
         let k = self.kernel();
         
-        dispatch_any(msg, mb, k, &self.inner.system)
+        dispatch_any(msg, sender, mb, k, &self.inner.system)
     }
 
     pub(crate) fn send_sys_msg(&self, msg: Envelope<SystemMsg>) -> MsgResult<Envelope<SystemMsg>> {
@@ -149,7 +160,7 @@ impl ActorCell {
         dispatch(msg, mb, k, &self.inner.system)
     }
 
-    pub(crate) fn is_child(&self, actor: &BasicActorRef) -> bool { // TODO expose this on ActorReference? 
+    pub(crate) fn is_child(&self, actor: &BasicActorRef) -> bool {
         self.inner.children.iter().any(|child| child == *actor)
     }
 
@@ -157,7 +168,7 @@ impl ActorCell {
         actor.sys_tell(SystemCmd::Stop.into());
     }
 
-    // pub(crate) fn persistence_conf(&self) -> Option<PersistenceConf> { // TODO can this be restricted to self?
+    // pub(crate) fn persistence_conf(&self) -> Option<PersistenceConf> {
     //     self.inner.persistence.persistence_conf.clone()
     // }
 
@@ -165,17 +176,9 @@ impl ActorCell {
     //     self.inner.persistence.is_persisting.load(Ordering::Relaxed)
     // }
 
-    // pub fn set_persisting(&self, b: bool) { // TODO check scope use
+    // pub fn set_persisting(&self, b: bool) {
     //     self.inner.persistence.is_persisting.store(b, Ordering::Relaxed);
     // }
-
-    pub fn identify(&self, _sender: Option<BasicActorRef>) {
-        // if let Some(s) = sender {
-        //     // s.tell(Info, Some(self.myself()));
-        //     unimplemented!()
-        // }
-        unimplemented!()
-    }
 
     pub fn add_child(&self, actor: BasicActorRef) {
         self.inner.children.add(actor);
@@ -244,7 +247,7 @@ impl ActorCell {
         }
     }
 
-    pub fn handle_failure(&self, // TODO move out to its own fn
+    pub fn handle_failure(&self,
                     failed: BasicActorRef,
                     strategy: Strategy) {
         match strategy {
@@ -254,7 +257,7 @@ impl ActorCell {
         }
     }
 
-    pub fn restart_child(&self, actor: BasicActorRef) { // TODO necessary?
+    pub fn restart_child(&self, actor: BasicActorRef) {
         actor.sys_tell(SystemCmd::Restart.into());
     }
 
@@ -266,7 +269,7 @@ impl ActorCell {
             .sys_tell(SystemMsg::Failed(self.myself()));
     }
 
-    // pub fn load_events<A: Actor>(&self, actor: &mut Option<A>) -> bool { // todo message type issue
+    // pub fn load_events<A: Actor>(&self, actor: &mut Option<A>) -> bool {
     //     let event_store = &self.inner.persistence.event_store;
     //     let perconf = &self.inner.persistence.persistence_conf;
 
@@ -293,7 +296,7 @@ impl ActorCell {
     //     unimplemented!()
     // }
 
-    // pub fn replay<A: Actor>(&self, // TODO move out to its own function & fix msg type
+    // pub fn replay<A: Actor>(&self,
     //             ctx: &Context<A::Msg>,
     //             evts: Vec<A::Msg>,
     //             actor: &mut Option<A>) {
@@ -390,7 +393,7 @@ impl<Msg> ExtendedCell<Msg>
         self.cell.myself().typed(self.clone())
     }
 
-    pub fn uri(&self) -> ActorUri {
+    pub fn uri(&self) -> &ActorUri {
         self.cell.uri()
     }
 
@@ -435,7 +438,6 @@ impl<Msg> ExtendedCell<Msg>
                     recipient: self.cell.myself()
                 };
 
-                // todo refactor to make dl easier to access
                 self.cell
                     .inner.system
                     .dead_letters()
@@ -453,13 +455,13 @@ impl<Msg> ExtendedCell<Msg>
         &self.cell.inner.system
     }
 
-    pub(crate) fn handle_failure(&self, // TODO move out to its own fn
+    pub(crate) fn handle_failure(&self,
                     failed: BasicActorRef,
                     strategy: Strategy) {
         self.cell.handle_failure(failed, strategy)
     }
 
-    pub(crate) fn receive_cmd<A: Actor>(&self, // todo message type issue
+    pub(crate) fn receive_cmd<A: Actor>(&self,
                                 cmd: SystemCmd,
                                 actor: &mut Option<A>) {
         self.cell.receive_cmd(cmd, actor)
@@ -478,7 +480,7 @@ impl<Msg: Message> fmt::Debug for ExtendedCell<Msg> {
     }
 }
 
-fn post_stop<A: Actor>(actor: &mut Option<A>) { // TODO relocate somewhere else?
+fn post_stop<A: Actor>(actor: &mut Option<A>) {
     // If the actor instance exists we can execute post_stop.
     // The instance will be None if this is an actor that has failed
     // and is being terminated by an escalated supervisor.
@@ -506,7 +508,7 @@ pub struct Context<Msg: Message> {
     pub myself: ActorRef<Msg>,
     pub system: ActorSystem,
     // pub persistence: Persistence,
-    pub kernel: KernelRef,
+    pub(crate) kernel: KernelRef,
 }
 
 impl<Msg> Context<Msg>
@@ -587,18 +589,115 @@ impl<Msg: Message> ActorRefFactory for Context<Msg> {
     }
 }
 
-impl<'a, Msg> From<&'a ExtendedCell<Msg>> for Context<Msg>
+impl<Msg> ActorSelectionFactory for Context<Msg>
     where Msg: Message
 {
-    fn from(_cell: &ExtendedCell<Msg>) -> Self {
-        // Context {
-        //     myself: cell.myself(),
-        //     system: cell.system(), // todo ugly
-        //     kernel: cell.kernel()
-        //     // persistence: cell.persistence()
-        //     // kernel: cell.kernel.clone()
-        // }
-        unimplemented!()
+    fn select(&self, path: &str) -> Result<ActorSelection, InvalidPath> {
+        let (anchor, path_str) = if path.starts_with("/") {
+            let anchor = self.system.user_root().clone();
+            let anchor_path = format!("{}/", anchor.path().deref().clone());
+            let path = path.to_string().replace(&anchor_path, "");
+
+            (anchor, path)
+        } else {
+            (self.myself.clone().into(), path.to_string())
+        };
+
+        ActorSelection::new(anchor,
+                            // self.system.dead_letters(),
+                            path_str)
+    }
+}
+
+impl<Msg> Run for Context<Msg>
+    where Msg: Message
+{
+    fn run<Fut>(&self, future: Fut)
+                    -> Result<RemoteHandle<<Fut as Future>::Output>, SpawnError>
+        where Fut: Future + Send + 'static, <Fut as Future>::Output: Send
+    {
+        self.system.run(future)
+    }
+}
+
+impl<Msg> Timer for Context<Msg>
+    where Msg: Message
+{
+    fn schedule<T, M>(&self,
+        initial_delay: Duration,
+        interval: Duration,
+        receiver: ActorRef<M>,
+        sender: Sender,
+        msg: T) -> Uuid
+            where T: Message + Into<M>, M: Message
+    {
+
+        let id = Uuid::new_v4();
+        let msg: M = msg.into();
+
+        let job = RepeatJob {
+            id: id.clone(),
+            send_at: SystemTime::now() + initial_delay,
+            interval: interval,
+            receiver: receiver.into(),
+            sender: sender,
+            msg: AnyMessage::new(msg, false)
+        };
+
+        let _ = self.system.timer.send(Job::Repeat(job)).unwrap();
+        id
+    }
+
+    fn schedule_once<T, M>(&self,
+        delay: Duration,
+        receiver: ActorRef<M>,
+        sender: Sender,
+        msg: T) -> Uuid
+            where T: Message + Into<M>, M: Message
+    {
+
+        let id = Uuid::new_v4();
+        let msg: M = msg.into();
+
+        let job = OnceJob {
+            id: id.clone(),
+            send_at: SystemTime::now() + delay,
+            receiver: receiver.into(),
+            sender: sender,
+            msg: AnyMessage::new(msg, true)
+        };
+
+        let _ = self.system.timer.send(Job::Once(job)).unwrap();
+        id
+    }
+
+    fn schedule_at_time<T, M>(&self,
+        time: DateTime<Utc>,
+        receiver: ActorRef<M>,
+        sender: Sender,
+        msg: T) -> Uuid
+            where T: Message + Into<M>, M: Message
+    {
+        let time = SystemTime::UNIX_EPOCH +
+            Duration::from_secs(time.timestamp() as u64);
+
+        let id = Uuid::new_v4();
+        let msg: M = msg.into();
+
+        let job = OnceJob {
+            id: id.clone(),
+            send_at: time,
+            receiver: receiver.into(),
+            sender: sender,
+            msg: AnyMessage::new(msg, true)
+        };
+
+        let _ = self.system.timer.send(Job::Once(job)).unwrap();
+        id
+    }
+
+    fn cancel_schedule(&self, id: Uuid) {
+        let _ = self.system.timer.send(Job::Cancel(id));
     }
 }
 

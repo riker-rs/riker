@@ -9,7 +9,7 @@ use crate::{
     Message,
     system::{SystemMsg, SystemEvent},
     actor::{
-        Tell, BoxedTell, Actor, Props, BoxActorProd, CreateError, Sender,
+        BoxedTell, Actor, Props, BoxActorProd, CreateError, Sender,
         ActorReference, ActorRef, BasicActorRef, Context, Receive, ActorRefFactory
     }
 };
@@ -81,7 +81,6 @@ impl<Msg> Actor for Channel<Msg>
         if let SystemMsg::Event(evt) = msg {
             match evt {
                 SystemEvent::ActorTerminated(terminated) => {
-                    //TODO using .clone here to work around multiple borrows on self. Need to find a better way.
                     let subs = self.subs.clone();
 
                     for topic in subs.keys() {
@@ -155,7 +154,6 @@ impl<Msg> Receive<UnsubscribeAll<Msg>> for Channel<Msg>
                 msg: UnsubscribeAll<Msg>,
                 sender: Sender) {
         
-        //TODO using .clone here to work around multiple borrows on self. Need to find a better way.
         let subs = self.subs.clone();
 
         for topic in subs.keys() {

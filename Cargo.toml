@@ -1,7 +1,7 @@
 [package]
 name = "riker"
 version = "0.2.3"
-authors = ["Lee Smith <leenozara@gmail.com>"]
+authors = ["Lee Smith <lee@riker.rs>"]
 edition = "2018"
 description = "Easily build fast, highly concurrent and resilient applications. An Actor Framework for Rust."
 homepage = "https://riker.rs"
@@ -18,7 +18,7 @@ riker-macros = { path = "riker-macros", version = "0.1" }
 bytes = "0.4"
 chrono = "0.4"
 config = "0.9"
-futures-preview = "0.3.0-alpha.14"
+futures-preview = "0.3.0-alpha.16"
 log = { version = "0.4", features = ["std"] }
 rand = "0.4"
 regex = "0.2"

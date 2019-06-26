@@ -1,17 +1,11 @@
 use std::thread;
 use std::{
-    convert::{TryInto, TryFrom},
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering}
     },
-    any::Any
 };
 
-use futures::{
-    SinkExt,
-    task::SpawnExt
-};
 use config::Config;
 use log::trace;
 
@@ -24,12 +18,10 @@ use crate::{
     actor::actor_cell::ExtendedCell,
     system::ActorCreated,
     kernel::{
-        KernelMsg,
-        kernel_ref::KernelRef,
         kernel::Dock,
         queue::{
             QueueWriter, QueueReader, EnqueueResult,
-            QueueEmpty, EnqueueError, queue
+            QueueEmpty, queue
         }
     }
 };
@@ -41,7 +33,9 @@ pub trait MailboxSchedule {
 }
 
 pub trait AnySender : Send + Sync {
-    fn try_any_enqueue(&self, msg: Envelope<AnyMessage>) -> Result<(), ()>;
+    fn try_any_enqueue(&self, msg: &mut AnyMessage,
+                        sender: Sender)
+                        -> Result<(), ()>;
 
     fn set_sched(&self, b: bool);
 
@@ -60,10 +54,6 @@ impl<Msg> MailboxSender<Msg>
     pub fn try_enqueue(&self, msg: Envelope<Msg>) -> EnqueueResult<Msg> {
         self.queue.try_enqueue(msg)
     }
-
-    // pub fn is_scheduled(&self) -> bool {
-    //     self.scheduled.load(Ordering::Relaxed)
-    // }
 }
 
 impl<Msg> MailboxSchedule for MailboxSender<Msg>
@@ -81,21 +71,14 @@ impl<Msg> MailboxSchedule for MailboxSender<Msg>
 impl<Msg> AnySender for MailboxSender<Msg>
     where Msg: Message
 {
-    fn try_any_enqueue(&self, msg: Envelope<AnyMessage>)
+    fn try_any_enqueue(&self, msg: &mut AnyMessage, sender: Sender)
                         -> Result<(), ()> {
         
-        if !msg.msg.msg.is::<Msg>() {
-            return Err(());
-        }
-
-        let actual = msg.msg.msg.downcast::<Msg>().unwrap();
-        // let actual: Msg = msg.try_into().unwrap();
-
+        let actual = msg.take()?;
         let msg = Envelope {
-            msg: *actual,
-            sender: msg.sender
+            msg: actual,
+            sender
         };
-
         self.try_enqueue(msg).map_err(|e| ())
     }
 
@@ -107,26 +90,6 @@ impl<Msg> AnySender for MailboxSender<Msg>
         self.is_scheduled()
     }
 }
-
-// impl MailboxSchedule for Arc<AnySender> {
-//     fn set_scheduled(&self, b: bool) {
-//         (**self).set_scheduled(b)
-//     }
-
-//     fn is_scheduled(&self) -> bool {
-//         (**self).is_scheduled()
-//     }
-// }
-
-// impl MailboxSchedule for Arc<AnySender> {
-//     fn set_scheduled(&self, b: bool) {
-//         (**self).set_scheduled(b)
-//     }
-
-//     fn is_scheduled(&self) -> bool {
-//         (**self).is_scheduled()
-//     }
-// }
 
 unsafe impl<Msg: Message> Send for MailboxSender<Msg> {}
 unsafe impl<Msg: Message> Sync for MailboxSender<Msg> {}
@@ -164,18 +127,8 @@ impl<Msg: Message> Mailbox<Msg> {
 
     pub fn has_sys_msgs(&self) -> bool {
         self.inner.sys_queue.has_msgs()
-        // unimplemented!()
     }
 
-    // fn set_scheduled(&self, b: bool) {
-    //     self.inner.scheduled.store(b, Ordering::Relaxed);
-    // }
-
-    // pub fn is_scheduled(&self) -> bool {
-    //     self.inner.scheduled.load(Ordering::Relaxed)
-    // }
-
-    // todo temp pub
     pub fn set_suspended(&self, b: bool) {
         self.inner.suspended.store(b, Ordering::Relaxed);
     }
@@ -237,8 +190,7 @@ pub fn mailbox<Msg>(msg_process_limit: u32)
 }
 
 pub fn run_mailbox<A>(mbox: Mailbox<A::Msg>,
-                        mut ctx: Context<A::Msg>,
-                        kernel: KernelRef,
+                        ctx: Context<A::Msg>,
                         mut dock: Dock<A>)
     where A: Actor
 {
@@ -268,7 +220,7 @@ pub fn run_mailbox<A>(mbox: Mailbox<A::Msg>,
 
     let has_msgs = mbox.has_msgs() || mbox.has_sys_msgs();
     if has_msgs && !mbox.is_scheduled() {
-        kernel.schedule(&ctx.system);
+        ctx.kernel.schedule(&ctx.system);
     }
 }
 
@@ -347,7 +299,7 @@ fn handle_init<A>(mbox: &Mailbox<A::Msg>,
     if cell.is_user() {
         ctx.system.publish_event(ActorCreated { actor: cell.myself().into() }.into());
     }
-    // todo the intent here can be made clearer
+
     // if persistence is not configured then set as not suspended
     // if cell.load_events(actor) {
     //     actor.as_mut().unwrap().post_start(ctx);
@@ -372,7 +324,7 @@ fn handle_evt<A>(evt: SystemEvent,
     if actor.is_some() {
         actor.as_mut()
                 .unwrap()
-                .sys_recv(ctx, SystemMsg::Event(evt.clone()), None); // todo maybe have dedicated .evt_receive
+                .sys_recv(ctx, SystemMsg::Event(evt.clone()), None);
     }
     
     if let SystemEvent::ActorTerminated(terminated) = evt {
@@ -420,7 +372,6 @@ pub fn flush_to_deadletters<Msg>(mbox: &Mailbox<Msg>,
                             recipient: actor.clone()
                         };
 
-                        // todo refactor to make dl easier to access
                         sys.dead_letters()
                             .tell(Publish { topic: "dead_letter".into(), msg: dl }, None);
                     }

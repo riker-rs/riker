@@ -5,7 +5,7 @@ use runtime_fmt::{rt_println, rt_format_args};
 
 use crate::{
     actor::{
-        ActorRef, Tell, BoxedTell, BoxActorProd, Props, Actor,
+        ActorRef, Tell, BoxActorProd, Props, Actor,
         Context, BasicActorRef,ChannelMsg, All, DeadLetter, Subscribe
     }
 };

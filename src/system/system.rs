@@ -1,10 +1,9 @@
 use std::{
     fmt,
     str::FromStr,
-    sync::{
-        Arc, Mutex,
-        atomic::{AtomicUsize, Ordering}
-    }
+    ops::Deref,
+    time::{Duration, SystemTime},
+    sync::{Arc, Mutex}
 };
 
 use chrono::prelude::*;
@@ -12,45 +11,34 @@ use config::Config;
 use rand;
 use uuid::Uuid;
 use futures::{
-    {FutureExt, StreamExt, SinkExt},
-    channel::oneshot::{channel, Sender, Receiver},
-    task::SpawnExt,
+    Future,
+    channel::oneshot,
+    future::RemoteHandle,
+    task::{SpawnExt, SpawnError},
     executor::{ThreadPool, ThreadPoolBuilder}
 };
 use log::{debug, Level};
 
-use riker_macros::actor;
-
 use crate::{
-    load_config,
-    system::{
-        SystemMsg, SystemCmd, SystemEvent, SystemError,
-        ActorCreated, ActorRestarted, ActorTerminated,
-        logger::{Logger, LogActor, LoggerConfig, SimpleLogger, DeadLetterLogger}
-    },
+    Message, AnyMessage,
     actor::*,
-    actor::{
-        actor_ref::{ActorRefFactory, TmpActorRefFactory},
-        channel::SysTopic
-    },
+    system::{SystemMsg, SystemCmd, SystemEvent, SystemError, ActorTerminated},
+    system::timer::*,
+    system::logger::*,
+    load_config,
     kernel::provider::{Provider, create_root},
     validate::{validate_name, InvalidPath}
 };
 
-// 8. handle and other names to consider
-// 8. tell on BasicActorRef using Any
-// 9. remove cell uri
-// 10. optimize inc system
-// 11. Improve data type access/api
-// 11. fn level visibility
-// 12. exec futures
-
+// 0. error results on any
+// 1. visibility
 
 pub struct ProtoSystem {
     id: Uuid,
     name: String,
     pub host: Arc<String>,
     config: Config,
+    pub(crate) sys_settings: SystemSettings,
     started_at: DateTime<Utc>,
 }
 
@@ -111,6 +99,7 @@ pub struct ActorSystem {
     log: Option<Logger>,
     debug: bool,
     pub exec: ThreadPool,
+    pub timer: TimerRef,
     pub sys_channels: Option<SysChannels>,
     pub(crate) provider: Provider,
 }
@@ -162,6 +151,7 @@ impl ActorSystem {
         }
 
         let prov = Provider::new();
+        let timer = BasicTimer::start(&cfg);
 
         // 1. create proto system
         let proto = ProtoSystem {
@@ -169,6 +159,7 @@ impl ActorSystem {
             name: name.to_string(),
             host: Arc::new("localhost".to_string()),
             config: cfg.clone(),
+            sys_settings: SystemSettings::from(&cfg),
             started_at: Utc::now(),
         };
 
@@ -179,6 +170,7 @@ impl ActorSystem {
             exec,
             log: None,
             // event_store: None,
+            timer,
             sys_channels: None,
             sys_actors: None,
             provider: prov.clone()
@@ -253,7 +245,7 @@ impl ActorSystem {
                     print_node(sys, actor, "");
                 }
             } else {
-                println!("{}└─ {}", indent, node.uri.name);
+                println!("{}└─ {}", indent, node.name());
 
                 for actor in node.children() {
                     print_node(sys, actor, &(indent.to_string()+"   "));
@@ -306,6 +298,10 @@ impl ActorSystem {
         self.proto.config.clone()
     }
 
+    pub(crate) fn sys_settings(&self) -> &SystemSettings {
+        &self.proto.sys_settings
+    }
+
     /// Create an actor under the system root
     pub fn sys_actor_of<A>(&self,
                             props: BoxActorProd<A>,
@@ -328,7 +324,7 @@ impl ActorSystem {
     /// Does not block. Returns a future which is completed when all
     /// actors have successfully stopped.
     pub fn shutdown(&self) -> Shutdown {
-        let (tx, rx) = channel::<()>();
+        let (tx, rx) = oneshot::channel::<()>();
         let tx = Arc::new(Mutex::new(Some(tx)));
 
         let props = Props::new_args(Box::new(ShutdownActor::new), tx);
@@ -391,26 +387,44 @@ impl TmpActorRefFactory for ActorSystem {
     }
 }
 
-// impl ActorSelectionFactory for ActorSystem {
-//     fn select(&self, path: &str)
-//                 -> Result<ActorSelection, InvalidPath> {
-//     //     let anchor = self.user_root();
-//     //     let (anchor, path_str) = if path.starts_with("/") {
-//     //         let anchor = self.user_root();
-//     //         let anchor_path = format!("{}/",anchor.uri.path.deref().clone());
-//     //         let path = path.to_string().replace(&anchor_path, "");
-            
-//     //         (anchor, path)
-//     //     } else {
-//     //         (anchor, path.to_string())
-//     //     };
+impl ActorSelectionFactory for ActorSystem {
+    fn select(&self, path: &str)
+                -> Result<ActorSelection, InvalidPath> {
 
-//     //     ActorSelection::new(anchor.clone(),
-//     //                         self.dead_letters(),
-//     //                         path_str)
-//     // }
-//     unimplemented!()
-// }
+        let anchor = self.user_root();
+        let (anchor, path_str) = if path.starts_with("/") {
+            let anchor = self.user_root();
+            let anchor_path = format!("{}/", anchor.path().deref().clone());
+            let path = path.to_string().replace(&anchor_path, "");
+            
+            (anchor, path)
+        } else {
+            (anchor, path.to_string())
+        };
+
+        ActorSelection::new(anchor.clone(),
+                            // self.dead_letters(),
+                            path_str)
+    }
+}
+
+// futures::task::Spawn::spawn requires &mut self so
+// we'll create a wrapper trait that requires only &self.
+pub trait Run {
+    fn run<Fut>(&self, future: Fut)
+                    -> Result<RemoteHandle<<Fut as Future>::Output>, SpawnError>
+        where Fut: Future + Send + 'static, <Fut as Future>::Output: Send;
+}
+
+impl Run for ActorSystem {
+    fn run<Fut>(&self, future: Fut)
+                    -> Result<RemoteHandle<<Fut as Future>::Output>, SpawnError>
+        where Fut: Future + Send + 'static, <Fut as Future>::Output: Send
+    {
+        let mut exec = self.exec.clone();
+        exec.spawn_with_handle(future)
+    }
+}
 
 impl fmt::Debug for ActorSystem {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -419,6 +433,85 @@ impl fmt::Debug for ActorSystem {
                 self.name(),
                 self.start_date(),
                 self.uptime())
+    }
+}
+
+impl Timer for ActorSystem {
+    fn schedule<T, M>(&self,
+        initial_delay: Duration,
+        interval: Duration,
+        receiver: ActorRef<M>,
+        sender: Sender,
+        msg: T) -> Uuid
+            where T: Message + Into<M>, M: Message
+    {
+
+        let id = Uuid::new_v4();
+        let msg: M = msg.into();
+
+        let job = RepeatJob {
+            id: id.clone(),
+            send_at: SystemTime::now() + initial_delay,
+            interval: interval,
+            receiver: receiver.into(),
+            sender: sender,
+            msg: AnyMessage::new(msg, false)
+        };
+
+        let _ = self.timer.send(Job::Repeat(job));
+        id
+    }
+
+    fn schedule_once<T, M>(&self,
+        delay: Duration,
+        receiver: ActorRef<M>,
+        sender: Sender,
+        msg: T) -> Uuid
+            where T: Message + Into<M>, M: Message
+    {
+
+        let id = Uuid::new_v4();
+        let msg: M = msg.into();
+
+        let job = OnceJob {
+            id: id.clone(),
+            send_at: SystemTime::now() + delay,
+            receiver: receiver.into(),
+            sender: sender,
+            msg: AnyMessage::new(msg, true)
+        };
+
+        let _ = self.timer.send(Job::Once(job));
+        id
+    }
+
+    fn schedule_at_time<T, M>(&self,
+        time: DateTime<Utc>,
+        receiver: ActorRef<M>,
+        sender: Sender,
+        msg: T) -> Uuid
+            where T: Message + Into<M>, M: Message
+    {
+        let time = SystemTime::UNIX_EPOCH +
+            Duration::from_secs(time.timestamp() as u64);
+
+        let id = Uuid::new_v4();
+        let msg: M = msg.into();
+
+        let job = OnceJob {
+            id: id.clone(),
+            send_at: time,
+            receiver: receiver.into(),
+            sender: sender,
+            msg: AnyMessage::new(msg, true)
+        };
+
+        let _ = self.timer.send(Job::Once(job));
+        id
+    }
+
+    fn cancel_schedule(&self, id: Uuid) {
+        let _ = self.timer.send(Job::Cancel(id));
     }
 }
 
@@ -473,6 +566,17 @@ fn sys_channels(prov: &Provider,
     })
 }
 
+pub struct SystemSettings {
+    pub msg_process_limit: u32,
+}
+
+impl<'a> From<&'a Config> for SystemSettings {
+    fn from(config: &Config) -> Self {
+        SystemSettings {
+            msg_process_limit: config.get_int("mailbox.msg_process_limit").unwrap() as u32
+        }
+    }
+}
 
 struct ThreadPoolConfig {
     pool_size: usize,
@@ -514,15 +618,15 @@ pub struct SysChannels {
     pub dead_letters: ActorRef<DLChannelMsg>,
 }
 
-pub type Shutdown = Receiver<()>;
+pub type Shutdown = oneshot::Receiver<()>;
 
 #[derive(Clone)]
 struct ShutdownActor {
-    tx: Arc<Mutex<Option<Sender<()>>>>,
+    tx: Arc<Mutex<Option<oneshot::Sender<()>>>>,
 }
 
 impl ShutdownActor {
-    fn new(tx: Arc<Mutex<Option<Sender<()>>>>) -> Self {
+    fn new(tx: Arc<Mutex<Option<oneshot::Sender<()>>>>) -> Self {
         ShutdownActor {
             tx
         }
@@ -585,27 +689,3 @@ impl Receive<ActorTerminated> for ShutdownActor {
         }
     }
 }
-
-
-// #[test]
-// fn refac_builder() {
-//     let sys = SystemBuilder::new()
-//                             .name("my-sys")
-//                             .create()
-//                             .unwrap();
-
-//     let props = Props::new(Box::new(TellActor::actor));
-//     let actor = sys.actor_of(props, "me").unwrap();
-    
-
-//     // let (probe, listen) = probe();
-//     // actor.tell(1, None);
-
-//     for _ in 0..1_000_000 {
-//         actor.tell(1 as u32, None);
-//     }
-
-//     // p_assert_eq!(listen, ());
-
-//     std::thread::sleep_ms(8000);
-// }

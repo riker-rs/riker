@@ -3,10 +3,11 @@
         async_await,
         await_macro,
         futures_api,
-        arbitrary_self_types
+        arbitrary_self_types,
+        bind_by_move_pattern_guards
 )]
 
-#![allow(warnings)] // todo
+// #![allow(warnings)] // toggle for easier compile error fixing 
 
 #[allow(unused_imports)]
 extern crate log;
@@ -65,7 +66,37 @@ impl<T: Debug + Clone + Send + 'static> Message for T {}
 
 
 pub struct AnyMessage {
-    pub msg: Box<Any + Send>,
+    pub one_time: bool,
+    pub msg: Option<Box<Any + Send>>,
+}
+
+impl AnyMessage {
+    pub fn new<T>(msg: T, one_time: bool) -> Self
+        where T: Any + Message
+    {    
+        AnyMessage {
+            one_time,
+            msg: Some(Box::new(msg))
+        }
+    }
+
+    pub fn take<T>(&mut self) -> Result<T, ()>
+        where T: Any + Message
+    {
+        if self.one_time {
+            match self.msg.take() {
+                Some(m) if m.is::<T>() => Ok(*m.downcast::<T>().unwrap()),
+                Some(_) => Err(()),
+                None => Err(())
+            }
+        } else {
+            match self.msg.as_ref() {
+                Some(ref m) if m.is::<T>() => Ok(m.downcast_ref::<T>().map(|t| t.clone()).unwrap()),
+                Some(_) => Err(()),
+                None => Err(())
+            }
+        }
+    }
 }
 
 impl Clone for AnyMessage {
@@ -73,12 +104,6 @@ impl Clone for AnyMessage {
         panic!("Can't clone a message of type `AnyMessage`");
     }
 }
-
-// impl fmt::Display for MsgError<T> {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         f.write_str(self.description())
-//     }
-// }
 
 impl Debug for AnyMessage {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -89,5 +114,8 @@ impl Debug for AnyMessage {
 pub mod actors {
     pub use crate::{Message, AnyMessage};
     pub use crate::actor::*;
-    pub use crate::system::{ActorSystem, SystemMsg, SystemEvent};
+    pub use crate::system::{
+        ActorSystem, SystemBuilder, SystemMsg,
+        SystemEvent, Run, Timer
+    };
 }

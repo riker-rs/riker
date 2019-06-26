@@ -4,7 +4,7 @@ use std::{
 };
 
 use futures::{
-    {FutureExt, StreamExt},
+    StreamExt,
     channel::mpsc::channel,
     task::SpawnExt
 };
@@ -19,7 +19,7 @@ use crate::{
         kernel_ref::KernelRef,
         mailbox::{Mailbox, run_mailbox, flush_to_deadletters}
     },
-    system::{ActorSystem, SystemMsg, ActorCreated, ActorTerminated, ActorRestarted}
+    system::{ActorSystem, SystemMsg, ActorTerminated, ActorRestarted}
 };
 
 pub struct Dock<A: Actor> {
@@ -42,7 +42,7 @@ pub fn kernel<A>(props: BoxActorProd<A>,
                 sys: &ActorSystem) -> Result<KernelRef, CreateError>
         where A: Actor + 'static
 {
-    let (tx, mut rx) = channel::<KernelMsg>(1000); //todo
+    let (tx, mut rx) = channel::<KernelMsg>(1000); // todo config?
     let kr = KernelRef {
         tx
     };
@@ -58,14 +58,12 @@ pub fn kernel<A>(props: BoxActorProd<A>,
         cell: cell.clone()
     };
 
-    let actor_ref = ActorRef::new(&cell.uri(), cell);
+    let actor_ref = ActorRef::new(cell);
 
     let f = async move {
         while let Some(msg) = await!(rx.next()) {
             match msg {
                 KernelMsg::RunActor => {
-                    let akr = akr.clone();
-
                     let ctx = Context {
                         myself: actor_ref.clone(),
                         system: asys.clone(),
@@ -77,23 +75,9 @@ pub fn kernel<A>(props: BoxActorProd<A>,
 
                     std::panic::catch_unwind(
                         AssertUnwindSafe(||{
-                            run_mailbox(mb, ctx, akr, d)
+                            run_mailbox(mb, ctx, d)
                         })
-                    );
-
-                    // let f = async move {
-                    //     std::panic::catch_unwind(
-                    //         AssertUnwindSafe(||{
-                    //             run_mailbox(mb, ctx, akr, d)
-                    //         })
-                    //     );
-                    // };
-                    // asys.exec.spawn({
-                    //     async move {
-                    //         let _ = await!(f);
-                    //         ()
-                    //     }
-                    // }).unwrap();
+                    ).unwrap();
                 }
                 KernelMsg::RestartActor => {
                     restart_actor(&dock, actor_ref.clone().into(), &props, &asys);

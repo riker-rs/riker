@@ -109,6 +109,7 @@ fn actor_try_tell() {
     actor.try_tell(CounterMsg::TestProbe(TestProbe(probe)), None);
 
     assert!(actor.try_tell(CounterMsg::Add(Add), None).is_ok());
+    assert!(actor.try_tell("invalid-type".to_string(), None).is_err());
 
     for _ in 0..1_000_000 {
         actor.try_tell(CounterMsg::Add(Add), None).unwrap();
@@ -186,8 +187,6 @@ fn actor_stop() {
     let props = Props::new(Box::new(Parent::actor));
     let parent = system.actor_of(props, "parent").unwrap();
 
-    // std::thread::sleep(std::time::Duration::from_secs(2)); // todo ??
-
     let (probe, listen) = probe();
     parent.tell(TestProbe(probe), None);
     system.print_tree();
@@ -198,9 +197,3 @@ fn actor_stop() {
     system.stop(&parent);
     p_assert_eq!(listen, ());
 }
-
-// impl Into<AnyMessage> for Add {
-//     fn into(self) -> AnyMessage {
-//         AnyMessage { msg: Box::new(self) }
-//     }
-// }

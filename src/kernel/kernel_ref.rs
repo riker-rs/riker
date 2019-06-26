@@ -18,7 +18,7 @@ use crate::{
 
 #[derive(Clone)]
 pub struct KernelRef {
-    pub tx: Sender<KernelMsg>, // todo pub here not needed if moved to where it's used
+    pub tx: Sender<KernelMsg>,
 }
 
 impl KernelRef {
@@ -69,13 +69,14 @@ pub fn dispatch<Msg>(msg: Envelope<Msg>,
     }
 }
 
-pub fn dispatch_any(msg: Envelope<AnyMessage>,
+pub fn dispatch_any(msg: &mut AnyMessage,
+                    sender: crate::actor::Sender,
                     mbox: &Arc<AnySender>,
                     kernel: &KernelRef,
                     sys: &ActorSystem)
                     -> Result<(), ()> {
 
-    match mbox.try_any_enqueue(msg) {
+    match mbox.try_any_enqueue(msg, sender) {
         Ok(_) => {
             if !mbox.is_sched() {
                 mbox.set_sched(true);
