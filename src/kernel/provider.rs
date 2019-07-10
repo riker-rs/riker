@@ -1,7 +1,6 @@
 use std::{
     sync::{Arc, Mutex},
     collections::HashSet,
-    ops::Deref
 };
 use log::trace;
 
@@ -50,7 +49,7 @@ impl Provider {
     {
         validate_name(name)?;
         
-        let path = Arc::new(format!("{}/{}", parent.path(), name));
+        let path = ActorPath::new(&format!("{}/{}", parent.path(), name));
         trace!("Attempting to create actor at: {}", path);
 
         let uid = self.register(&path)?;
@@ -90,7 +89,7 @@ impl Provider {
         match self.inner.lock() {
             Ok(mut inner) => {
                 if inner.paths.contains(path) {
-                    return Err(CreateError::AlreadyExists(path.deref().clone()));
+                    return Err(CreateError::AlreadyExists(path.clone()));
                 }
 
                 inner.paths.insert(path.clone());
@@ -126,7 +125,7 @@ fn root(sys: &ActorSystem) -> BasicActorRef {
     let uri = ActorUri {
         uid: 0,
         name: Arc::new("root".to_string()),
-        path: Arc::new("/".to_string()),
+        path: ActorPath::new("/"),
         host: Arc::new("localhost".to_string())
     };
     let (sender, sys_sender, _mb) = mailbox::<SystemMsg>(100);
@@ -180,7 +179,7 @@ fn guardian(uid: ActorId,
     let uri = ActorUri {
         uid,
         name: Arc::new(name.to_string()),
-        path: Arc::new(path.to_string()),
+        path: ActorPath::new(path),
         host: Arc::new("localhost".to_string())
     };
 
@@ -221,7 +220,6 @@ impl Guardian {
 
 impl Actor for Guardian {
     type Msg = SystemMsg;
-    type Evt = ();
 
     fn recv(&mut self, _: &Context<Self::Msg>, _: Self::Msg, _: Option<BasicActorRef>) {}
 

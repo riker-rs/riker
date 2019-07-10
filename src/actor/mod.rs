@@ -105,7 +105,7 @@ pub enum CreateError {
     Panicked,
     System,
     InvalidName(String),
-    AlreadyExists(String),
+    AlreadyExists(ActorPath),
 }
 
 impl Error for CreateError {

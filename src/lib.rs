@@ -2,7 +2,6 @@
 #![feature(
         async_await,
         await_macro,
-        futures_api,
         arbitrary_self_types,
         bind_by_move_pattern_guards
 )]
@@ -67,7 +66,7 @@ impl<T: Debug + Clone + Send + 'static> Message for T {}
 
 pub struct AnyMessage {
     pub one_time: bool,
-    pub msg: Option<Box<Any + Send>>,
+    pub msg: Option<Box<dyn Any + Send>>,
 }
 
 impl AnyMessage {

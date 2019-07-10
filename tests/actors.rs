@@ -28,8 +28,8 @@ impl Counter {
 }
 
 impl Actor for Counter {
-    type Msg = CounterMsg; // we used the #[actor] attribute so CounterMsg is the Msg type
-    type Evt = ();
+    // we used the #[actor] attribute so CounterMsg is the Msg type
+    type Msg = CounterMsg;
 
     fn recv(&mut self,
                 ctx: &Context<Self::Msg>,
@@ -106,7 +106,7 @@ fn actor_try_tell() {
     let actor: BasicActorRef = actor.into();
 
     let (probe, listen) = probe();
-    actor.try_tell(CounterMsg::TestProbe(TestProbe(probe)), None);
+    actor.try_tell(CounterMsg::TestProbe(TestProbe(probe)), None).unwrap();
 
     assert!(actor.try_tell(CounterMsg::Add(Add), None).is_ok());
     assert!(actor.try_tell("invalid-type".to_string(), None).is_err());
@@ -132,7 +132,6 @@ impl Parent {
 
 impl Actor for Parent {
     type Msg = TestProbe;
-    type Evt = ();
 
     fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
         let props = Props::new(Box::new(Child::actor));
@@ -174,7 +173,6 @@ impl Child {
 
 impl Actor for Child {
     type Msg = ();
-    type Evt = ();
 
     fn recv(&mut self, _: &Context<Self::Msg>, _: Self::Msg, _: Sender) {}
 }

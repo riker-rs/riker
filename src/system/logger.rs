@@ -10,7 +10,7 @@ use crate::{
     }
 };
 
-pub type LogActor = Box<dyn Actor<Msg=LogEntry, Evt=()> + Send>;
+pub type LogActor = Box<dyn Actor<Msg=LogEntry> + Send>;
 
 #[derive(Clone)]
 pub struct Logger {
@@ -85,7 +85,6 @@ impl SimpleLogger {
 
 impl Actor for SimpleLogger {
     type Msg = LogEntry;
-    type Evt = ();
 
     fn recv(&mut self,
                 _: &Context<LogEntry>,
@@ -150,7 +149,6 @@ impl DeadLetterLogger {
 
 impl Actor for DeadLetterLogger {
     type Msg = DeadLetter;
-    type Evt = ();
 
     fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
         let sub = Box::new(ctx.myself());

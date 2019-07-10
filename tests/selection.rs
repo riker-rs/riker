@@ -21,7 +21,6 @@ impl Child {
 
 impl Actor for Child {
     type Msg = TestProbe;
-    type Evt = ();
 
     fn recv(&mut self,
             _ctx: &Context<Self::Msg>,
@@ -42,7 +41,6 @@ impl SelectTest {
 
 impl Actor for SelectTest {
     type Msg = TestProbe;
-    type Evt = ();
 
     fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
         // create first child actor
@@ -142,7 +140,6 @@ impl SelectTest2 {
 
 impl Actor for SelectTest2 {
     type Msg = TestProbe;
-    type Evt = ();
 
     fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
         // create first child actor

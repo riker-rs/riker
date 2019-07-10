@@ -73,11 +73,11 @@ pub fn kernel<A>(props: BoxActorProd<A>,
                     let mb = mailbox.clone();
                     let d = dock.clone();
 
-                    std::panic::catch_unwind(
+                    let _ = std::panic::catch_unwind(
                         AssertUnwindSafe(||{
                             run_mailbox(mb, ctx, d)
                         })
-                    ).unwrap();
+                    );//.unwrap();
                 }
                 KernelMsg::RestartActor => {
                     restart_actor(&dock, actor_ref.clone().into(), &props, &asys);

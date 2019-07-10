@@ -1,13 +1,11 @@
 #![feature(
         async_await,
         await_macro,
-        futures_api,
         arbitrary_self_types
 )]
 
 use riker::actors::*;
 use futures::{
-    task::SpawnExt,
     executor::block_on
 };
 
@@ -38,7 +36,6 @@ impl ShutdownTest {
 
 impl Actor for ShutdownTest {
     type Msg = ();
-    type Evt = ();
 
     fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
         if self.level < 10 {

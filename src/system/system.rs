@@ -635,7 +635,6 @@ impl ShutdownActor {
 
 impl Actor for ShutdownActor {
     type Msg = SystemEvent;
-    type Evt = ();
 
     fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
         let sub = Subscribe {

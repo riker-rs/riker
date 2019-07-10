@@ -36,7 +36,6 @@ impl Subscriber {
 
 impl Actor for Subscriber {
     type Msg = SubscriberMsg;
-    type Evt = ();
 
     fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
         let sub = Box::new(ctx.myself());
@@ -147,7 +146,6 @@ impl DumbActor {
 
 impl Actor for DumbActor {
     type Msg = DumbActorMsg;
-    type Evt = ();
 
     fn recv(&mut self,
                 ctx: &Context<Self::Msg>,
@@ -162,9 +160,9 @@ impl Receive<Panic> for DumbActor {
     type Msg = DumbActorMsg;
 
     fn receive(&mut self,
-                ctx: &Context<Self::Msg>,
-                msg: Panic,
-                sender: Sender) {
+                _ctx: &Context<Self::Msg>,
+                _msg: Panic,
+                _sender: Sender) {
 
         panic!("// TEST PANIC // TEST PANIC // TEST PANIC //");
     }
@@ -174,9 +172,9 @@ impl Receive<SomeMessage> for DumbActor {
     type Msg = DumbActorMsg;
 
     fn receive(&mut self,
-                ctx: &Context<Self::Msg>,
-                msg: SomeMessage,
-                sender: Sender) {
+                _ctx: &Context<Self::Msg>,
+                _msg: SomeMessage,
+                _sender: Sender) {
 
         // Intentionally left blank
     }
@@ -207,10 +205,9 @@ impl EventSubscriber {
 
 impl Actor for EventSubscriber {
     type Msg = EventSubscriberMsg;
-    type Evt = ();
 
     fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
-        // subscribe to the actor created event topic
+        // subscribe
         let sub = Box::new(ctx.myself());
         ctx.system
             .sys_events()
@@ -257,14 +254,26 @@ impl Receive<SystemEvent> for EventSubscriber {
                 _sender: Sender) {
 
         match msg {
-            SystemEvent::ActorCreated(_) => {
-                self.probe.as_ref().unwrap().0.event(())
+            SystemEvent::ActorCreated(created) => {
+                println!("XXX1");
+                if created.actor.path() == "/user/dumb-actor" {
+                    println!("XXX1a");
+                    self.probe.as_ref().unwrap().0.event(())
+                }
             }
-            SystemEvent::ActorRestarted(_) => {
-                self.probe.as_ref().unwrap().0.event(())
+            SystemEvent::ActorRestarted(restarted) => {
+                println!("XXX2");
+                if restarted.actor.path() == "/user/dumb-actor" {
+                    println!("XXX2a");
+                    self.probe.as_ref().unwrap().0.event(())
+                }
             }
-            SystemEvent::ActorTerminated(_) => {
-                self.probe.as_ref().unwrap().0.event(())
+            SystemEvent::ActorTerminated(terminated) => {
+                println!("XXX3");
+                if terminated.actor.path() == "/user/dumb-actor" {
+                    println!("XXX3a");
+                    self.probe.as_ref().unwrap().0.event(())
+                }
             }
         }
     }
@@ -274,12 +283,13 @@ impl Receive<SystemEvent> for EventSubscriber {
 fn channel_system_events() {
     let sys = ActorSystem::new().unwrap();
 
-    let actor = sys.actor_of(EventSubscriber::props(), "event-subscriber").unwrap();
+    let actor = sys.actor_of(EventSubscriber::props(), "event-sub").unwrap();
 
     let (probe, listen) = probe();
     actor.tell(TestProbe(probe), None);
     
-    // wait for the probe to arrive at the actor before attempting to stop the actor
+    // wait for the probe to arrive at the actor before attempting
+    // create, restart and stop
     listen.recv();
 
     // Create an actor
@@ -320,7 +330,6 @@ impl DeadLetterSub {
 
 impl Actor for DeadLetterSub {
     type Msg = DeadLetterSubMsg;
-    type Evt = ();
 
     fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
         // subscribe to dead_letters

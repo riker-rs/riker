@@ -22,7 +22,6 @@ impl DumbActor {
 
 impl Actor for DumbActor {
     type Msg = ();
-    type Evt = ();
 
     fn recv(&mut self, _: &Context<Self::Msg>, _: Self::Msg, _: Sender) {}
 }
@@ -38,7 +37,6 @@ impl PanicActor {
 
 impl Actor for PanicActor {
     type Msg = PanicActorMsg;
-    type Evt = ();
 
     fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
         let props = Props::new(Box::new(DumbActor::new));
@@ -100,7 +98,6 @@ impl RestartSup {
 
 impl Actor for RestartSup {
     type Msg = RestartSupMsg;
-    type Evt = ();
 
     fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
         let props = Props::new(Box::new(PanicActor::new));
@@ -180,7 +177,6 @@ impl EscalateSup {
 
 impl Actor for EscalateSup {
     type Msg = EscalateSupMsg;
-    type Evt = ();
 
     fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
         let props = Props::new(Box::new(PanicActor::new));
@@ -249,7 +245,6 @@ impl EscRestartSup {
 
 impl Actor for EscRestartSup {
     type Msg = EscRestartSupMsg;
-    type Evt = ();
 
     fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
         let props = Props::new(Box::new(EscalateSup::new));
@@ -304,7 +299,6 @@ impl Receive<Panic> for EscRestartSup {
 }
 
 #[test]
-// removed for now until race condition fixed
 fn supervision_escalate_failed_actor() {
     let sys = ActorSystem::new().unwrap();
 

@@ -71,7 +71,7 @@ pub fn dispatch<Msg>(msg: Envelope<Msg>,
 
 pub fn dispatch_any(msg: &mut AnyMessage,
                     sender: crate::actor::Sender,
-                    mbox: &Arc<AnySender>,
+                    mbox: &Arc<dyn AnySender>,
                     kernel: &KernelRef,
                     sys: &ActorSystem)
                     -> Result<(), ()> {
@@ -85,7 +85,7 @@ pub fn dispatch_any(msg: &mut AnyMessage,
             
             Ok(())
         }
-        Err(e) => Err(())
+        Err(_) => Err(())
     }
 }
 

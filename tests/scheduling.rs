@@ -31,7 +31,6 @@ impl ScheduleOnce {
 
 impl Actor for ScheduleOnce {
     type Msg = ScheduleOnceMsg;
-    type Evt = ();
 
     fn recv(&mut self,
             ctx: &Context<Self::Msg>,
@@ -47,7 +46,7 @@ impl Receive<TestProbe> for ScheduleOnce {
     fn receive(&mut self,
                 ctx: &Context<ScheduleOnceMsg>,
                 msg: TestProbe,
-                sender: Sender) {
+                _sender: Sender) {
 
         self.probe = Some(msg);
         // reschedule an Empty to be sent to myself()
@@ -62,9 +61,9 @@ impl Receive<SomeMessage> for ScheduleOnce {
     type Msg = ScheduleOnceMsg;
 
     fn receive(&mut self,
-                ctx: &Context<ScheduleOnceMsg>,
-                msg: SomeMessage,
-                sender: Sender) {
+                _ctx: &Context<ScheduleOnceMsg>,
+                _msg: SomeMessage,
+                _sender: Sender) {
 
         self.probe.as_ref().unwrap().0.event(());
     }
@@ -125,7 +124,6 @@ impl ScheduleRepeat {
 
 impl Actor for ScheduleRepeat {
     type Msg = ScheduleRepeatMsg;
-    type Evt = ();
     
     fn recv(&mut self,
             ctx: &Context<Self::Msg>,
@@ -142,7 +140,7 @@ impl Receive<TestProbe> for ScheduleRepeat {
     fn receive(&mut self,
                 ctx: &Context<Self::Msg>,
                 msg: TestProbe,
-                sender: Sender) {
+                _sender: Sender) {
 
         self.probe = Some(msg);
         // schedule Message to be repeatedly sent to myself
@@ -161,8 +159,8 @@ impl Receive<SomeMessage> for ScheduleRepeat {
 
     fn receive(&mut self,
                 ctx: &Context<Self::Msg>,
-                msg: SomeMessage,
-                sender: Sender) {
+                _msg: SomeMessage,
+                _sender: Sender) {
 
         if self.counter == 5 {
             ctx.cancel_schedule(self.schedule_id.unwrap());

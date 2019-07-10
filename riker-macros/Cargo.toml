@@ -1,8 +1,14 @@
 [package]
 name = "riker-macros"
-version = "0.1.0"
+version = "0.1"
 authors = ["Lee Smith <lee@riker.rs>"]
 edition = "2018"
+description = "Macro crate for Riker actor framework"
+homepage = "https://riker.rs"
+repository = "https://github.com/riker-rs/riker"
+license = "MIT"
+readme = "README.md"
+keywords = ["actors", "actor-model", "async", "cqrs", "event_sourcing"]
 
 [lib]
 proc-macro = true

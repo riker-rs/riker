@@ -79,7 +79,7 @@ impl<Msg> AnySender for MailboxSender<Msg>
             msg: actual,
             sender
         };
-        self.try_enqueue(msg).map_err(|e| ())
+        self.try_enqueue(msg).map_err(|_| ())
     }
 
     fn set_sched(&self, b: bool) {

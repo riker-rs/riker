@@ -11,7 +11,6 @@ use crate::{
 
 pub trait Actor: Send + 'static {
     type Msg: Message;
-    type Evt: Message;
 
     /// Invoked when an actor is being started by the system.
     ///
@@ -59,7 +58,6 @@ pub trait Actor: Send + 'static {
 
 impl<A: Actor + ?Sized> Actor for Box<A> {
     type Msg = A::Msg;
-    type Evt = A::Evt;
 
     fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
         (**self).pre_start(ctx);
@@ -106,7 +104,7 @@ pub trait Receive<Msg: Message> {
 }
 
 /// The actor trait object
-pub type BoxActor<Msg> = Box<dyn Actor<Msg=Msg, Evt=()> + Send>;
+pub type BoxActor<Msg> = Box<dyn Actor<Msg=Msg> + Send>;
 
 /// Supervision strategy
 /// 

@@ -40,7 +40,7 @@ impl Props {
 
 /// A `Clone`, `Send` and `Sync` `ActorProducer`
 // pub type BoxActorProd<Msg> = Arc<Mutex<ActorProducer<Actor=BoxActor<Msg>>>>;
-pub type BoxActorProd<A> = Arc<Mutex<ActorProducer<Actor=A>>>;
+pub type BoxActorProd<A> = Arc<Mutex<dyn ActorProducer<Actor=A>>>;
 
 
 /// Represents the underlying Actor factory function for creating instances of `Actor`.
@@ -78,7 +78,7 @@ impl<A> ActorProducer for Arc<Mutex<Box<dyn ActorProducer<Actor = A>>>>
     }
 }
 
-impl<A> ActorProducer for Arc<Mutex<ActorProducer<Actor = A>>>
+impl<A> ActorProducer for Arc<Mutex<dyn ActorProducer<Actor = A>>>
     where A: Actor + Send + 'static
 {
     type Actor = A;
@@ -88,7 +88,7 @@ impl<A> ActorProducer for Arc<Mutex<ActorProducer<Actor = A>>>
     }
 }
 
-impl<A> ActorProducer for Box<ActorProducer<Actor = A>>
+impl<A> ActorProducer for Box<dyn ActorProducer<Actor = A>>
     where A: Actor + Send + 'static
 {
     type Actor = A;

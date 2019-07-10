@@ -49,9 +49,7 @@ impl<Msg> Actor for Channel<Msg>
     where Msg: Message
 {
     type Msg = ChannelMsg<Msg>;
-    type Evt = ();
 
-    // todo check this. I remember subscribing needing to be done elsewhere
     // todo subscribe to events to unsub subscribers when they die
     fn pre_start(&mut self, ctx: &ChannelCtx<Msg>) {
         // let sub = Subscribe {
@@ -214,7 +212,6 @@ impl EventsChannel {
 
 impl Actor for EventsChannel {
     type Msg = ChannelMsg<SystemEvent>;
-    type Evt = ();
 
     fn pre_start(&mut self, ctx: &ChannelCtx<SystemEvent>) {
         self.0.pre_start(ctx);
