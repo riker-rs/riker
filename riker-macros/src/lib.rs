@@ -4,7 +4,7 @@ extern crate syn;
 
 use quote::quote;
 use proc_macro2::{TokenStream, Ident};
-use syn::{DeriveInput, Token};
+use syn::{DeriveInput};//, Token};
 use syn::punctuated::Punctuated;
 use syn::parse::{Parse, ParseStream, Result};
 
