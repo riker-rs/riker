@@ -2,9 +2,11 @@
 #![feature(
         async_await,
         await_macro,
-        futures_api,
-        arbitrary_self_types
+        arbitrary_self_types,
+        bind_by_move_pattern_guards
 )]
+
+// #![allow(warnings)] // toggle for easier compile error fixing 
 
 #[allow(unused_imports)]
 extern crate log;
@@ -13,21 +15,17 @@ mod validate;
 
 pub mod actor;
 pub mod kernel;
-pub mod model;
-pub mod protocol;
 pub mod system;
 
 use std::env;
+use std::fmt::Debug;
+use std::fmt;
+use std::any::Any;
 
-use futures::Future;
-use futures::future::RemoteHandle;
+
 use config::{Config, File};
 
-pub trait ExecutionContext {
-    fn execute<F>(&self, f: F) -> RemoteHandle<F::Output>
-        where F: Future + Send + 'static,
-                <F as Future>::Output: std::marker::Send;
-}
+use crate::actor::BasicActorRef;
 
 pub fn load_config() -> Config {
     let mut cfg = Config::new();
@@ -53,12 +51,76 @@ pub fn load_config() -> Config {
     cfg
 }
 
-// Pub exports
+/// Wraps message and sender
+#[derive(Debug, Clone)]
+pub struct Envelope<T: Message> {
+    pub sender: Option<BasicActorRef>,
+    pub msg: T,
+}
+
+unsafe impl<T: Message> Send for Envelope<T> {}
+
+pub trait Message: Debug + Clone + Send + 'static {}
+impl<T: Debug + Clone + Send + 'static> Message for T {}
+
+
+pub struct AnyMessage {
+    pub one_time: bool,
+    pub msg: Option<Box<dyn Any + Send>>,
+}
+
+impl AnyMessage {
+    pub fn new<T>(msg: T, one_time: bool) -> Self
+        where T: Any + Message
+    {    
+        AnyMessage {
+            one_time,
+            msg: Some(Box::new(msg))
+        }
+    }
+
+    pub fn take<T>(&mut self) -> Result<T, ()>
+        where T: Any + Message
+    {
+        if self.one_time {
+            match self.msg.take() {
+                Some(m) if m.is::<T>() => Ok(*m.downcast::<T>().unwrap()),
+                Some(_) => Err(()),
+                None => Err(())
+            }
+        } else {
+            match self.msg.as_ref() {
+                Some(ref m) if m.is::<T>() => Ok(m.downcast_ref::<T>().map(|t| t.clone()).unwrap()),
+                Some(_) => Err(()),
+                None => Err(())
+            }
+        }
+    }
+}
+
+impl Clone for AnyMessage {
+    fn clone(&self) -> Self {
+        panic!("Can't clone a message of type `AnyMessage`");
+    }
+}
+
+impl Debug for AnyMessage {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("AnyMessage")
+    }
+}
+
 pub mod actors {
-    pub use crate::model::Model;
-    pub use crate::protocol::{Message, ActorMsg, ChannelMsg, Identify, SystemEnvelope, SystemMsg, SystemEvent, IOMsg, ESMsg, CQMsg};
-    pub use crate::ExecutionContext;
+    pub use crate::{Message, AnyMessage};
     pub use crate::actor::*;
+<<<<<<< HEAD
     pub use crate::system::{ActorSystem, Evt,Timer};
     pub use crate::load_config;
 }
+=======
+    pub use crate::system::{
+        ActorSystem, SystemBuilder, SystemMsg,
+        SystemEvent, Run, Timer
+    };
+}
+>>>>>>> kernel-refac

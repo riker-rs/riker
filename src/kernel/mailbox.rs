@@ -1,39 +1,93 @@
 use std::thread;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::ops::Deref;
+use std::{
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering}
+    },
+};
 
 use config::Config;
 use log::trace;
 
-use crate::protocol::*;
-use crate::system::LogEntry;
-use crate::actor::{Actor, BoxActor, ActorRef, ActorUri, ActorId};
-use crate::actor::{ActorCell, Context, CellPublic, CellInternal, dead_letter, SysTell};
-use crate::kernel::{KernelRef, QueueWriter, QueueReader, queue};
-use crate::kernel::queue::{EnqueueResult, QueueEmpty};
+use crate::{
+    Envelope, Message, AnyMessage,
+    system::{
+        ActorSystem, SystemMsg, SystemEvent
+    },
+    actor::*,
+    actor::actor_cell::ExtendedCell,
+    system::ActorCreated,
+    kernel::{
+        kernel::Dock,
+        queue::{
+            QueueWriter, QueueReader, EnqueueResult,
+            QueueEmpty, queue
+        }
+    }
+};
+
+pub trait MailboxSchedule {
+    fn set_scheduled(&self, b: bool);
+
+    fn is_scheduled(&self) -> bool;
+}
+
+pub trait AnySender : Send + Sync {
+    fn try_any_enqueue(&self, msg: &mut AnyMessage,
+                        sender: Sender)
+                        -> Result<(), ()>;
+
+    fn set_sched(&self, b: bool);
+
+    fn is_sched(&self) -> bool;
+}
 
 #[derive(Clone)]
 pub struct MailboxSender<Msg: Message> {
-    pub uid: ActorId,
     queue: QueueWriter<Msg>,
-    sys_queue: QueueWriter<Msg>,
     scheduled: Arc<AtomicBool>,
 }
 
 impl<Msg> MailboxSender<Msg>
-    where Msg: Message {
-    
-    pub fn try_enqueue(&self, msg: Enqueued<Msg>) -> EnqueueResult<Msg> {
+    where Msg: Message
+{   
+    pub fn try_enqueue(&self, msg: Envelope<Msg>) -> EnqueueResult<Msg> {
         self.queue.try_enqueue(msg)
     }
+}
 
-    pub fn try_sys_enqueue(&self, msg: Enqueued<Msg>) -> EnqueueResult<Msg> {
-        self.sys_queue.try_enqueue(msg)
+impl<Msg> MailboxSchedule for MailboxSender<Msg>
+    where Msg: Message
+{
+    fn set_scheduled(&self, b: bool) {
+        self.scheduled.store(b, Ordering::Relaxed);
     }
 
-    pub fn is_scheduled(&self) -> bool {
+    fn is_scheduled(&self) -> bool {
         self.scheduled.load(Ordering::Relaxed)
+    }
+}
+
+impl<Msg> AnySender for MailboxSender<Msg>
+    where Msg: Message
+{
+    fn try_any_enqueue(&self, msg: &mut AnyMessage, sender: Sender)
+                        -> Result<(), ()> {
+        
+        let actual = msg.take()?;
+        let msg = Envelope {
+            msg: actual,
+            sender
+        };
+        self.try_enqueue(msg).map_err(|_| ())
+    }
+
+    fn set_sched(&self, b: bool) {
+        self.set_scheduled(b)
+    }
+
+    fn is_sched(&self) -> bool {
+        self.is_scheduled()
     }
 }
 
@@ -46,25 +100,24 @@ pub struct Mailbox<Msg: Message> {
 }
 
 pub struct MailboxInner<Msg: Message> {
-    uid: ActorId,
     msg_process_limit: u32,
     queue: QueueReader<Msg>,
-    sys_queue: QueueReader<Msg>,
-    kernel: KernelRef<Msg>,
+    sys_queue: QueueReader<SystemMsg>,
     suspended: Arc<AtomicBool>,
     scheduled: Arc<AtomicBool>,
 }
 
 impl<Msg: Message> Mailbox<Msg> {
-    pub fn dequeue(&self) -> Enqueued<Msg> {
+    #[allow(dead_code)]
+    pub fn dequeue(&self) -> Envelope<Msg> {
         self.inner.queue.dequeue()
     }
 
-    pub fn try_dequeue(&self) -> Result<Enqueued<Msg>, QueueEmpty> {
+    pub fn try_dequeue(&self) -> Result<Envelope<Msg>, QueueEmpty> {
         self.inner.queue.try_dequeue()
     }
 
-    pub fn sys_try_dequeue(&self) -> Result<Enqueued<Msg>, QueueEmpty> {
+    pub fn sys_try_dequeue(&self) -> Result<Envelope<SystemMsg>, QueueEmpty> {
         self.inner.sys_queue.try_dequeue()
     }
 
@@ -76,15 +129,7 @@ impl<Msg: Message> Mailbox<Msg> {
         self.inner.sys_queue.has_msgs()
     }
 
-    fn set_scheduled(&self, b: bool) {
-        self.inner.scheduled.store(b, Ordering::Relaxed);
-    }
-
-    pub fn is_scheduled(&self) -> bool {
-        self.inner.scheduled.load(Ordering::Relaxed)
-    }
-
-    fn set_suspended(&self, b: bool) {
+    pub fn set_suspended(&self, b: bool) {
         self.inner.suspended.store(b, Ordering::Relaxed);
     }
 
@@ -97,67 +142,43 @@ impl<Msg: Message> Mailbox<Msg> {
     }
 }
 
-pub trait MailboxSchedule {
-    type Msg: Message;
-
-    fn uid(&self) -> ActorId;
-
-    fn set_scheduled(&self, b: bool);
-}
-
-impl<Msg> MailboxSchedule for MailboxSender<Msg>
-    where Msg: Message
-{
-    type Msg = Msg;
-
-    fn uid(&self) -> ActorId {
-        self.uid
-    }
-
-    fn set_scheduled(&self, b: bool) {
-        self.scheduled.store(b, Ordering::Relaxed);
-    }
-}
-
 impl<Msg> MailboxSchedule for Mailbox<Msg>
     where Msg: Message
 {
-    type Msg = Msg;
-
-    fn uid(&self) -> ActorId {
-        self.inner.uid
-    }
-
     fn set_scheduled(&self, b: bool) {
         self.inner.scheduled.store(b, Ordering::Relaxed);
     }
+
+    fn is_scheduled(&self) -> bool {
+        self.inner.scheduled.load(Ordering::Relaxed)
+    }
 }
 
-pub fn mailbox<Msg>(uid: ActorId,
-                    msg_process_limit: u32,
-                    kernel: KernelRef<Msg>)
-                    -> (MailboxSender<Msg>, Mailbox<Msg>)
+pub fn mailbox<Msg>(msg_process_limit: u32)
+                    -> (MailboxSender<Msg>, MailboxSender<SystemMsg>, Mailbox<Msg>)
     where Msg: Message
 {
+    
     let (qw, qr) = queue::<Msg>();
-    let (sqw, sqr) = queue::<Msg>();
+    let (sqw, sqr) = queue::<SystemMsg>();
 
     let scheduled = Arc::new(AtomicBool::new(false));
 
     let sender = MailboxSender {
-        uid,
         queue: qw,
-        sys_queue: sqw,
+        scheduled: scheduled.clone()
+    };
+
+    let sys_sender = MailboxSender {
+        queue: sqw,
         scheduled: scheduled.clone()
     };
 
     let mailbox = MailboxInner {
-        uid,
         msg_process_limit,
         queue: qr,
         sys_queue: sqr,
-        kernel,
-        suspended: Arc::new(AtomicBool::new(true)), //todo this can't be a bool?
+        suspended: Arc::new(AtomicBool::new(true)),
         scheduled
     };
 
@@ -165,51 +186,64 @@ pub fn mailbox<Msg>(uid: ActorId,
         inner: Arc::new(mailbox)
     };
 
-    (sender, mailbox)
+    (sender, sys_sender, mailbox)
 }
 
-pub fn run_mailbox<Msg>(mbox: Mailbox<Msg>,
-                        cell: ActorCell<Msg>,
-                        mut actor: Option<BoxActor<Msg>>)
-    where Msg: Message
+pub fn run_mailbox<A>(mbox: Mailbox<A::Msg>,
+                        ctx: Context<A::Msg>,
+                        mut dock: Dock<A>)
+    where A: Actor
 {
-    let c = &cell;
-    let ctx: Context<Msg> = c.into();
-
-    process_sys_msgs(&mbox, &cell, &ctx, &mut actor);
-
-    if actor.is_some() && !mbox.is_suspended() {
-        process_msgs(&mbox, &cell, &ctx, &mut actor);
-    }
-
-    mbox.inner.kernel.park_actor(mbox.inner.uid, actor);
-    mbox.set_scheduled(false);
-
-    if (mbox.has_msgs() && !mbox.is_suspended() && !mbox.is_scheduled())|| mbox.has_sys_msgs() {
-        mbox.inner.kernel.schedule_actor(&mbox);
-    }
-}
-
-fn process_msgs<Msg>(mbox: &Mailbox<Msg>,
-                    cell: &ActorCell<Msg>,
-                    ctx: &Context<Msg>,
-                    actor: &mut Option<BoxActor<Msg>>)
-    where Msg: Message
-{
-    let mut count = 0;
-    
-    let _sentinel = Sentinel {
-        parent: cell.parent(),
-        actor: cell.myself(),
-        mbox: mbox.clone(),
+    let _sen = Sentinel {
+        actor: ctx.myself().into(),
+        parent: ctx.myself().parent(),
+        mbox: mbox.clone()
     };
 
+    let mut actor = dock.actor.lock().unwrap().take();
+    let cell = &mut dock.cell;
+
+    process_sys_msgs(&mbox, &ctx, cell, &mut actor);
+
+    if actor.is_some() && !mbox.is_suspended() {
+        process_msgs(&mbox, &ctx, cell, &mut actor);
+    }
+    
+    process_sys_msgs(&mbox, &ctx, cell, &mut actor);
+
+    if actor.is_some() {
+        let mut a = dock.actor.lock().unwrap();
+        *a = actor;
+    }
+
+    mbox.set_scheduled(false);
+
+    let has_msgs = mbox.has_msgs() || mbox.has_sys_msgs();
+    if has_msgs && !mbox.is_scheduled() {
+        ctx.kernel.schedule(&ctx.system);
+    }
+}
+
+fn process_msgs<A>(mbox: &Mailbox<A::Msg>,
+                    ctx: &Context<A::Msg>,
+                    cell: &ExtendedCell<A::Msg>,
+                    actor: &mut Option<A>)
+    where A: Actor
+{
+    let mut count = 0;
+
     loop {
-        if count < mbox.msg_process_limit() && !cell.is_persisting() {
+        if count < mbox.msg_process_limit() {
             match mbox.try_dequeue() {
                 Ok(msg) => {
-                    handle_msg(msg, cell, &ctx, actor, mbox);
-                    process_sys_msgs(mbox, cell, &ctx, actor);
+                    match (msg.msg, msg.sender) {
+                        (msg, sender) => {
+                            actor.as_mut().unwrap().recv(ctx, msg, sender);
+                            process_sys_msgs(&mbox, &ctx, cell, actor);
+                        }
+                        // (ActorMsg::Identify, sender) => handle_identify(sender, cell),
+                    }
+                    
                     count +=1;
                 },
                 Err(_) => {
@@ -222,74 +256,34 @@ fn process_msgs<Msg>(mbox: &Mailbox<Msg>,
     }
 }
 
-fn process_sys_msgs<Msg>(mbox: &Mailbox<Msg>,
-                        cell: &ActorCell<Msg>,
-                        ctx: &Context<Msg>,
-                        actor: &mut Option<BoxActor<Msg>>)
-    where Msg: Message
+fn process_sys_msgs<A>(mbox: &Mailbox<A::Msg>,
+                        ctx: &Context<A::Msg>,
+                        cell: &ExtendedCell<A::Msg>,
+                        actor: &mut Option<A>)
+    where A: Actor
 {
     // All system messages are processed in this mailbox execution
     // and we prevent any new messages that have since been added to the queue
     // from being processed by staging them in a Vec.
     // This prevents during actor restart.
-    let mut sys_messages: Vec<Enqueued<Msg>> = Vec::new();
+    let mut sys_msgs: Vec<Envelope<SystemMsg>> = Vec::new();
     loop {
         match mbox.sys_try_dequeue() {
             Ok(sys_msg) => {
-                sys_messages.push(sys_msg);
+                sys_msgs.push(sys_msg);
             }
             Err(_) => break
         }
     }
 
-    for sys_msg in sys_messages.into_iter() {
-        handle_msg(sys_msg, cell, ctx, actor, mbox);
-    }
-}
-
-pub fn flush_to_deadletters<Msg>(mbox: &Mailbox<Msg>,
-                                dl: &ActorRef<Msg>,
-                                uri: &ActorUri)
-    where Msg: Message
-{
-    loop {
-        match mbox.try_dequeue() {
-            Ok(msg) => {
-                match msg {
-                    Enqueued::ActorMsg(am) => {
-                        if let ActorMsg::User(_) = am.msg {
-                            // TODO candidate for improving code readability
-                            let sp = am.sender.clone().map(|s| s.uri.path.deref().clone());
-                            let mp = uri.path.deref().clone();
-                            dead_letter(dl,
-                                        sp,
-                                        mp,
-                                        am.msg);
-                        }
-                    }
-                    _ => {} // TODO handle system messages?
-                }
-            },
-            Err(_) => {
-                break;
-            }
+    for msg in sys_msgs.into_iter() {
+        match msg.msg {
+            SystemMsg::ActorInit => handle_init(mbox, ctx, cell, actor),
+            SystemMsg::Command(cmd) => cell.receive_cmd(cmd, actor),
+            SystemMsg::Event(evt) => handle_evt(evt, ctx, cell, actor),
+            SystemMsg::Failed(failed) => handle_failed(failed, cell, actor)
         }
-    }
-}
-
-fn handle_msg<Msg>(msg: Enqueued<Msg>,
-                    cell: &ActorCell<Msg>,
-                    ctx: &Context<Msg>,
-                    actor: &mut Option<BoxActor<Msg>>,
-                    mbox: &Mailbox<Msg>)
-    where Msg: Message
-{
-    match msg {
-        Enqueued::ActorMsg(envelope) => {
-            if actor.is_some() {
-                handle_actor_msg(envelope, cell, ctx, actor);
-            }
-        }
+<<<<<<< HEAD
         Enqueued::SystemMsg(envelope) => handle_sys_msg(envelope, cell, ctx, actor, mbox)
     }
 }
@@ -322,55 +316,53 @@ fn handle_sys_msg<Msg>(msg: SystemEnvelope<Msg>,
         SystemMsg::Persisted(evt, sender) => handle_persisted(evt, cell, ctx, actor, sender),
         SystemMsg::Replay(evts) => handle_replay(evts, cell, ctx, actor, mbox),
         SystemMsg::Log(entry) => handle_log_msg(entry, ctx, actor),
+=======
+>>>>>>> kernel-refac
     }
 }
 
-fn handle_init<Msg>(cell: &ActorCell<Msg>,
-                    ctx: &Context<Msg>,
-                    actor: &mut Option<BoxActor<Msg>>,
-                    mbox: &Mailbox<Msg>)
-    where Msg: Message
+fn handle_init<A>(mbox: &Mailbox<A::Msg>,
+                    ctx: &Context<A::Msg>,
+                    cell: &ExtendedCell<A::Msg>,
+                    actor: &mut Option<A>)
+    where A: Actor
 {
     trace!("ACTOR INIT");
     actor.as_mut().unwrap().pre_start(ctx);
-
-    // todo the intent here can be made clearer
-    // if persistence is not configured then set as not suspended
-    if cell.load_events(actor) {
-        actor.as_mut().unwrap().post_start(ctx);
-        mbox.set_suspended(false);
+    mbox.set_suspended(false);
+    
+    if cell.is_user() {
+        ctx.system.publish_event(ActorCreated { actor: cell.myself().into() }.into());
     }
+
+    // if persistence is not configured then set as not suspended
+    // if cell.load_events(actor) {
+    //     actor.as_mut().unwrap().post_start(ctx);
+    //     mbox.set_suspended(false);
+    // }
 }
 
-fn handle_identify<Msg>(sender: Option<ActorRef<Msg>>,
-                        cell: &ActorCell<Msg>)
-    where Msg: Message
+fn handle_failed<A>(failed: BasicActorRef,
+                    cell: &ExtendedCell<A::Msg>,
+                    actor: &mut Option<A>)
+    where A: Actor
 {
-    trace!("ACTOR IDENTIFY");
-    cell.identify(sender);
+    cell.handle_failure(failed, actor.as_mut().unwrap().supervisor_strategy())
 }
 
-fn handle_cmd<Msg>(cmd: ActorCmd,
-                    cell: &ActorCell<Msg>,
-                    actor: &mut Option<BoxActor<Msg>>)
-    where Msg: Message
+fn handle_evt<A>(evt: SystemEvent,
+                ctx: &Context<A::Msg>,
+                cell: &ExtendedCell<A::Msg>,
+                actor: &mut Option<A>)
+    where A: Actor
 {
-    // trace!("{}: ACTOR CMD {:?}", cell.myself().uri.path(), cmd);
-    cell.receive_cmd(cmd, actor);
-}
-
-fn handle_evt<Msg>(evt: SystemEvent<Msg>,
-                    msg: SystemEnvelope<Msg>,
-                    cell: &ActorCell<Msg>,
-                    ctx: &Context<Msg>,
-                    actor: &mut Option<BoxActor<Msg>>)
-    where Msg: Message
-{
-    // trace!("{} ACTOR EVT {:?}", cell.into().path(), evt);
     if actor.is_some() {
-        actor.as_mut().unwrap().system_receive(ctx, msg.msg, msg.sender);
+        actor.as_mut()
+                .unwrap()
+                .sys_recv(ctx, SystemMsg::Event(evt.clone()), None);
     }
     
+<<<<<<< HEAD
     if let SystemEvent::ActorTerminated(ref actor_ref) = evt {
         cell.death_watch(actor_ref, actor);
     }
@@ -419,12 +411,16 @@ fn handle_log_msg<Msg>(entry: LogEntry,
 {
     if actor.is_some() {
         actor.as_mut().unwrap().system_receive(ctx, SystemMsg::Log(entry), None);
+=======
+    if let SystemEvent::ActorTerminated(terminated) = evt {
+        cell.death_watch(&terminated.actor, actor);
+>>>>>>> kernel-refac
     }
 }
 
 struct Sentinel<Msg: Message> {
-    parent: ActorRef<Msg>,
-    actor: ActorRef<Msg>,
+    parent: BasicActorRef,
+    actor: BasicActorRef,
     mbox: Mailbox<Msg>,
 }
 
@@ -441,7 +437,35 @@ impl<Msg> Drop for Sentinel<Msg>
             self.mbox.set_scheduled(false);
 
             // Message the parent (this failed actor's supervisor) to decide how to handle the failure
-            self.parent.sys_tell(SystemMsg::Failed(self.actor.clone()), None);
+            self.parent.sys_tell(SystemMsg::Failed(self.actor.clone()));
+        }
+    }
+}
+
+pub fn flush_to_deadletters<Msg>(mbox: &Mailbox<Msg>,
+                                actor: &BasicActorRef,
+                                sys: &ActorSystem)
+    where Msg: Message
+{
+    loop {
+        match mbox.try_dequeue() {
+            Ok(msg) => {
+                match (msg.msg, msg.sender) {
+                    (msg, sender) => {
+                        let dl = DeadLetter {
+                            msg: format!("{:?}", msg),
+                            sender: sender,
+                            recipient: actor.clone()
+                        };
+
+                        sys.dead_letters()
+                            .tell(Publish { topic: "dead_letter".into(), msg: dl }, None);
+                    }
+                }
+            },
+            Err(_) => {
+                break;
+            }
         }
     }
 }

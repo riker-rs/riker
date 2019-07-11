@@ -1,37 +1,87 @@
-use std::fmt;
-use std::str::FromStr;
-use std::sync::{Arc, Mutex};
-use std::time::{SystemTime, Duration};
-use std::ops::Deref;
+use std::{
+    fmt,
+    str::FromStr,
+    ops::Deref,
+    time::{Duration, SystemTime},
+    sync::{Arc, Mutex}
+};
 
 use chrono::prelude::*;
 use config::Config;
 use rand;
 use uuid::Uuid;
-use futures::Future;
-use futures::future::RemoteHandle;
-use futures::channel::oneshot::{channel, Sender};
+use futures::{
+    Future,
+    channel::oneshot,
+    future::RemoteHandle,
+    task::{SpawnExt, SpawnError},
+    executor::{ThreadPool, ThreadPoolBuilder}
+};
 use log::{debug, Level};
 
-use crate::model::Model;
-use crate::protocol::{Message, ActorMsg, SystemMsg, ChannelMsg, ActorCmd, SystemEvent, IOMsg};
-use crate::ExecutionContext;
+use crate::{
+    Message, AnyMessage,
+    actor::*,
+    system::{SystemMsg, SystemCmd, SystemEvent, SystemError, ActorTerminated},
+    system::timer::*,
+    system::logger::*,
+    load_config,
+    kernel::provider::{Provider, create_root},
+    validate::{validate_name, InvalidPath}
+};
 
-use crate::system::timer::{Timer, TimerFactory, Job, OnceJob, RepeatJob};
-use crate::system::persist::EsManager;
-use crate::system::logger::{Logger, LoggerProps, DeadLetterProps};
-use crate::system::{Io, IoManagerProps, SystemError};
-use crate::kernel::{Kernel, KernelRef, KernelMsg, SysActors};
-use crate::actor::*;
-use crate::load_config;
-use crate::validate::{validate_name, InvalidPath};
+// 0. error results on any
+// 1. visibility
 
 pub struct ProtoSystem {
     id: Uuid,
     name: String,
     pub host: Arc<String>,
     config: Config,
+    pub(crate) sys_settings: SystemSettings,
     started_at: DateTime<Utc>,
+}
+
+pub struct SystemBuilder {
+    name: Option<String>,
+    cfg: Option<Config>,
+    log: Option<BoxActorProd<LogActor>>,
+    exec: Option<ThreadPool>,
+}
+
+impl SystemBuilder {
+    pub fn new() -> Self {
+        SystemBuilder {
+            name: None,
+            cfg: None,
+            log: None,
+            exec: None,
+        }
+    }
+
+    pub fn create(self) -> Result<ActorSystem, SystemError> {
+        let cfg = self.cfg.unwrap_or(load_config());
+        let exec = self.exec.unwrap_or(default_exec(&cfg));
+        let log = self.log.unwrap_or(default_log(&cfg));
+        
+        ActorSystem::create(
+            self.name.as_ref().unwrap(),
+            exec,
+            log,
+            cfg)
+    }
+
+    pub fn name(self, name: &str) -> Self {
+        SystemBuilder { name: Some(name.to_string()), .. self }
+    }
+
+    pub fn cfg(self, cfg: Config) -> Self {
+        SystemBuilder { cfg: Some(cfg), .. self }
+    }
+
+    pub fn exec(self, exec: ThreadPool) -> Self {
+        SystemBuilder { exec: Some(exec), .. self }
+    }
 }
 
 /// The actor runtime and common services coordinator
@@ -43,152 +93,112 @@ pub struct ProtoSystem {
 /// of `ActorSystem` per application.
 #[allow(dead_code)]
 #[derive(Clone)]
-pub struct ActorSystem<Msg: Message> {
-    pub proto: Arc<ProtoSystem>,
-    pub kernel: Option<KernelRef<Msg>>,
-    sys_actors: Option<SysActors<Msg>>,
-    default_stream: Option<ActorRef<Msg>>,
-    logger: Option<Logger<Msg>>,
-    pub event_store: Option<ActorRef<Msg>>,
-    pub sys_channels: Option<SysChannels<Msg>>,
-    io_manager: Option<ActorRef<Msg>>,
+pub struct ActorSystem {
+    proto: Arc<ProtoSystem>,
+    sys_actors: Option<SysActors>,
+    log: Option<Logger>,
     debug: bool,
+    pub exec: ThreadPool,
+    pub timer: TimerRef,
+    pub sys_channels: Option<SysChannels>,
+    pub(crate) provider: Provider,
 }
 
-impl<Msg: Message> ActorSystem<Msg> {
+impl ActorSystem {
     /// Create a new `ActorSystem` instance
     ///
     /// Requires a type that implements the `Model` trait.
-    pub fn new<Mdl>(model: &Mdl)
-            -> Result<ActorSystem<Msg>, SystemError>
-        where Mdl: Model<Msg=Msg>
-    {
-        ActorSystem::create(model, "riker", load_config())
+    pub fn new() -> Result<ActorSystem, SystemError> {
+        let cfg = load_config();
+        let exec = default_exec(&cfg);
+        let log = default_log(&cfg);
+
+        ActorSystem::create("riker", exec, log, cfg)
     }
 
     /// Create a new `ActorSystem` instance with provided name
     ///
     /// Requires a type that implements the `Model` trait.
-    pub fn with_name<Mdl>(model: &Mdl, name: &str)
-            -> Result<ActorSystem<Msg>, SystemError>
-        where Mdl: Model<Msg=Msg>
-    {
-        ActorSystem::create(model, name, load_config())
+    pub fn with_name(name: &str) -> Result<ActorSystem, SystemError> {
+        let cfg = load_config();
+        let exec = default_exec(&cfg);
+        let log = default_log(&cfg);
+
+        ActorSystem::create(name, exec, log, cfg)
     }
 
     /// Create a new `ActorSystem` instance bypassing default config behavior
-    ///
-    /// Requires a type that implements the `Model` trait.
-    pub fn with_config<Mdl>(model: &Mdl, name: &str, cfg: Config)
-            -> Result<ActorSystem<Msg>, SystemError>
-        where Mdl: Model<Msg=Msg>
-    {
-        ActorSystem::create(model, name, cfg)
+    pub fn with_config(name: &str, cfg: Config) -> Result<ActorSystem, SystemError> {
+        let exec = default_exec(&cfg);
+        let log = default_log(&cfg);
+
+        ActorSystem::create(name, exec, log, cfg)
     }
 
-    fn create<Mdl>(_: &Mdl, name: &str, config: Config)
-            -> Result<ActorSystem<Msg>, SystemError>
-        where Mdl: Model<Msg=Msg>
-    {
+    fn create(name: &str,
+            exec: ThreadPool,
+            log: BoxActorProd<LogActor>,
+            cfg: Config) -> Result<ActorSystem, SystemError> {
+
         validate_name(name)
             .map_err(|_| SystemError::InvalidName(name.into()))?;
         // Process Configuration
-        let debug = config.get_bool("debug").unwrap();
+        let debug = cfg.get_bool("debug").unwrap();
 
         // Until the logger has started, use println
         if debug {
             println!("Starting actor system: System[{}]", name);
         }
 
+        let prov = Provider::new();
+        let timer = BasicTimer::start(&cfg);
+
+        // 1. create proto system
         let proto = ProtoSystem {
             id: Uuid::new_v4(),
             name: name.to_string(),
             host: Arc::new("localhost".to_string()),
-            config: config.clone(),
+            config: cfg.clone(),
+            sys_settings: SystemSettings::from(&cfg),
             started_at: Utc::now(),
         };
 
-        let mut system = ActorSystem::<Mdl::Msg> {
+        // 2. create uninitialized system
+        let mut sys = ActorSystem {
             proto: Arc::new(proto),
             debug,
-            kernel: None,
-            logger: None,
-            default_stream: None,
-            event_store: None,
+            exec,
+            log: None,
+            // event_store: None,
+            timer,
             sys_channels: None,
             sys_actors: None,
-            io_manager: None,
+            provider: prov.clone()
         };
 
-        // start timer
-        let timer = Mdl::Tmr::new(&config, debug);
-        
-        // start kernel
-        let kernel_main: Kernel<Mdl::Msg, Mdl::Dis> = Kernel::new(&config);
-        let (kernel, sys_actors) = kernel_main.start(&system, timer);
-        system.kernel = Some(kernel.clone());
-        system.sys_actors = Some(sys_actors);
-        
-        // start system channels
-        let sys_channels = sys_channels(&system)?;
-        system.sys_channels = Some(sys_channels.clone());
-        
-        // start logging
-        let logger = logger(&system, &config, Mdl::Log::props(&config))?;
-        system.logger = Some(logger);
-        
-        // start default stream
-        let props = Props::new_args(Box::new(Channel::new), Some(system.event_stream().clone()));
-        let ds = sys_actor_of(&system, props, "default_stream")?;
-        system.default_stream = Some(ds);
-        
-        // start dead letter logger
-        let props = Mdl::Ded::props(sys_channels.dead_letters.clone());
-        let _dl_logger = sys_actor_of(&system, props, "dl_logger")?;
-        
-        // start event store
-        let esm = sys_actor_of(&system, EsManager::<Mdl::Evs>::props(&config), "event_store")?;
-        system.event_store = Some(esm);
-        
-        // start io manager
-        let io = sys_actor_of(&system, Io::props(), "io_manager")?;
-        system.io_manager = Some(io.clone());
+        // 3. create initial actor hierarchy
+        let sys_actors = create_root(&sys);
+        sys.sys_actors = Some(sys_actors);
 
-        // start tcp
-        if let Some(props) = Mdl::Tcp::props(&config) {
-            io.tell(IOMsg::Manage("tcp".into(), props), None);
-        }
+        // 4. start logger
+        sys.log = Some(logger(&prov, &sys, &cfg, log)?);
+        
+        // 5. start system channels
+        sys.sys_channels = Some(sys_channels(&prov, &sys)?);
+        
+        // 6. start dead letter logger
+        let props = DeadLetterLogger::props(sys.dead_letters());
+        let _dl_logger = sys_actor_of(&prov, &sys, props, "dl_logger")?;
 
-        debug!("Actor system [{}] [{}] started", system.id(), name);
+        sys.complete_start();
 
-        kernel.kernel_tx.send(KernelMsg::Initialize(system.clone())).unwrap();
+        debug!("Actor system [{}] [{}] started", sys.id(), name);
 
-        Ok(system)
+        Ok(sys)
     }
 
-    /// Shutdown the actor system
-    ///
-    /// Attempts a graceful shutdown of the system and all actors.
-    /// Actors will receive a stop message, executing `actor.post_stop`.
-    /// 
-    /// Does not block. Returns a future which is completed when all
-    /// actors have successfully stopped.
-    pub fn shutdown(&self) -> impl Future {
-        let (tx, rx) = channel::<()>();
-        let tx = Arc::new(Mutex::new(Some(tx)));
-
-        let a = ShutdownActor {
-            tx,
-            kernel: self.kernel.clone().unwrap()
-        };
-
-        let props = Props::new_args(Box::new(ShutdownActor::actor), a);
-        self.tmp_actor_of(props).unwrap();
-
-        // send stop to all /user children
-        self.stop(self.user_root());
-
-        rx
+    fn complete_start(&self) {
+        self.sys_actors.as_ref().unwrap().user.sys_init(self);
     }
 
     /// Returns the system start date
@@ -225,20 +235,20 @@ impl<Msg: Message> ActorSystem<Msg> {
     }
 
     pub fn print_tree(&self) {
-        // TODO refactor to be loop based since no tail recursion
-        fn print_node<Msg: Message>(system: &ActorSystem<Msg>,
-                                     node: ActorRef<Msg>, indent: &str) {
+        fn print_node(sys: &ActorSystem,
+                        node: BasicActorRef,
+                        indent: &str) {
             if node.is_root() {
-                println!("{}", system.name());
+                println!("{}", sys.name());
 
                 for actor in node.children() {
-                    print_node(system, actor, "");
+                    print_node(sys, actor, "");
                 }
             } else {
-                println!("{}└─ {}", indent, node.uri.name);
+                println!("{}└─ {}", indent, node.name());
 
                 for actor in node.children() {
-                    print_node(system, actor, &(indent.to_string()+"   "));
+                    print_node(sys, actor, &(indent.to_string()+"   "));
                 }
             }
         }
@@ -249,47 +259,38 @@ impl<Msg: Message> ActorSystem<Msg> {
 
     /// Returns the system root's actor reference 
     #[allow(dead_code)]
-    fn root(&self) -> &ActorRef<Msg> {
+    fn root(&self) -> &BasicActorRef {
         &self.sys_actors.as_ref().unwrap().root
     }
 
     /// Returns the user root actor reference
-    pub fn user_root(&self) -> &ActorRef<Msg> {
+    pub fn user_root(&self) -> &BasicActorRef {
         &self.sys_actors.as_ref().unwrap().user
     }
 
     /// Returns the system root actor reference
-    pub fn system_root(&self) -> &ActorRef<Msg> {
+    pub fn sys_root(&self) -> &BasicActorRef {
         &self.sys_actors.as_ref().unwrap().sysm
     }
 
     /// Reutrns the temp root actor reference
-    pub fn temp_root(&self) -> &ActorRef<Msg> {
+    pub fn temp_root(&self) -> &BasicActorRef {
         &self.sys_actors.as_ref().unwrap().temp
     }
 
-    /// Returns a reference to the default stream channel
-    pub fn default_stream(&self) -> &ActorRef<Msg> {
-        &self.default_stream.as_ref().unwrap()
-    }
-
-    /// Returns a reference to the event stream channel
-    pub fn event_stream(&self) -> &ActorRef<Msg> {
-        &self.sys_channels.as_ref().unwrap().event_stream
+    /// Returns a reference to the system events channel
+    pub fn sys_events(&self) -> &ActorRef<ChannelMsg<SystemEvent>> {
+        &self.sys_channels.as_ref().unwrap().sys_events
     }
 
     /// Returns a reference to the dead letters channel
-    pub fn dead_letters(&self) -> &ActorRef<Msg> {
+    pub fn dead_letters(&self) -> &ActorRef<DLChannelMsg> {
         &self.sys_channels.as_ref().unwrap().dead_letters
     }
 
-    // pub fn event_store(&self) -> Option<ActorRef<Msg>> {
-    //     &self.event_store
-    // }
-
-    /// Returns a reference to the IO Manager
-    pub fn io_manager(&self) -> &ActorRef<Msg> {
-        &self.io_manager.as_ref().unwrap()
+    pub fn publish_event(&self, evt: SystemEvent) {
+        let topic = Topic::from(&evt);
+        self.sys_events().tell(Publish {topic, msg: evt}, None);
     }
 
     /// Returns the `Config` used by the system
@@ -297,96 +298,103 @@ impl<Msg: Message> ActorSystem<Msg> {
         self.proto.config.clone()
     }
 
+    pub(crate) fn sys_settings(&self) -> &SystemSettings {
+        &self.proto.sys_settings
+    }
+
     /// Create an actor under the system root
-    pub fn sys_actor_of(&self, props: BoxActorProd<Msg>, name: &str) -> Result<ActorRef<Msg>, CreateError> {
-        self.kernel.as_ref().unwrap().create_actor(props, name, &self.system_root())
+    pub fn sys_actor_of<A>(&self,
+                            props: BoxActorProd<A>,
+                            name: &str)
+                            -> Result<ActorRef<A::Msg>, CreateError>
+        where A: Actor
+    {
+        self.provider
+            .create_actor(props,
+                        name,
+                        &self.sys_root(),
+                        self)
+    }
+
+    /// Shutdown the actor system
+    ///
+    /// Attempts a graceful shutdown of the system and all actors.
+    /// Actors will receive a stop message, executing `actor.post_stop`.
+    /// 
+    /// Does not block. Returns a future which is completed when all
+    /// actors have successfully stopped.
+    pub fn shutdown(&self) -> Shutdown {
+        let (tx, rx) = oneshot::channel::<()>();
+        let tx = Arc::new(Mutex::new(Some(tx)));
+
+        let props = Props::new_args(Box::new(ShutdownActor::new), tx);
+        self.tmp_actor_of(props).unwrap();
+
+        rx
     }
 }
 
-fn sys_actor_of<Msg>(sys: &ActorSystem<Msg>,
-                    props: BoxActorProd<Msg>,
-                    name: &str)
-                        -> Result<ActorRef<Msg>, SystemError>
-    where Msg: Message
-{
-    sys.sys_actor_of(props, name)
-        .map_err(|_| SystemError::ModuleFailed(name.into()))
-}
+unsafe impl Send for ActorSystem {}
+unsafe impl Sync for ActorSystem {}
 
-fn sys_channels<Msg>(sys: &ActorSystem<Msg>)
-                        -> Result<SysChannels<Msg>, SystemError>
-    where Msg: Message
-{
-    let props = Props::new(Box::new(SystemChannel::new));
-    let es = sys_actor_of(sys, props, "event_stream")?;
-
-    let props = Props::new(Box::new(SystemChannel::new));
-    let dl = sys_actor_of(sys, props, "dead_letters")?;
-    let msg = ChannelMsg::Subscribe(SysTopic::ActorTerminated.into(), dl.clone());
-    es.tell(msg, None);
-
-    Ok(SysChannels {
-        event_stream: es,
-        dead_letters: dl,
-    })
-}
-
-fn logger<Msg>(sys: &ActorSystem<Msg>,
-                    cfg: &Config,
-                    props: BoxActorProd<Msg>)
-                        -> Result<Logger<Msg>, SystemError>
-    where Msg: Message
-{
-    let logger = sys_actor_of(sys, props, "logger")?;
-
-    let level = cfg.get_str("log.level").map(|l| Level::from_str(&l)).unwrap().unwrap();
-    Ok(Logger::init(level, logger))
-}
-
-unsafe impl<Msg: Message> Send for ActorSystem<Msg> {}
-unsafe impl<Msg: Message> Sync for ActorSystem<Msg> {}
-
-impl<Msg> ActorRefFactory for ActorSystem<Msg>
-    where Msg: Message
-{
-    type Msg = Msg;
-
-    fn actor_of(&self,
-                props: BoxActorProd<Self::Msg>,
-                name: &str) -> Result<ActorRef<Msg>, CreateError> {
-        self.kernel.as_ref().unwrap().create_actor(props, name, &self.user_root())
+impl ActorRefFactory for ActorSystem {
+    fn actor_of<A>(&self,
+                props: BoxActorProd<A>,
+                name: &str) -> Result<ActorRef<A::Msg>, CreateError>
+        where A: Actor
+    {
+        self.provider
+            .create_actor(props,
+                        name,
+                        &self.user_root(),
+                        self)
     }
 
-    fn stop(&self, actor: &ActorRef<Self::Msg>) {
-        let sys_msg = SystemMsg::ActorCmd(ActorCmd::Stop);
-        actor.sys_tell(sys_msg, None);
+    fn stop(&self, actor: impl ActorReference) {
+        actor.sys_tell(SystemCmd::Stop.into());
     }
 }
 
-impl<Msg> TmpActorRefFactory for ActorSystem<Msg>
-    where Msg: Message
-{
-    type Msg = Msg;
+impl ActorRefFactory for &ActorSystem {
+    fn actor_of<A>(&self,
+                props: BoxActorProd<A>,
+                name: &str) -> Result<ActorRef<A::Msg>, CreateError>
+        where A: Actor
+    {
+        self.provider
+            .create_actor(props,
+                        name,
+                        &self.user_root(),
+                        self)
+    }
 
-    fn tmp_actor_of(&self, props: BoxActorProd<Msg>)
-                    -> Result<ActorRef<Msg>, CreateError> {
-        let name = rand::random::<u64>();
-        let name = format!("{}", name);
-        self.kernel.as_ref().unwrap().create_actor(props, &name, &self.temp_root())
+    fn stop(&self, actor: impl ActorReference) {
+        actor.sys_tell(SystemCmd::Stop.into());
     }
 }
 
-impl<Msg> ActorSelectionFactory for ActorSystem<Msg>
-    where Msg: Message
-{
-    type Msg = Msg;
+impl TmpActorRefFactory for ActorSystem {
+    fn tmp_actor_of<A>(&self, props: BoxActorProd<A>)
+                    -> Result<ActorRef<A::Msg>, CreateError>
+        where A: Actor
+    {
+        let name = format!("{}", rand::random::<u64>());
+        self.provider
+            .create_actor(props,
+                        &name,
+                        &self.temp_root(),
+                        self)
+    }
+}
 
+impl ActorSelectionFactory for ActorSystem {
     fn select(&self, path: &str)
-                -> Result<ActorSelection<Msg>, InvalidPath> {
+                -> Result<ActorSelection, InvalidPath> {
+
         let anchor = self.user_root();
         let (anchor, path_str) = if path.starts_with("/") {
             let anchor = self.user_root();
-            let anchor_path = format!("{}/",anchor.uri.path.deref().clone());
+            let anchor_path = format!("{}/", anchor.path().deref().clone());
             let path = path.to_string().replace(&anchor_path, "");
             
             (anchor, path)
@@ -395,105 +403,30 @@ impl<Msg> ActorSelectionFactory for ActorSystem<Msg>
         };
 
         ActorSelection::new(anchor.clone(),
-                            self.dead_letters(),
+                            // self.dead_letters(),
                             path_str)
     }
 }
 
-impl<Msg> Timer for ActorSystem<Msg>
-    where Msg: Message
-{
-    type Msg = Msg;
+// futures::task::Spawn::spawn requires &mut self so
+// we'll create a wrapper trait that requires only &self.
+pub trait Run {
+    fn run<Fut>(&self, future: Fut)
+                    -> Result<RemoteHandle<<Fut as Future>::Output>, SpawnError>
+        where Fut: Future + Send + 'static, <Fut as Future>::Output: Send;
+}
 
-    fn schedule<T>(&self,
-        initial_delay: Duration,
-        interval: Duration,
-        receiver: ActorRef<Self::Msg>,
-        sender: Option<ActorRef<Self::Msg>>,
-        msg: T) -> Uuid
-            where T: Into<ActorMsg<Self::Msg>>
+impl Run for ActorSystem {
+    fn run<Fut>(&self, future: Fut)
+                    -> Result<RemoteHandle<<Fut as Future>::Output>, SpawnError>
+        where Fut: Future + Send + 'static, <Fut as Future>::Output: Send
     {
-        
-        let id = Uuid::new_v4();
-        
-        let job = RepeatJob {
-            id: id.clone(),
-            send_at: SystemTime::now() + initial_delay,
-            interval: interval,
-            receiver: receiver,
-            sender: sender,
-            msg: msg.into()
-        };
-
-        self.kernel.as_ref().unwrap().schedule(Job::Repeat(job));
-        id
-    }
-
-    fn schedule_once<T>(&self,
-        delay: Duration,
-        receiver: ActorRef<Self::Msg>,
-        sender: Option<ActorRef<Self::Msg>>,
-        msg: T) -> Uuid
-            where T: Into<ActorMsg<Self::Msg>>
-    {
-        
-        let id = Uuid::new_v4();
-
-        let job = OnceJob {
-            id: id.clone(),
-            send_at: SystemTime::now() + delay,
-            receiver: receiver,
-            sender: sender,
-            msg: msg.into()
-        };
-
-        self.kernel.as_ref().unwrap().schedule(Job::Once(job));
-        id
-    }
-
-    fn schedule_at_time<T>(&self,
-        time: DateTime<Utc>,
-        receiver: ActorRef<Self::Msg>,
-        sender: Option<ActorRef<Self::Msg>>,
-        msg: T) -> Uuid
-            where T: Into<ActorMsg<Self::Msg>>
-    {
-        let time = SystemTime::UNIX_EPOCH +
-            Duration::from_secs(time.timestamp() as u64);
-        
-        let id = Uuid::new_v4();
-
-        let job = OnceJob {
-            id: id.clone(),
-            send_at: time,
-            receiver: receiver,
-            sender: sender,
-            msg: msg.into()
-        };
-
-        self.kernel.as_ref().unwrap().schedule(Job::Once(job));
-        id
-    }
-
-    fn cancel_schedule(&self, id: Uuid) {
-        self.kernel.as_ref().unwrap().schedule(Job::Cancel(id));
+        let mut exec = self.exec.clone();
+        exec.spawn_with_handle(future)
     }
 }
 
-impl<Msg> ExecutionContext for ActorSystem<Msg>
-    where Msg: Message
-{
-    fn execute<F>(&self, f: F) -> RemoteHandle<F::Output>
-        where F: Future + Send + 'static,
-            <F as Future>::Output: std::marker::Send
-    {
-        self.kernel.as_ref().unwrap().execute(f)
-    }
-}
-
-impl<Msg> fmt::Debug for ActorSystem<Msg>
-    where Msg: Message
-{
+impl fmt::Debug for ActorSystem {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f,
                 "ActorSystem[Name: {}, Start Time: {}, Uptime: {} seconds]",
@@ -503,54 +436,255 @@ impl<Msg> fmt::Debug for ActorSystem<Msg>
     }
 }
 
-#[derive(Clone)]
-struct ShutdownActor<Msg: Message> {
-    tx: Arc<Mutex<Option<Sender<()>>>>,
-    kernel: KernelRef<Msg>,
-}
+impl Timer for ActorSystem {
+    fn schedule<T, M>(&self,
+        initial_delay: Duration,
+        interval: Duration,
+        receiver: ActorRef<M>,
+        sender: Sender,
+        msg: T) -> Uuid
+            where T: Message + Into<M>, M: Message
+    {
 
-impl<Msg: Message> ShutdownActor<Msg> {
-    fn actor(a: Self) -> BoxActor<Msg> {
-        Box::new(a)
+        let id = Uuid::new_v4();
+        let msg: M = msg.into();
+
+        let job = RepeatJob {
+            id: id.clone(),
+            send_at: SystemTime::now() + initial_delay,
+            interval: interval,
+            receiver: receiver.into(),
+            sender: sender,
+            msg: AnyMessage::new(msg, false)
+        };
+
+        let _ = self.timer.send(Job::Repeat(job));
+        id
     }
 
-    fn check_and_complete(&self, user_guardian: &ActorRef<Msg>) -> bool {
-        // After all children have stopped the future can be completed
-        if user_guardian.children().count() == 0 {
-            match self.tx.lock() {
-                // TODO DOC it's possible that the last child has been removed
-                // by the time that this executes, and tx is already None
-                Ok(ref mut tx) if tx.is_some() => drop(tx.take().unwrap().send(())),
-                _ => {}
-            }
+    fn schedule_once<T, M>(&self,
+        delay: Duration,
+        receiver: ActorRef<M>,
+        sender: Sender,
+        msg: T) -> Uuid
+            where T: Message + Into<M>, M: Message
+    {
 
-            // Signal the kernel to stop, resulting in the kernel thread to released
-            self.kernel.stop_kernel();
-            true
-        } else {
-            false
+        let id = Uuid::new_v4();
+        let msg: M = msg.into();
+
+        let job = OnceJob {
+            id: id.clone(),
+            send_at: SystemTime::now() + delay,
+            receiver: receiver.into(),
+            sender: sender,
+            msg: AnyMessage::new(msg, true)
+        };
+
+        let _ = self.timer.send(Job::Once(job));
+        id
+    }
+
+    fn schedule_at_time<T, M>(&self,
+        time: DateTime<Utc>,
+        receiver: ActorRef<M>,
+        sender: Sender,
+        msg: T) -> Uuid
+            where T: Message + Into<M>, M: Message
+    {
+        let time = SystemTime::UNIX_EPOCH +
+            Duration::from_secs(time.timestamp() as u64);
+
+        let id = Uuid::new_v4();
+        let msg: M = msg.into();
+
+        let job = OnceJob {
+            id: id.clone(),
+            send_at: time,
+            receiver: receiver.into(),
+            sender: sender,
+            msg: AnyMessage::new(msg, true)
+        };
+
+        let _ = self.timer.send(Job::Once(job));
+        id
+    }
+
+    fn cancel_schedule(&self, id: Uuid) {
+        let _ = self.timer.send(Job::Cancel(id));
+    }
+}
+
+
+// helper functions
+
+fn sys_actor_of<A>(prov: &Provider,
+                    sys: &ActorSystem,
+                    props: BoxActorProd<A>,
+                    name: &str)
+                    -> Result<ActorRef<A::Msg>, SystemError>
+    where A: Actor
+{
+    prov.create_actor(props,
+                name,
+                &sys.sys_root(),
+                sys)
+                .map_err(|_| SystemError::ModuleFailed(name.into()))
+}
+
+fn logger(prov: &Provider,
+        sys: &ActorSystem,
+        cfg: &Config,
+        props: BoxActorProd<LogActor>)
+        -> Result<Logger, SystemError> {
+
+    let logger = sys_actor_of(prov, sys, props, "logger")?;
+
+    let level = cfg.get_str("log.level").map(|l| Level::from_str(&l)).unwrap().unwrap();
+    Ok(Logger::init(level, logger))
+}
+
+fn sys_channels(prov: &Provider,
+                sys: &ActorSystem)
+                -> Result<SysChannels, SystemError> {
+
+    let props = Props::new(Box::new(EventsChannel::new));
+    let sys_events = sys_actor_of(prov, sys, props, "sys_events")?;
+
+    let props = Props::new(Box::new(Channel::<DeadLetter>::new));
+    let dead_letters = sys_actor_of(prov, sys, props, "dead_letters")?;
+
+    // subscribe the dead_letters channel to actor terminated events
+    // so that any future subscribed actors that terminate are automatically
+    // unsubscribed from the dead_letters channel
+    // let msg = ChannelMsg::Subscribe(SysTopic::ActorTerminated.into(), dl.clone());
+    // es.tell(msg, None);
+
+    Ok(SysChannels {
+        sys_events,
+        dead_letters
+    })
+}
+
+pub struct SystemSettings {
+    pub msg_process_limit: u32,
+}
+
+impl<'a> From<&'a Config> for SystemSettings {
+    fn from(config: &Config) -> Self {
+        SystemSettings {
+            msg_process_limit: config.get_int("mailbox.msg_process_limit").unwrap() as u32
         }
     }
 }
 
-impl<Msg: Message> Actor for ShutdownActor<Msg> {
-    type Msg = Msg;
+struct ThreadPoolConfig {
+    pool_size: usize,
+}
+
+impl<'a> From<&'a Config> for ThreadPoolConfig {
+    fn from(config: &Config) -> Self {
+        ThreadPoolConfig {
+            pool_size: config.get_int("dispatcher.pool_size").unwrap() as usize
+        }
+    }
+}
+
+fn default_exec(cfg: &Config) -> ThreadPool {
+    let exec_cfg = ThreadPoolConfig::from(cfg);
+    ThreadPoolBuilder::new()
+                    .pool_size(exec_cfg.pool_size)
+                    .name_prefix("pool-thread-#")
+                    .create()
+                    .unwrap()
+}
+
+fn default_log(cfg: &Config) -> BoxActorProd<LogActor> {
+    let cfg = LoggerConfig::from(cfg);
+    SimpleLogger::props(cfg)
+}
+
+#[derive(Clone)]
+pub struct SysActors {
+    pub root: BasicActorRef,
+    pub user: BasicActorRef,
+    pub sysm: BasicActorRef,
+    pub temp: BasicActorRef,
+}
+
+#[derive(Clone)]
+pub struct SysChannels {
+    pub sys_events: ActorRef<ChannelMsg<SystemEvent>>,
+    pub dead_letters: ActorRef<DLChannelMsg>,
+}
+
+pub type Shutdown = oneshot::Receiver<()>;
+
+#[derive(Clone)]
+struct ShutdownActor {
+    tx: Arc<Mutex<Option<oneshot::Sender<()>>>>,
+}
+
+impl ShutdownActor {
+    fn new(tx: Arc<Mutex<Option<oneshot::Sender<()>>>>) -> Self {
+        ShutdownActor {
+            tx
+        }
+    }
+}
+
+impl Actor for ShutdownActor {
+    type Msg = SystemEvent;
 
     fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
-        if !self.check_and_complete(&ctx.system.user_root()) {
-            let msg = ChannelMsg::Subscribe(SysTopic::ActorTerminated.into(), ctx.myself.clone());
-            ctx.system.event_stream().tell(msg, None);
-        }
+        let sub = Subscribe {
+            topic: SysTopic::ActorTerminated.into(),
+            actor: Box::new(ctx.myself.clone())
+        };
+        ctx.system.sys_events().tell(sub, None);
+
+        // todo this is prone to failing since there is no
+        // confirmation that ShutdownActor has subscribed to
+        // the ActorTerminated events yet.
+        // It may be that the user root actor is Sterminated
+        // before the subscription is complete.
+
+        // std::thread::sleep_ms(1000);
+        // send stop to all /user children
+        ctx.system.stop(ctx.system.user_root());
     }
 
-    fn system_receive(&mut self, ctx: &Context<Self::Msg>, msg: SystemMsg<Self::Msg>, _: Option<ActorRef<Self::Msg>>) {
+    fn sys_recv(&mut self,
+                    ctx: &Context<Self::Msg>,
+                    msg: SystemMsg,
+                    sender: Option<BasicActorRef>) {
         if let SystemMsg::Event(evt) = msg {
-            if let SystemEvent::ActorTerminated(_) = evt {
-                let _ = self.check_and_complete(&ctx.system.user_root());
+            if let SystemEvent::ActorTerminated(terminated) = evt {
+                self.receive(ctx, terminated, sender);
             }
         }   
     }
 
-    fn receive(&mut self, _: &Context<Self::Msg>, _: Self::Msg, _: Option<ActorRef<Self::Msg>>) {}
+    fn recv(&mut self,
+                _: &Context<Self::Msg>,
+                _: Self::Msg,
+                _: Option<BasicActorRef>) {}
 }
 
+impl Receive<ActorTerminated> for ShutdownActor {
+    type Msg = SystemEvent;
+
+    fn receive(&mut self,
+                ctx: &Context<Self::Msg>,
+                msg: ActorTerminated,
+                _sender: Option<BasicActorRef>) {
+
+        if &msg.actor == ctx.system.user_root() {
+            if let Ok(ref mut tx) = self.tx.lock() {
+                if let Some(tx) = tx.take() {
+                    tx.send(()).unwrap();
+                }
+            }
+        }
+    }
+}

@@ -1,7 +1,7 @@
 [package]
 name = "riker"
-version = "0.2.4"
-authors = ["Lee Smith <leenozara@gmail.com>"]
+version = "0.3.0"
+authors = ["Lee Smith <lee@riker.rs>"]
 edition = "2018"
 description = "Easily build fast, highly concurrent and resilient applications. An Actor Framework for Rust."
 homepage = "https://riker.rs"
@@ -13,28 +13,19 @@ keywords = ["actors", "actor-model", "async", "cqrs", "event_sourcing"]
 [badges]
 travis-ci = { repository = "riker-rs/riker" }
 
-[workspace]
-
-members = [
-  "./",
-  "riker-default/riker-deadletter",
-  "riker-default/riker-dispatcher",
-  "riker-default/riker-log",
-  "riker-default/riker-mapvec",
-  "riker-default/riker-timer"
-]
-
 [dependencies]
+riker-macros = { path = "riker-macros", version = "0.1" }
 bytes = "0.4"
 chrono = "0.4"
 config = "0.9"
-futures-preview = "0.3.0-alpha.14"
+futures-preview = "0.3.0-alpha.16"
 log = { version = "0.4", features = ["std"] }
 rand = "0.4"
 regex = "0.2"
+runtime-fmt = "0.3.0"
 uuid = { version = "0.6", features = ["v4"] }
-pin-utils = "0.1.0-alpha.3"
+pin-utils = "0.1.0-alpha.4"
+
 
 [dev-dependencies]
-riker-default = { path = "riker-default", version = "0.2.3" }
 riker-testkit = "0.1.0"

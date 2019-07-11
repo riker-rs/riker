@@ -12,7 +12,7 @@ pub fn validate_name(name: &str) -> Result<(), InvalidName> {
 }
 
 pub struct InvalidName {
-    name: String
+    pub name: String
 }
 
 impl Error for InvalidName {

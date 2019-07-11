@@ -1,5 +1,4 @@
 # Riker
-NOTE: April 2019. We're making some major design changes to Riker. During this time PRs and issues aren't getting processed as fast as usual. We hope to get a new major release out soon!
 
 [![Build Status](https://travis-ci.org/riker-rs/riker.svg?branch=master)](https://travis-ci.org/riker-rs/riker)
 [![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
@@ -15,35 +14,30 @@ Riker provides:
 - An Actor based execution runtime
 - Actor supervision to isolate and recover from failures
 - A modular system
-- A Dispatcher backed by `futures::execution::ThreadPool` by default
+- Concurrency built on `futures::execution::ThreadPool`
 - Publish/Subscribe messaging via actor channels
 - Message scheduling
 - Out-of-the-box, configurable, non-blocking logging
 - Persistent actors using Event Sourcing
 - Command Query Responsiblily Separation (CQRS)
-- Run futures alongside actors
+- Easily run futures
 
-[Website](http://riker.rs) | [API Docs](https://docs.rs/riker)
+[Website](https://riker.rs) | [API Docs](https://docs.rs/riker)
 
 ## Example
 
 `Cargo.toml`:
+
 ```toml
 [dependencies]
-riker = "0.1.8"
-riker-default = "0.1.8"
+riker = "0.3"
 ```
 
 `main.rs`:
-```rust
-extern crate riker;
-extern crate riker_default;
-#[macro_use]
-extern crate log;
 
+```rust
 use std::time::Duration;
 use riker::actors::*;
-use riker_default::DefaultModel;
 
 struct MyActor;
 
@@ -51,30 +45,29 @@ struct MyActor;
 impl Actor for MyActor {
     type Msg = String;
 
-    fn receive(&mut self,
-                _ctx: &Context<Self::Msg>,
-                msg: Self::Msg,
-                _sender: Option<ActorRef<Self::Msg>>) {
+    fn recv(&mut self,
+                _ctx: &Context<String>,
+                msg: String,
+                _sender: Sender) {
 
-        debug!("Received: {}", msg);
+        println!("Received: {}", msg);
     }
 }
 
 // provide factory and props methods
 impl MyActor {
-    fn actor() -> BoxActor<String> {
-        Box::new(MyActor)
+    fn actor() -> Self {
+        MyActor
     }
 
-    fn props() -> BoxActorProd<String> {
+    fn props() -> BoxActorProd<MyActor> {
         Props::new(Box::new(MyActor::actor))
     }
 }
 
 // start the system and create an actor
 fn main() {
-    let model: DefaultModel<String> = DefaultModel::new();
-    let sys = ActorSystem::new(&model).unwrap();
+    let sys = ActorSystem::new().unwrap();
 
     let props = MyActor::props();
     let my_actor = sys.actor_of(props, "my-actor").unwrap();
@@ -84,12 +77,6 @@ fn main() {
     std::thread::sleep(Duration::from_millis(500));
 }
 ```
-
-## Modules
-
-Riker's core functionality is provided by modules defined as part of a 'model'. Every application defines a `Model` to describe the modules to be used. Everything from database storage, to logging, to the underlying dispatcher that executes actors is a module.
-
-A default `Model` [riker-default](riker-default) makes it easy to get started. You can also use this default model as part of a custom model.
 
 ## Associated Projects
 
@@ -109,6 +96,7 @@ The next major theme on the project roadmap is clustering and location transpare
 - Distributed data (CRDTs)
 
 ## Why Riker
+
 We believe there is no greater need than now for a full-featured actor model implementation that scales to hundreds or thousands of microservices and that equally can run exceptionally well on resource limited hardware to drive drones, IoT and robotics. The Rust language makes this possible.
 
 Rust empowers developers with control over memory management, requiring no garbage collection and runtime overhead, while also providing modern semantics and expressive syntax such as the trait system. The result is a language that can solve problems equally for Web and IoT.
@@ -116,7 +104,8 @@ Rust empowers developers with control over memory management, requiring no garba
 Riker adds to this by providing a famililar actor model API which in turn makes concurrent, resilent systems programming easy.
 
 ## Rust Version
-Riker is currently built using the **latest Rust Nightly**. Starting from between Riker `0.2` and `0.3` we expect to build against Rust Stable with support for specific minimum versions.
+
+Riker is currently built using the **latest Rust Nightly**.
 
 ## Contributing
 

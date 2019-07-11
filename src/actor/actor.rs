@@ -1,22 +1,15 @@
 #![allow(unused_variables)]
 
-use crate::protocol::{Message, SystemMsg, ActorMsg};
-use crate::actor::actor_ref::ActorRef;
-use crate::actor::actor_cell::{Context, PersistenceConf};
+use crate::{
+    Message,
+    system::SystemMsg,
+    actor::{
+        actor_ref::{BasicActorRef, Sender},
+        actor_cell::Context
+    }
+};
 
-/// An Actor represents a struct that will be scheduled for execution when it is sent a message.
-/// 
-/// Actors expose an API through messaging. The only means to interact with
-/// an actor is through the messaging protocol via the actor's reference,
-/// an `ActorRef`.
-/// 
-/// When `ActorRef.tell` is used to send a message to an actor, the
-/// message is placed in the actor's mailbox and the actor is scheduled
-/// for execution.
-/// 
-/// When the actor is executed the `receive` function is invoked for each
-/// message.
-pub trait Actor : Send {
+pub trait Actor: Send + 'static {
     type Msg: Message;
 
     /// Invoked when an actor is being started by the system.
@@ -45,28 +38,14 @@ pub trait Actor : Send {
 
     }
 
-    /// Invoked when an actor receives a message
-    /// 
-    /// It is guaranteed that only one message in the actor's mailbox is processed
-    /// at any one time, including `receive`, `other_receive` and `system_receive`.
-    fn receive(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Option<ActorRef<Self::Msg>>);
-
-    /// Invoked when an actor receives a Riker predefined message
-    /// 
-    /// It is guaranteed that only one message in the actor's mailbox is processed
-    /// at any one time, including `receive`, `other_receive` and `system_receive`.
-    fn other_receive(&mut self, ctx: &Context<Self::Msg>, msg: ActorMsg<Self::Msg>, sender: Option<ActorRef<Self::Msg>>) {
-
-    }
-
-    /// Invoked when an actor receives a Riker system message
-    /// 
-    /// It is guaranteed that only one message in the actor's mailbox is processed
-    /// at any one time, including `receive`, `other_receive` and `system_receive`.
-    fn system_receive(&mut self, ctx: &Context<Self::Msg>, msg: SystemMsg<Self::Msg>, sender: Option<ActorRef<Self::Msg>>) {
+    fn sys_recv(&mut self,
+                    ctx: &Context<Self::Msg>,
+                    msg: SystemMsg,
+                    sender: Sender) {
         
     }
 
+<<<<<<< HEAD
     /// Return a Some(PersistenceConf) to enable actor persistence.
     ///
     /// # Examples
@@ -214,10 +193,17 @@ pub trait Actor : Send {
     
     }
 
+=======
+>>>>>>> kernel-refac
     /// Return a supervisor strategy that will be used when handling failed child actors.
     fn supervisor_strategy(&self) -> Strategy {
         Strategy::Restart
     }
+
+    fn recv(&mut self,
+                ctx: &Context<Self::Msg>,
+                msg: Self::Msg,
+                sender: Sender);
 }
 
 impl<A: Actor + ?Sized> Actor for Box<A> {
@@ -235,22 +221,18 @@ impl<A: Actor + ?Sized> Actor for Box<A> {
         (**self).post_stop()
     }
 
-    fn receive(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Option<ActorRef<Self::Msg>>) {
-        (**self).receive(ctx, msg, sender);
+    fn sys_recv(&mut self,
+                    ctx: &Context<Self::Msg>,
+                    msg: SystemMsg,
+                    sender: Option<BasicActorRef>) {
+        (**self).sys_recv(ctx, msg, sender)
     }
 
-    fn other_receive(&mut self, ctx: &Context<Self::Msg>, msg: ActorMsg<Self::Msg>, sender: Option<ActorRef<Self::Msg>>) {
-        (**self).other_receive(ctx, msg, sender);
+    fn supervisor_strategy(&self) -> Strategy {
+        (**self).supervisor_strategy()
     }
 
-    fn system_receive(&mut self, ctx: &Context<Self::Msg>, msg: SystemMsg<Self::Msg>, sender: Option<ActorRef<Self::Msg>>) {
-        (**self).system_receive(ctx, msg, sender)
-    }
-
-    fn persistence_conf(&self) -> Option<PersistenceConf> {
-        (**self).persistence_conf()
-    }
-
+<<<<<<< HEAD
     fn apply_event(
         &mut self,
         ctx: &Context<Self::Msg>,
@@ -258,15 +240,33 @@ impl<A: Actor + ?Sized> Actor for Box<A> {
         sender: Option<ActorRef<Self::Msg>>
     ) {
         (**self).apply_event(ctx, evt, sender)
+=======
+    fn recv(&mut self,
+                ctx: &Context<Self::Msg>,
+                msg: Self::Msg,
+                sender: Option<BasicActorRef>) {
+        (**self).recv(ctx, msg, sender)
+>>>>>>> kernel-refac
     }
+}
 
+<<<<<<< HEAD
     fn replay_event(&mut self, ctx: &Context<Self::Msg>, evt: Self::Msg) {
         (**self).replay_event(ctx, evt)
     }
+=======
+pub trait Receive<Msg: Message> {
+    type Msg: Message;
+>>>>>>> kernel-refac
 
-    fn supervisor_strategy(&self) -> Strategy {
-        (**self).supervisor_strategy()
-    }
+    /// Invoked when an actor receives a message
+    /// 
+    /// It is guaranteed that only one message in the actor's mailbox is processed
+    /// at any one time, including `receive`, `other_receive` and `system_receive`.
+    fn receive(&mut self,
+                ctx: &Context<Self::Msg>,
+                msg: Msg,
+                sender: Option<BasicActorRef>);
 }
 
 /// The actor trait object
