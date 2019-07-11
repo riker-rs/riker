@@ -255,23 +255,17 @@ impl Receive<SystemEvent> for EventSubscriber {
 
         match msg {
             SystemEvent::ActorCreated(created) => {
-                println!("XXX1");
                 if created.actor.path() == "/user/dumb-actor" {
-                    println!("XXX1a");
                     self.probe.as_ref().unwrap().0.event(())
                 }
             }
             SystemEvent::ActorRestarted(restarted) => {
-                println!("XXX2");
                 if restarted.actor.path() == "/user/dumb-actor" {
-                    println!("XXX2a");
                     self.probe.as_ref().unwrap().0.event(())
                 }
             }
             SystemEvent::ActorTerminated(terminated) => {
-                println!("XXX3");
                 if terminated.actor.path() == "/user/dumb-actor" {
-                    println!("XXX3a");
                     self.probe.as_ref().unwrap().0.event(())
                 }
             }

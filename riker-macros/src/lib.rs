@@ -71,7 +71,6 @@ pub fn actor(attr: proc_macro::TokenStream,
 
     let menum = types.enum_stream(&name); 
     let intos = intos(&name, &types);
-    let tells = tells(&name, &types);
     let rec = receive(&ast.ident, &name, &types);
 
     let input: TokenStream = input.into();
@@ -92,15 +91,6 @@ fn intos(name: &Ident, types: &MsgTypes) -> TokenStream {
     });
     quote!{
         #(#intos)*
-    }
-}
-
-fn tells(name: &Ident, types: &MsgTypes) -> TokenStream {
-    let tells = types.types.iter().map(|t| {
-        impl_tell(&name, &t.mtype)
-    });
-    quote!{
-        #(#tells)*
     }
 }
 
@@ -141,17 +131,3 @@ fn impl_into(name: &Ident,
     }
 }
 
-fn impl_tell(name: &Ident,
-            ty: &Ident) -> TokenStream {
-    quote! {
-        impl Tell<#ty> for ActorRef<#name> {
-            fn tell(&self, msg: #ty, sender: Option<BasicActorRef>) {
-                self.send_msg(msg.into(), sender);
-            }
-
-            fn box_clone(&self) -> BoxedTell<#ty> {
-                Box::new((*self).clone())
-            }
-        }
-    }
-}

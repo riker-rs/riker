@@ -113,14 +113,8 @@ impl Debug for AnyMessage {
 pub mod actors {
     pub use crate::{Message, AnyMessage};
     pub use crate::actor::*;
-<<<<<<< HEAD
-    pub use crate::system::{ActorSystem, Evt,Timer};
-    pub use crate::load_config;
-}
-=======
     pub use crate::system::{
         ActorSystem, SystemBuilder, SystemMsg,
         SystemEvent, Run, Timer
     };
 }
->>>>>>> kernel-refac

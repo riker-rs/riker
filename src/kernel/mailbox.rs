@@ -283,41 +283,6 @@ fn process_sys_msgs<A>(mbox: &Mailbox<A::Msg>,
             SystemMsg::Event(evt) => handle_evt(evt, ctx, cell, actor),
             SystemMsg::Failed(failed) => handle_failed(failed, cell, actor)
         }
-<<<<<<< HEAD
-        Enqueued::SystemMsg(envelope) => handle_sys_msg(envelope, cell, ctx, actor, mbox)
-    }
-}
-
-fn handle_actor_msg<Msg>(msg: Envelope<Msg>,
-                        cell: &ActorCell<Msg>,
-                        ctx: &Context<Msg>, 
-                        actor: &mut Option<BoxActor<Msg>>)
-    where Msg: Message
-{
-    match (msg.msg, msg.sender) {
-        (ActorMsg::User(msg), sender) => actor.as_mut().unwrap().receive(ctx, msg, sender),
-        (ActorMsg::Identify, sender) => handle_identify(sender, cell),
-        (msg, sender) => actor.as_mut().unwrap().other_receive(ctx, msg, sender)
-    }
-}
-
-fn handle_sys_msg<Msg>(msg: SystemEnvelope<Msg>,
-                        cell: &ActorCell<Msg>,
-                        ctx: &Context<Msg>,
-                        actor: &mut Option<BoxActor<Msg>>,
-                        mbox: &Mailbox<Msg>)
-    where Msg: Message
-{
-    match msg.msg {
-        SystemMsg::ActorInit => handle_init(cell, ctx, actor, mbox),
-        SystemMsg::ActorCmd(cmd) => handle_cmd(cmd, cell, actor),
-        SystemMsg::Event(ref evt) => handle_evt(evt.clone(), msg.clone(), cell, ctx, actor),
-        SystemMsg::Failed(failed) => handle_failed(failed, cell, actor),
-        SystemMsg::Persisted(evt, sender) => handle_persisted(evt, cell, ctx, actor, sender),
-        SystemMsg::Replay(evts) => handle_replay(evts, cell, ctx, actor, mbox),
-        SystemMsg::Log(entry) => handle_log_msg(entry, ctx, actor),
-=======
->>>>>>> kernel-refac
     }
 }
 
@@ -362,59 +327,8 @@ fn handle_evt<A>(evt: SystemEvent,
                 .sys_recv(ctx, SystemMsg::Event(evt.clone()), None);
     }
     
-<<<<<<< HEAD
-    if let SystemEvent::ActorTerminated(ref actor_ref) = evt {
-        cell.death_watch(actor_ref, actor);
-    }
-}
-
-fn handle_failed<Msg>(failed: ActorRef<Msg>,
-                        cell: &ActorCell<Msg>,
-                        actor: &mut Option<BoxActor<Msg>>)
-    where Msg: Message
-{
-    trace!("ACTOR HANDLE FAILED");
-    cell.handle_failure(failed, actor.as_mut().unwrap().supervisor_strategy())
-}
-
-fn handle_persisted<Msg>(evt: Msg,
-                        cell: &ActorCell<Msg>,
-                        ctx: &Context<Msg>,
-                        actor: &mut Option<BoxActor<Msg>>,
-                        sender: Option<ActorRef<Msg>>)
-    where Msg: Message
-{
-    trace!("ACTOR HANDLE PERSISTED");
-    cell.set_persisting(false);
-    actor.as_mut().unwrap().apply_event(ctx, evt, sender);
-}
-
-fn handle_replay<Msg>(evts: Vec<Msg>,
-                        cell: &ActorCell<Msg>,
-                        ctx: &Context<Msg>,
-                        actor: &mut Option<BoxActor<Msg>>,
-                        mbox: &Mailbox<Msg>)
-    where Msg: Message
-{
-    trace!("ACTOR REPLAY");
-
-    cell.replay(ctx, evts, actor);
-
-    actor.as_mut().unwrap().post_start(ctx);
-    mbox.set_suspended(false);
-}
-
-fn handle_log_msg<Msg>(entry: LogEntry,
-                        ctx: &Context<Msg>,
-                        actor: &mut Option<BoxActor<Msg>>)
-    where Msg: Message
-{
-    if actor.is_some() {
-        actor.as_mut().unwrap().system_receive(ctx, SystemMsg::Log(entry), None);
-=======
     if let SystemEvent::ActorTerminated(terminated) = evt {
         cell.death_watch(&terminated.actor, actor);
->>>>>>> kernel-refac
     }
 }
 

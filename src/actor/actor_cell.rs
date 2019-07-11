@@ -518,59 +518,6 @@ impl<Msg> Context<Msg>
     pub fn myself(&self) -> ActorRef<Msg> {
         self.myself.clone()
     }
-<<<<<<< HEAD
-
-    /// Persists an event to the event store.
-    /// 
-    /// In an event sourcing environment state is maintained by
-    /// storing the events that change the state. `persist_event`
-    /// attempts to store the event.
-    /// 
-    /// State should not be modified until the event has been
-    /// successfully persisted. The event store manager notifies
-    /// the actor after each event is stored and the actor's state
-    /// can then safely be updated. The actor's `apply_event` method
-    /// is called after an event is stored.
-    /// 
-    /// While an event is persisting it is guaranteed that no other
-    /// messages are processed until persistence is complete. I.e.,
-    /// no messages are processed between `persist_event` and the
-    /// resulting `apply_event`.
-    /// 
-    /// When an actor starts (or restarts), if pesistence is
-    /// configured the system will query the event source manager
-    /// to get all the events for the actor. Each event is then replayed,
-    /// in their original order, which effectively results in an actor
-    /// being in the latest state.
-    pub fn persist_event(&self, evt: Msg, sender: Option<ActorRef<Msg>>) {
-        let event_store = &self.persistence.event_store;
-        let perconf = &self.persistence.persistence_conf;
-
-        match (event_store, perconf) {
-            (&Some(ref es), &Some(ref perconf)) => {
-                self.persistence.is_persisting.store(true, Ordering::Relaxed);
-
-                let evt = Evt::new(evt);
-                es.tell(ESMsg::Persist(evt,
-                                        perconf.id.clone(),
-                                        perconf.keyspace.clone(),
-                                        sender
-                                        ), Some(self.myself.clone()));
-            }
-            (&Some(_), &None) => {
-                warn!("Can't persist event. No persistence configuration");
-            }
-            (&None, &Some(_)) => {
-                warn!("Can't persist event. No event store manager");
-            }
-            _ => {
-                warn!("Can't persist event. No persistence configuration and no event store manager")
-            }
-
-        }
-    }
-=======
->>>>>>> kernel-refac
 }
 
 impl<Msg: Message> ActorRefFactory for Context<Msg> {
