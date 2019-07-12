@@ -1,10 +1,8 @@
 extern crate proc_macro;
-#[macro_use]
-extern crate proc_macro2;
 
 use quote::quote;
 use proc_macro2::{TokenStream, Ident};
-use syn::{DeriveInput};//, Token};
+use syn::DeriveInput;
 use syn::punctuated::Punctuated;
 use syn::parse::{Parse, ParseStream, Result};
 
@@ -37,7 +35,10 @@ impl MsgTypes {
 
 impl Parse for MsgTypes {
     fn parse(input: ParseStream) -> Result<Self> {
-        let vars = Punctuated::<Ident, Token![,]>::parse_terminated(input)?;
+        // caused "missing extern crate token" compile error
+        // let vars = Punctuated::<Ident, Token![,]>::parse_terminated(input)?;
+        let vars = Punctuated::<Ident, syn::token::Comma>::parse_terminated(input)?;
+        
         Ok(MsgTypes {
             types: vars.into_iter().map(|t| {
                 MsgVariant {

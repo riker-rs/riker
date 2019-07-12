@@ -14,6 +14,7 @@ keywords = ["actors", "actor-model", "async", "cqrs", "event_sourcing"]
 proc-macro = true
 
 [dependencies]
-syn = { version ="0.15", features = ['full'] }
+syn = { version ="0.15.39", features = ["parsing", "full", "extra-traits", "proc-macro"] }
 quote = "0.6.3"
-proc-macro2 = "0.4.3"
+proc-macro2 = "0.4.4"
+
