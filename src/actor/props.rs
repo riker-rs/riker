@@ -40,8 +40,19 @@ impl Props {
 
 /// A `Clone`, `Send` and `Sync` `ActorProducer`
 // pub type BoxActorProd<Msg> = Arc<Mutex<ActorProducer<Actor=BoxActor<Msg>>>>;
-pub type BoxActorProd<A> = Arc<Mutex<dyn ActorProducer<Actor=A>>>;
+pub type BoxActorProd<A> = Arc<Mutex<Box<dyn ActorProducer<Actor=A>>>>;
 
+pub trait PropsConstructor {
+    type Actor: Actor;
+    fn props() -> BoxActorProd<Self::Actor>;
+}
+
+impl<A: Default + Actor> PropsConstructor for A {
+    type Actor = A;
+    fn props() -> BoxActorProd<Self::Actor> {
+        Props::new(Box::new(A::default))
+    }
+}
 
 /// Represents the underlying Actor factory function for creating instances of `Actor`.
 /// 

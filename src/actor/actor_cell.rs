@@ -21,7 +21,10 @@ use rand;
 
 use crate::{
     Envelope, Message, AnyMessage,
-    actor::*,
+    actor::{
+        *,
+        props::PropsConstructor,
+    },
     kernel::{
         kernel_ref::{KernelRef, dispatch, dispatch_any},
         mailbox::{AnySender, MailboxSender},
@@ -321,9 +324,20 @@ impl fmt::Debug for ActorCell {
 }
 
 impl TmpActorRefFactory for ActorCell {
-    fn tmp_actor_of<A: Actor>(&self,
-                                    _props: BoxActorProd<A>)
-                                    -> Result<ActorRef<A::Msg>, CreateError> {
+    fn tmp_actor_of_props<A: Actor>(&self,
+                              _props: impl Into<BoxActorProd<A>>)
+                              -> Result<ActorRef<A::Msg>, CreateError> {
+        let name = rand::random::<u64>();
+        let _name = format!("{}", name);
+
+        // self.inner
+        //     .kernel
+        //     .create_actor(props, &name, &self.inner.system.temp_root())
+        unimplemented!()
+    }
+
+    fn tmp_actor_of<A: PropsConstructor>(&self)
+                              -> Result<ActorRef<<A::Actor as Actor>::Msg>, CreateError> {
         let name = rand::random::<u64>();
         let _name = format!("{}", name);
 
@@ -521,17 +535,29 @@ impl<Msg> Context<Msg>
 }
 
 impl<Msg: Message> ActorRefFactory for Context<Msg> {
-    fn actor_of<A>(&self,
-                props: BoxActorProd<A>,
-                name: &str) -> Result<ActorRef<A::Msg>, CreateError>
+    fn actor_of_props<A>(&self,
+                   props: BoxActorProd<A>,
+                   name: &str) -> Result<ActorRef<A::Msg>, CreateError>
         where A: Actor
     {
         self.system
             .provider
-            .create_actor(props,
-                        name,
-                        &self.myself().into(),
-                        &self.system)
+            .create_actor(props.into(),
+                          name,
+                          &self.myself().into(),
+                          &self.system)
+    }
+
+    fn actor_of<A>(&self,
+                   name: &str) -> Result<ActorRef<<A::Actor as Actor>::Msg>, CreateError>
+        where A: PropsConstructor
+    {
+        self.system
+            .provider
+            .create_actor(A::props(),
+                          name,
+                          &self.myself().into(),
+                          &self.system)
     }
 
     fn stop(&self, actor: impl ActorReference) {

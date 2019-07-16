@@ -1,14 +1,14 @@
 #[macro_use]
 extern crate riker_testkit;
 
-use riker::actors::*;
-
-use riker_testkit::probe::{Probe, ProbeReceive};
-use riker_testkit::probe::channel::{probe, ChannelProbe};
-
-use chrono::{Utc, Duration as CDuration};
 use std::time::Duration;
+
+use chrono::{Duration as CDuration, Utc};
+use riker_testkit::probe::{Probe, ProbeReceive};
+use riker_testkit::probe::channel::{ChannelProbe, probe};
 use uuid::Uuid;
+
+use riker::actors::*;
 
 #[derive(Clone, Debug)]
 pub struct TestProbe(ChannelProbe<(), ()>);
@@ -17,16 +17,9 @@ pub struct TestProbe(ChannelProbe<(), ()>);
 pub struct SomeMessage;
 
 #[actor(TestProbe, SomeMessage)]
+#[derive(Default)]
 struct ScheduleOnce {
     probe: Option<TestProbe>,
-}
-
-impl ScheduleOnce {
-    fn new() -> Self {
-        ScheduleOnce {
-            probe: None
-        }
-    }
 }
 
 impl Actor for ScheduleOnce {
@@ -44,16 +37,15 @@ impl Receive<TestProbe> for ScheduleOnce {
     type Msg = ScheduleOnceMsg;
 
     fn receive(&mut self,
-                ctx: &Context<ScheduleOnceMsg>,
-                msg: TestProbe,
-                _sender: Sender) {
-
+               ctx: &Context<ScheduleOnceMsg>,
+               msg: TestProbe,
+               _sender: Sender) {
         self.probe = Some(msg);
         // reschedule an Empty to be sent to myself()
         ctx.schedule_once(Duration::from_millis(200),
-                            ctx.myself(),
-                            None,
-                            SomeMessage);
+                          ctx.myself(),
+                          None,
+                          SomeMessage);
     }
 }
 
@@ -61,10 +53,9 @@ impl Receive<SomeMessage> for ScheduleOnce {
     type Msg = ScheduleOnceMsg;
 
     fn receive(&mut self,
-                _ctx: &Context<ScheduleOnceMsg>,
-                _msg: SomeMessage,
-                _sender: Sender) {
-
+               _ctx: &Context<ScheduleOnceMsg>,
+               _msg: SomeMessage,
+               _sender: Sender) {
         self.probe.as_ref().unwrap().0.event(());
     }
 }
@@ -73,16 +64,15 @@ impl Receive<SomeMessage> for ScheduleOnce {
 fn schedule_once() {
     let sys = ActorSystem::new().unwrap();
 
-    let props = Props::new(Box::new(ScheduleOnce::new));
-    let actor = sys.actor_of(props, "schedule-once").unwrap();
+    let actor = sys.actor_of::<ScheduleOnce>("schedule-once").unwrap();
 
     let (probe, listen) = probe();
 
     // use scheduler to set up probe
     sys.schedule_once(Duration::from_millis(200),
-                        actor,
-                        None,
-                        TestProbe(probe));
+                      actor,
+                      None,
+                      TestProbe(probe));
     p_assert_eq!(listen, ());
 }
 
@@ -90,46 +80,35 @@ fn schedule_once() {
 fn schedule_at_time() {
     let sys = ActorSystem::new().unwrap();
 
-    let props = Props::new(Box::new(ScheduleOnce::new));
-    let actor = sys.actor_of(props, "schedule-once").unwrap();
+    let actor = sys.actor_of::<ScheduleOnce>("schedule-once").unwrap();
 
     let (probe, listen) = probe();
 
     // use scheduler to set up probe at a specific time
     let schedule_at = Utc::now() + CDuration::milliseconds(200);
     sys.schedule_at_time(schedule_at,
-                            actor,
-                            None,
-                            TestProbe(probe));
+                         actor,
+                         None,
+                         TestProbe(probe));
     p_assert_eq!(listen, ());
 }
 
 // *** Schedule repeat test ***
 #[actor(TestProbe, SomeMessage)]
+#[derive(Default)]
 struct ScheduleRepeat {
     probe: Option<TestProbe>,
     counter: u32,
     schedule_id: Option<Uuid>,
 }
 
-impl ScheduleRepeat {
-    fn new() -> Self {
-        ScheduleRepeat {
-            probe: None,
-            counter: 0,
-            schedule_id: None
-        }
-    }
-}
-
 impl Actor for ScheduleRepeat {
     type Msg = ScheduleRepeatMsg;
-    
+
     fn recv(&mut self,
             ctx: &Context<Self::Msg>,
             msg: Self::Msg,
             sender: Sender) {
-
         self.receive(ctx, msg, sender);
     }
 }
@@ -138,18 +117,17 @@ impl Receive<TestProbe> for ScheduleRepeat {
     type Msg = ScheduleRepeatMsg;
 
     fn receive(&mut self,
-                ctx: &Context<Self::Msg>,
-                msg: TestProbe,
-                _sender: Sender) {
-
+               ctx: &Context<Self::Msg>,
+               msg: TestProbe,
+               _sender: Sender) {
         self.probe = Some(msg);
         // schedule Message to be repeatedly sent to myself
         // and store the job id to cancel it later
         let id = ctx.schedule(Duration::from_millis(200),
-                                Duration::from_millis(200),
-                                    ctx.myself(),
-                                    None,
-                                    SomeMessage);
+                              Duration::from_millis(200),
+                              ctx.myself(),
+                              None,
+                              SomeMessage);
         self.schedule_id = Some(id);
     }
 }
@@ -158,10 +136,9 @@ impl Receive<SomeMessage> for ScheduleRepeat {
     type Msg = ScheduleRepeatMsg;
 
     fn receive(&mut self,
-                ctx: &Context<Self::Msg>,
-                _msg: SomeMessage,
-                _sender: Sender) {
-
+               ctx: &Context<Self::Msg>,
+               _msg: SomeMessage,
+               _sender: Sender) {
         if self.counter == 5 {
             ctx.cancel_schedule(self.schedule_id.unwrap());
             self.probe.as_ref().unwrap().0.event(());
@@ -175,12 +152,11 @@ impl Receive<SomeMessage> for ScheduleRepeat {
 fn schedule_repeat() {
     let sys = ActorSystem::new().unwrap();
 
-    let props = Props::new(Box::new(ScheduleRepeat::new));
-    let actor = sys.actor_of(props, "schedule-repeat").unwrap();
+    let actor = sys.actor_of::<ScheduleRepeat>("schedule-repeat").unwrap();
 
     let (probe, listen) = probe();
 
     actor.tell(TestProbe(probe), None);
-    
+
     p_assert_eq!(listen, ());
 }

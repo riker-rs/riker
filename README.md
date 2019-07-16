@@ -39,6 +39,7 @@ riker = "0.3"
 use std::time::Duration;
 use riker::actors::*;
 
+#[derive(Default)]
 struct MyActor;
 
 // implement the Actor trait
@@ -54,23 +55,11 @@ impl Actor for MyActor {
     }
 }
 
-// provide factory and props methods
-impl MyActor {
-    fn actor() -> Self {
-        MyActor
-    }
-
-    fn props() -> BoxActorProd<MyActor> {
-        Props::new(Box::new(MyActor::actor))
-    }
-}
-
 // start the system and create an actor
 fn main() {
     let sys = ActorSystem::new().unwrap();
 
-    let props = MyActor::props();
-    let my_actor = sys.actor_of(props, "my-actor").unwrap();
+    let my_actor = sys.actor_of::<MyActor>("my-actor").unwrap();
 
     my_actor.tell("Hello my actor!".to_string(), None);
 

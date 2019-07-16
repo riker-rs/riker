@@ -13,18 +13,10 @@ pub struct Add;
 pub struct TestProbe(ChannelProbe<(), ()>);
 
 #[actor(TestProbe, Add)]
+#[derive(Default)]
 struct Counter {
     probe: Option<TestProbe>,
     count: u32,
-}
-
-impl Counter {
-    fn actor() -> Counter {
-        Counter {
-            probe: None,
-            count: 0
-        }
-    }
 }
 
 impl Actor for Counter {
@@ -68,24 +60,22 @@ impl Receive<Add> for Counter {
 fn actor_create() {
     let sys = ActorSystem::new().unwrap();
 
-    let props = Props::new(Box::new(Counter::actor));
-    assert!(sys.actor_of(props.clone(), "valid-name").is_ok());
+    assert!(sys.actor_of::<Counter>("valid-name").is_ok());
 
-    assert!(sys.actor_of(props.clone(), "/").is_err());
-    assert!(sys.actor_of(props.clone(), "*").is_err());
-    assert!(sys.actor_of(props.clone(), "/a/b/c").is_err());
-    assert!(sys.actor_of(props.clone(), "@").is_err());
-    assert!(sys.actor_of(props.clone(), "#").is_err());
-    assert!(sys.actor_of(props.clone(), "abc*").is_err());
-    assert!(sys.actor_of(props, "!").is_err());
+    assert!(sys.actor_of::<Counter>("/").is_err());
+    assert!(sys.actor_of::<Counter>("*").is_err());
+    assert!(sys.actor_of::<Counter>("/a/b/c").is_err());
+    assert!(sys.actor_of::<Counter>("@").is_err());
+    assert!(sys.actor_of::<Counter>("#").is_err());
+    assert!(sys.actor_of::<Counter>("abc*").is_err());
+    assert!(sys.actor_of::<Counter>("!").is_err());
 }
 
 #[test]
 fn actor_tell() {
     let sys = ActorSystem::new().unwrap();
 
-    let props = Props::new(Box::new(Counter::actor));
-    let actor = sys.actor_of(props, "me").unwrap();
+    let actor = sys.actor_of::<Counter>("me").unwrap();
 
     let (probe, listen) = probe();
     actor.tell(TestProbe(probe), None);
@@ -101,8 +91,7 @@ fn actor_tell() {
 fn actor_try_tell() {
     let sys = ActorSystem::new().unwrap();
 
-    let props = Props::new(Box::new(Counter::actor));
-    let actor = sys.actor_of(props, "me").unwrap();
+    let actor = sys.actor_of::<Counter>("me").unwrap();
     let actor: BasicActorRef = actor.into();
 
     let (probe, listen) = probe();
@@ -118,33 +107,22 @@ fn actor_try_tell() {
     p_assert_eq!(listen, ());
 }
 
+#[derive(Default)]
 struct Parent {
     probe: Option<TestProbe>,
-}
-
-impl Parent {
-    fn actor() -> Self {
-        Parent {
-            probe: None
-        }
-    }
 }
 
 impl Actor for Parent {
     type Msg = TestProbe;
 
     fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
-        let props = Props::new(Box::new(Child::actor));
-        ctx.actor_of(props, "child_a").unwrap();
+        ctx.actor_of::<Child>("child_a").unwrap();
 
-        let props = Props::new(Box::new(Child::actor));
-        ctx.actor_of(props, "child_b").unwrap();
+        ctx.actor_of::<Child>("child_b").unwrap();
 
-        let props = Props::new(Box::new(Child::actor));
-        ctx.actor_of(props, "child_c").unwrap();
+        ctx.actor_of::<Child>("child_c").unwrap();
 
-        let props = Props::new(Box::new(Child::actor));
-        ctx.actor_of(props, "child_d").unwrap();
+        ctx.actor_of::<Child>("child_d").unwrap();
     }
 
     fn post_stop(&mut self) {
@@ -163,13 +141,8 @@ impl Actor for Parent {
     }
 }
 
+#[derive(Default)]
 struct Child;
-
-impl Child {
-    fn actor() -> Self {
-        Child
-    }
-}
 
 impl Actor for Child {
     type Msg = ();
@@ -182,8 +155,7 @@ impl Actor for Child {
 fn actor_stop() {
     let system = ActorSystem::new().unwrap();
 
-    let props = Props::new(Box::new(Parent::actor));
-    let parent = system.actor_of(props, "parent").unwrap();
+    let parent = system.actor_of::<Parent>("parent").unwrap();
 
     let (probe, listen) = probe();
     parent.tell(TestProbe(probe), None);
@@ -191,7 +163,7 @@ fn actor_stop() {
 
     // wait for the probe to arrive at the actor before attempting to stop the actor
     listen.recv();
-    
+
     system.stop(&parent);
     p_assert_eq!(listen, ());
 }

@@ -30,7 +30,7 @@ pub use self::{
     macros::actor,
     selection::{ActorSelection, ActorSelectionFactory},
     uri::{ActorId, ActorUri, ActorPath},
-    props::{Props, BoxActorProd, ActorProducer, ActorArgs}
+    props::{Props, PropsConstructor, BoxActorProd, ActorProducer, ActorArgs}
 };
 
 #[allow(unused)]

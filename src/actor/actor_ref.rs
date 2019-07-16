@@ -6,7 +6,8 @@ use crate::{
     actor::{
         Actor, ActorUri, ActorPath, BoxActorProd,
         CreateError,
-        actor_cell::{ActorCell, ExtendedCell}
+        actor_cell::{ActorCell, ExtendedCell},
+        props::PropsConstructor,
     }
 };
 
@@ -513,19 +514,25 @@ impl<Msg: Message> PartialEq for ActorRef<Msg> {
 /// handle any initialization in the actor's `pre_start` method, which is
 /// invoked after the `ActorRef` is returned.
 pub trait ActorRefFactory {
-    fn actor_of<A>(&self,
+    fn actor_of_props<A>(&self,
                     props: BoxActorProd<A>,
                     name: &str)
                     -> Result<ActorRef<A::Msg>, CreateError>
     where A: Actor;
+
+    fn actor_of<A>(&self, name: &str) -> Result<ActorRef<<A::Actor as Actor>::Msg>, CreateError>
+        where A: PropsConstructor;
 
     fn stop(&self, actor: impl ActorReference);
 }
 
 /// Produces `ActorRef`s under the `temp` guardian actor.
 pub trait TmpActorRefFactory {
-    fn tmp_actor_of<A>(&self,
-                        props: BoxActorProd<A>)
+    fn tmp_actor_of_props<A>(&self,
+                        props: impl Into<BoxActorProd<A>>)
                         -> Result<ActorRef<A::Msg>, CreateError>
-    where A: Actor;
+        where A: Actor;
+
+    fn tmp_actor_of<A>(&self) -> Result<ActorRef<<A::Actor as Actor>::Msg>, CreateError>
+        where A: PropsConstructor;
 }

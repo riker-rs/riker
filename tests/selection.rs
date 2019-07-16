@@ -1,23 +1,18 @@
 #[macro_use]
 extern crate riker_testkit;
 
-use riker::actors::*;
-
 use riker_testkit::probe::{Probe, ProbeReceive};
-use riker_testkit::probe::channel::{probe, ChannelProbe};
+use riker_testkit::probe::channel::{ChannelProbe, probe};
+
+use riker::actors::*;
 
 #[derive(Clone, Debug)]
 pub struct TestProbe(ChannelProbe<(), ()>);
 
 // a simple minimal actor for use in tests
 // #[actor(TestProbe)]
+#[derive(Default)]
 struct Child;
-
-impl Child {
-    fn new() -> Self {
-        Child
-    }
-}
 
 impl Actor for Child {
     type Msg = TestProbe;
@@ -26,37 +21,28 @@ impl Actor for Child {
             _ctx: &Context<Self::Msg>,
             msg: Self::Msg,
             _sender: Sender) {
-
         msg.0.event(());
     }
 }
 
+#[derive(Default)]
 struct SelectTest;
-
-impl SelectTest {
-    fn new() -> Self {
-        SelectTest
-    }
-}
 
 impl Actor for SelectTest {
     type Msg = TestProbe;
 
     fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
         // create first child actor
-        let props = Props::new(Box::new(Child::new));
-        let _ = ctx.actor_of(props, "child_a").unwrap();
+        let _ = ctx.actor_of::<Child>("child_a").unwrap();
 
         // create second child actor
-        let props = Props::new(Box::new(Child::new));
-        let _ = ctx.actor_of(props, "child_b").unwrap();
+        let _ = ctx.actor_of::<Child>("child_b").unwrap();
     }
 
     fn recv(&mut self,
             _ctx: &Context<Self::Msg>,
             msg: Self::Msg,
             _sender: Sender) {
-
         msg.0.event(());
     }
 }
@@ -65,14 +51,13 @@ impl Actor for SelectTest {
 fn select_child() {
     let sys = ActorSystem::new().unwrap();
 
-    let props = Props::new(Box::new(SelectTest::new));
-    sys.actor_of(props, "select-actor").unwrap();
+    sys.actor_of::<SelectTest>("select-actor").unwrap();
 
     let (probe, listen) = probe();
 
     // select test actors through actor selection: /root/user/select-actor/*
     let sel = sys.select("select-actor").unwrap();
-    
+
     sel.try_tell(TestProbe(probe), None);
 
     p_assert_eq!(listen, ());
@@ -82,8 +67,7 @@ fn select_child() {
 fn select_child_of_child() {
     let sys = ActorSystem::new().unwrap();
 
-    let props = Props::new(Box::new(SelectTest::new));
-    sys.actor_of(props, "select-actor").unwrap();
+    sys.actor_of::<SelectTest>("select-actor").unwrap();
 
     // delay to allow 'select-actor' pre_start to create 'child_a' and 'child_b'
     // Direct messaging on the actor_ref doesn't have this same issue
@@ -103,8 +87,7 @@ fn select_child_of_child() {
 fn select_all_children_of_child() {
     let sys = ActorSystem::new().unwrap();
 
-    let props = Props::new(Box::new(SelectTest::new));
-    sys.actor_of(props, "select-actor").unwrap();
+    sys.actor_of::<SelectTest>("select-actor").unwrap();
 
     // delay to allow 'select-actor' pre_start to create 'child_a' and 'child_b'
     // Direct messaging on the actor_ref doesn't have this same issue
@@ -129,26 +112,18 @@ fn select_all_children_of_child() {
     p_assert_eq!(listen, ());
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 struct SelectTest2;
-
-impl SelectTest2 {
-    fn new() -> Self {
-        SelectTest2
-    }
-}
 
 impl Actor for SelectTest2 {
     type Msg = TestProbe;
 
     fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
         // create first child actor
-        let props = Props::new(Box::new(Child::new));
-        let _ = ctx.actor_of(props, "child_a").unwrap();
+        let _ = ctx.actor_of::<Child>("child_a").unwrap();
 
         // create second child actor
-        let props = Props::new(Box::new(Child::new));
-        let _ = ctx.actor_of(props, "child_b").unwrap();
+        let _ = ctx.actor_of::<Child>("child_b").unwrap();
     }
 
     fn recv(&mut self,
@@ -182,8 +157,7 @@ impl Actor for SelectTest2 {
 fn select_from_context() {
     let sys = ActorSystem::new().unwrap();
 
-    let props = Props::new(Box::new(SelectTest2::new));
-    let actor = sys.actor_of(props, "select-actor").unwrap();
+    let actor = sys.actor_of::<SelectTest2>("select-actor").unwrap();
 
     let (probe, listen) = probe();
     actor.tell(TestProbe(probe), None);
@@ -263,12 +237,12 @@ fn select_paths() {
 
 //     let (probe, listen) = probe();
 //     act.tell(TestMsg(probe.clone()), None);
-    
+
 //     // wait for the probe to arrive at the dl sub before doing select
 //     listen.recv();
 
 //     let sel = sys.select("nothing-here").unwrap();
-    
+
 //     sel.tell(TestMsg(probe), None);
 
 //     p_assert_eq!(listen, ());

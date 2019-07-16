@@ -1,13 +1,14 @@
 #![feature(
-        async_await,
-        await_macro,
-        arbitrary_self_types
+async_await,
+await_macro,
+arbitrary_self_types
 )]
 
-use riker::actors::*;
 use futures::{
     executor::block_on
 };
+
+use riker::actors::*;
 
 #[test]
 fn system_create() {
@@ -40,9 +41,10 @@ impl Actor for ShutdownTest {
     fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
         if self.level < 10 {
             let props = Props::new_args(Box::new(ShutdownTest::actor), self.level + 1);
-            ctx.actor_of(props,
-                        format!("test-actor-{}", self.level + 1)
-                        .as_str()
+            ctx.actor_of_props(
+                props,
+                format!("test-actor-{}", self.level + 1)
+                    .as_str(),
             ).unwrap();
         }
     }
@@ -56,7 +58,7 @@ fn system_shutdown() {
     let sys = ActorSystem::new().unwrap();
 
     let props = Props::new_args(Box::new(ShutdownTest::actor), 1);
-    let _ = sys.actor_of(props, "test-actor-1").unwrap();
+    let _ = sys.actor_of_props(props, "test-actor-1").unwrap();
 
     block_on(sys.shutdown()).unwrap();
 }
@@ -69,7 +71,7 @@ fn system_futures_exec() {
         let f = sys.run(async move {
             format!("some_val_{}", i)
         }).unwrap();
-        
+
         assert_eq!(block_on(f), format!("some_val_{}", i));
     }
 }
@@ -88,7 +90,7 @@ fn system_futures_panic() {
         let f = sys.run(async move {
             format!("some_val_{}", i)
         }).unwrap();
-        
+
         assert_eq!(block_on(f), format!("some_val_{}", i));
     }
 }
@@ -96,18 +98,18 @@ fn system_futures_panic() {
 #[test]
 fn system_load_app_config() {
     let sys = ActorSystem::new().unwrap();
-    
+
     assert_eq!(sys.config()
-                    .get_int("app.some_setting")
-                    .unwrap() as i64, 1);
+                   .get_int("app.some_setting")
+                   .unwrap() as i64, 1);
 }
 
 #[test]
 fn system_builder() {
     let sys = SystemBuilder::new()
-                            .name("my-sys")
-                            .create()
-                            .unwrap();
-    
+        .name("my-sys")
+        .create()
+        .unwrap();
+
     block_on(sys.shutdown()).unwrap();
 }
