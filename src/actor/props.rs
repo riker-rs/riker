@@ -1,7 +1,7 @@
 use std::{
     fmt,
+    panic::{RefUnwindSafe, UnwindSafe},
     sync::{Arc, Mutex},
-    panic::{UnwindSafe, RefUnwindSafe}
 };
 
 use crate::actor::Actor;
@@ -19,9 +19,9 @@ pub struct Props;
 impl Props {
     /// Creates an `ActorProducer` with no factory method parameters.
     /// 
-    
+
     pub fn new<A>(creator: Box<dyn Fn() -> A + Send>)
-        -> Arc<Mutex<Box<dyn ActorProducer<Actor = A>>>>
+                  -> Arc<Mutex<Box<dyn ActorProducer<Actor=A>>>>
         where A: Actor + Send + 'static
     {
         Arc::new(Mutex::new(ActorProps::new(creator)))
@@ -29,10 +29,10 @@ impl Props {
 
     /// Creates an `ActorProducer` with one or more factory method parameters.
     /// 
-    
+
     pub fn new_args<A, Args>(creator: Box<dyn Fn(Args) -> A + Send>, args: Args)
-        -> Arc<Mutex<Box<dyn ActorProducer<Actor = A>>>>
-        where A: Actor + Send + 'static, Args: ActorArgs + 'static        
+                             -> Arc<Mutex<Box<dyn ActorProducer<Actor=A>>>>
+        where A: Actor + Send + 'static, Args: ActorArgs + 'static
     {
         Arc::new(Mutex::new(ActorPropsWithArgs::new(creator, args)))
     }
@@ -42,14 +42,12 @@ impl Props {
 // pub type BoxActorProd<Msg> = Arc<Mutex<ActorProducer<Actor=BoxActor<Msg>>>>;
 pub type BoxActorProd<A> = Arc<Mutex<Box<dyn ActorProducer<Actor=A>>>>;
 
-pub trait PropsConstructor {
-    type Actor: Actor;
-    fn props() -> BoxActorProd<Self::Actor>;
+pub trait PropsConstructor: Actor {
+    fn props() -> BoxActorProd<Self>;
 }
 
 impl<A: Default + Actor> PropsConstructor for A {
-    type Actor = A;
-    fn props() -> BoxActorProd<Self::Actor> {
+    fn props() -> BoxActorProd<Self> {
         Props::new(Box::new(A::default))
     }
 }
@@ -62,7 +60,7 @@ impl<A: Default + Actor> PropsConstructor for A {
 /// 
 /// `ActorProducer` can hold values required by the actor's factory method
 /// parameters.
-pub trait ActorProducer : fmt::Debug + Send + UnwindSafe + RefUnwindSafe {
+pub trait ActorProducer: fmt::Debug + Send + UnwindSafe + RefUnwindSafe {
     type Actor: Actor;
 
     /// Produces an instance of an `Actor`.
@@ -79,7 +77,7 @@ pub trait ActorProducer : fmt::Debug + Send + UnwindSafe + RefUnwindSafe {
     fn produce(&self) -> Self::Actor;
 }
 
-impl<A> ActorProducer for Arc<Mutex<Box<dyn ActorProducer<Actor = A>>>>
+impl<A> ActorProducer for Arc<Mutex<Box<dyn ActorProducer<Actor=A>>>>
     where A: Actor + Send + 'static
 {
     type Actor = A;
@@ -89,7 +87,7 @@ impl<A> ActorProducer for Arc<Mutex<Box<dyn ActorProducer<Actor = A>>>>
     }
 }
 
-impl<A> ActorProducer for Arc<Mutex<dyn ActorProducer<Actor = A>>>
+impl<A> ActorProducer for Arc<Mutex<dyn ActorProducer<Actor=A>>>
     where A: Actor + Send + 'static
 {
     type Actor = A;
@@ -99,7 +97,7 @@ impl<A> ActorProducer for Arc<Mutex<dyn ActorProducer<Actor = A>>>
     }
 }
 
-impl<A> ActorProducer for Box<dyn ActorProducer<Actor = A>>
+impl<A> ActorProducer for Box<dyn ActorProducer<Actor=A>>
     where A: Actor + Send + 'static
 {
     type Actor = A;
@@ -114,12 +112,13 @@ pub struct ActorProps<A: Actor> {
 }
 
 impl<A: Actor> UnwindSafe for ActorProps<A> {}
+
 impl<A: Actor> RefUnwindSafe for ActorProps<A> {}
 
-impl<A> ActorProps<A> 
+impl<A> ActorProps<A>
     where A: Actor + Send + 'static
 {
-    pub fn new(creator: Box<dyn Fn() -> A + Send>) -> Box<dyn ActorProducer<Actor = A>> {
+    pub fn new(creator: Box<dyn Fn() -> A + Send>) -> Box<dyn ActorProducer<Actor=A>> {
         Box::new(ActorProps { creator: creator })
     }
 }
@@ -153,12 +152,13 @@ pub struct ActorPropsWithArgs<A: Actor, Args: ActorArgs> {
 }
 
 impl<A: Actor, Args: ActorArgs> UnwindSafe for ActorPropsWithArgs<A, Args> {}
+
 impl<A: Actor, Args: ActorArgs> RefUnwindSafe for ActorPropsWithArgs<A, Args> {}
 
 impl<A, Args> ActorPropsWithArgs<A, Args>
     where A: Actor + Send + 'static, Args: ActorArgs + 'static
 {
-    pub fn new(creator: Box<dyn Fn(Args) -> A + Send>, args: Args) -> Box<dyn ActorProducer<Actor = A>> {
+    pub fn new(creator: Box<dyn Fn(Args) -> A + Send>, args: Args) -> Box<dyn ActorProducer<Actor=A>> {
         Box::new(ActorPropsWithArgs {
             creator: creator,
             args: args,
@@ -191,5 +191,6 @@ impl<A: Actor, Args: ActorArgs> fmt::Debug for ActorPropsWithArgs<A, Args> {
 }
 
 pub trait ActorArgs: Clone + Send + Sync {}
+
 impl<T: Clone + Send + Sync> ActorArgs for T {}
 

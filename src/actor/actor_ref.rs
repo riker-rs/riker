@@ -1,14 +1,14 @@
 use std::fmt;
 
 use crate::{
-    Envelope, Message, AnyMessage,
-    system::{ActorSystem, SystemMsg},
     actor::{
-        Actor, ActorUri, ActorPath, BoxActorProd,
+        Actor, actor_cell::{ActorCell, ExtendedCell}, ActorPath, ActorUri,
+        BoxActorProd,
         CreateError,
-        actor_cell::{ActorCell, ExtendedCell},
         props::PropsConstructor,
-    }
+    }, AnyMessage, Envelope,
+    Message,
+    system::{ActorSystem, SystemMsg},
 };
 
 pub trait ActorReference {
@@ -36,14 +36,14 @@ pub trait ActorReference {
     fn is_child(&self, actor: &BasicActorRef) -> bool;
 
     /// Iterator over children references.
-    fn children<'a>(&'a self) -> Box<dyn Iterator<Item = BasicActorRef> + 'a>;
+    fn children<'a>(&'a self) -> Box<dyn Iterator<Item=BasicActorRef> + 'a>;
 
     fn sys_tell(&self, msg: SystemMsg);
 }
 
 pub type BoxedTell<T> = Box<dyn Tell<T> + Send + 'static>;
 
-pub trait Tell<T> : ActorReference + Send + 'static {
+pub trait Tell<T>: ActorReference + Send + 'static {
     fn tell(&self, msg: T, sender: Option<BasicActorRef>);
     fn box_clone(&self) -> BoxedTell<T>;
 }
@@ -103,7 +103,7 @@ impl<T> ActorReference for BoxedTell<T>
     }
 
     /// Iterator over children references.
-    fn children<'a>(&'a self) -> Box<dyn Iterator<Item = BasicActorRef> + 'a> {
+    fn children<'a>(&'a self) -> Box<dyn Iterator<Item=BasicActorRef> + 'a> {
         (**self).children()
     }
 
@@ -112,7 +112,7 @@ impl<T> ActorReference for BoxedTell<T>
     }
 }
 
-impl<T> PartialEq for BoxedTell<T>  {
+impl<T> PartialEq for BoxedTell<T> {
     fn eq(&self, other: &BoxedTell<T>) -> bool {
         self.path() == other.path()
     }
@@ -160,8 +160,8 @@ impl BasicActorRef {
     }
 
     pub fn try_tell<Msg>(&self, msg: Msg,
-                            sender: impl Into<Option<BasicActorRef>>)
-                            -> Result<(), ()>
+                         sender: impl Into<Option<BasicActorRef>>)
+                         -> Result<(), ()>
         where Msg: Message + Send
     {
         self.try_tell_any(&mut AnyMessage::new(msg, true), sender)
@@ -215,14 +215,14 @@ impl ActorReference for BasicActorRef {
     }
 
     /// Iterator over children references.
-    fn children<'a>(&'a self) -> Box<dyn Iterator<Item = BasicActorRef> + 'a> {
+    fn children<'a>(&'a self) -> Box<dyn Iterator<Item=BasicActorRef> + 'a> {
         self.cell.children()
     }
 
     fn sys_tell(&self, msg: SystemMsg) {
         let envelope = Envelope {
             msg,
-            sender: None
+            sender: None,
         };
         let _ = self.cell.send_sys_msg(envelope);
     }
@@ -269,14 +269,14 @@ impl ActorReference for &BasicActorRef {
     }
 
     /// Iterator over children references.
-    fn children<'a>(&'a self) -> Box<dyn Iterator<Item = BasicActorRef> + 'a> {
+    fn children<'a>(&'a self) -> Box<dyn Iterator<Item=BasicActorRef> + 'a> {
         self.cell.children()
     }
 
     fn sys_tell(&self, msg: SystemMsg) {
         let envelope = Envelope {
             msg,
-            sender: None
+            sender: None,
         };
         let _ = self.cell.send_sys_msg(envelope);
     }
@@ -399,14 +399,14 @@ impl<Msg: Message> ActorReference for ActorRef<Msg> {
     }
 
     /// Iterator over children references.
-    fn children<'a>(&'a self) -> Box<dyn Iterator<Item = BasicActorRef> + 'a> {
+    fn children<'a>(&'a self) -> Box<dyn Iterator<Item=BasicActorRef> + 'a> {
         self.cell.children()
     }
 
     fn sys_tell(&self, msg: SystemMsg) {
         let envelope = Envelope {
             msg,
-            sender: None
+            sender: None,
         };
         let _ = self.cell.send_sys_msg(envelope);
     }
@@ -453,14 +453,14 @@ impl<Msg: Message> ActorReference for &ActorRef<Msg> {
     }
 
     /// Iterator over children references.
-    fn children<'a>(&'a self) -> Box<dyn Iterator<Item = BasicActorRef> + 'a> {
+    fn children<'a>(&'a self) -> Box<dyn Iterator<Item=BasicActorRef> + 'a> {
         self.cell.children()
     }
 
     fn sys_tell(&self, msg: SystemMsg) {
         let envelope = Envelope {
             msg,
-            sender: None
+            sender: None,
         };
         let _ = self.cell.send_sys_msg(envelope);
     }
@@ -506,7 +506,6 @@ impl<Msg: Message> PartialEq for ActorRef<Msg> {
 }
 
 
-
 /// Produces `ActorRef`s. `actor_of` blocks on the current thread until
 /// the actor has successfully started or failed to start.
 /// 
@@ -515,12 +514,12 @@ impl<Msg: Message> PartialEq for ActorRef<Msg> {
 /// invoked after the `ActorRef` is returned.
 pub trait ActorRefFactory {
     fn actor_of_props<A>(&self,
-                    props: BoxActorProd<A>,
-                    name: &str)
-                    -> Result<ActorRef<A::Msg>, CreateError>
-    where A: Actor;
+                         props: BoxActorProd<A>,
+                         name: &str)
+                         -> Result<ActorRef<A::Msg>, CreateError>
+        where A: Actor;
 
-    fn actor_of<A>(&self, name: &str) -> Result<ActorRef<<A::Actor as Actor>::Msg>, CreateError>
+    fn actor_of<A>(&self, name: &str) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
         where A: PropsConstructor;
 
     fn stop(&self, actor: impl ActorReference);
@@ -529,10 +528,10 @@ pub trait ActorRefFactory {
 /// Produces `ActorRef`s under the `temp` guardian actor.
 pub trait TmpActorRefFactory {
     fn tmp_actor_of_props<A>(&self,
-                        props: impl Into<BoxActorProd<A>>)
-                        -> Result<ActorRef<A::Msg>, CreateError>
+                             props: impl Into<BoxActorProd<A>>)
+                             -> Result<ActorRef<A::Msg>, CreateError>
         where A: Actor;
 
-    fn tmp_actor_of<A>(&self) -> Result<ActorRef<<A::Actor as Actor>::Msg>, CreateError>
+    fn tmp_actor_of<A>(&self) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
         where A: PropsConstructor;
 }

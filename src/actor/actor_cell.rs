@@ -1,39 +1,38 @@
 use std::{
+    collections::HashMap,
     fmt,
+    ops::Deref,
     sync::{
-        Arc, RwLock,
-        atomic::{AtomicBool, AtomicUsize, Ordering}
+        Arc, atomic::{AtomicBool, AtomicUsize, Ordering},
+        RwLock,
     },
     time::{Duration, SystemTime},
-    collections::HashMap,
-    ops::Deref
 };
 
 use chrono::prelude::*;
-use uuid::Uuid;
 use futures::{
     Future,
     future::RemoteHandle,
     task::SpawnError,
 };
-
 use rand;
+use uuid::Uuid;
 
 use crate::{
-    Envelope, Message, AnyMessage,
     actor::{
         *,
         props::PropsConstructor,
-    },
+    }, AnyMessage, Envelope,
     kernel::{
-        kernel_ref::{KernelRef, dispatch, dispatch_any},
+        kernel_ref::{dispatch, dispatch_any, KernelRef},
         mailbox::{AnySender, MailboxSender},
     },
+    Message,
     system::{
-        ActorSystem, SystemMsg, SystemCmd, Run,
-        timer::{Timer, Job, OnceJob, RepeatJob},
+        ActorSystem, Run, SystemCmd, SystemMsg,
+        timer::{Job, OnceJob, RepeatJob, Timer},
     },
-    validate::InvalidPath
+    validate::InvalidPath,
 };
 
 #[derive(Clone)]
@@ -61,14 +60,13 @@ struct ActorCellInner {
 impl ActorCell {
     /// Constructs a new `ActorCell`
     pub(crate) fn new(uid: ActorId,
-            uri: ActorUri,
-            parent: Option<BasicActorRef>,
-            system: &ActorSystem,
-            // perconf: Option<PersistenceConf>,
-            mailbox: Arc<dyn AnySender>,
-            sys_mailbox: MailboxSender<SystemMsg>)
-            -> ActorCell {
-
+                      uri: ActorUri,
+                      parent: Option<BasicActorRef>,
+                      system: &ActorSystem,
+                      // perconf: Option<PersistenceConf>,
+                      mailbox: Arc<dyn AnySender>,
+                      sys_mailbox: MailboxSender<SystemMsg>)
+                      -> ActorCell {
         ActorCell {
             inner: Arc::new(
                 ActorCellInner {
@@ -88,17 +86,16 @@ impl ActorCell {
                     kernel: None,
                     system: system.clone(),
                     mailbox,
-                    sys_mailbox
+                    sys_mailbox,
                 }
             )
-
         }
     }
 
     pub(crate) fn init(self, kernel: &KernelRef) -> ActorCell {
         let inner = ActorCellInner {
             kernel: Some(kernel.clone()),
-            .. self.inner.deref().clone()
+            ..self.inner.deref().clone()
         };
 
         ActorCell {
@@ -128,7 +125,7 @@ impl ActorCell {
         self.inner.children.len() > 0
     }
 
-    pub(crate) fn children<'a>(&'a self) -> Box<dyn Iterator<Item = BasicActorRef> + 'a> {
+    pub(crate) fn children<'a>(&'a self) -> Box<dyn Iterator<Item=BasicActorRef> + 'a> {
         Box::new(self.inner.children.iter().clone())
     }
 
@@ -148,11 +145,11 @@ impl ActorCell {
     }
 
     pub(crate) fn send_any_msg(&self, msg: &mut AnyMessage,
-                                sender: crate::actor::Sender)
-                                -> Result<(), ()> {
+                               sender: crate::actor::Sender)
+                               -> Result<(), ()> {
         let mb = &self.inner.mailbox;
         let k = self.kernel();
-        
+
         dispatch_any(msg, sender, mb, k, &self.inner.system)
     }
 
@@ -192,8 +189,8 @@ impl ActorCell {
     }
 
     pub fn receive_cmd<A: Actor>(&self,
-                                cmd: SystemCmd,
-                                actor: &mut Option<A>) {
+                                 cmd: SystemCmd,
+                                 actor: &mut Option<A>) {
         match cmd {
             SystemCmd::Stop => self.terminate(actor),
             SystemCmd::Restart => self.restart()
@@ -229,8 +226,8 @@ impl ActorCell {
     }
 
     pub fn death_watch<A: Actor>(&self,
-                    terminated: &BasicActorRef,
-                    actor: &mut Option<A>) {
+                                 terminated: &BasicActorRef,
+                                 actor: &mut Option<A>) {
         if self.is_child(&terminated) {
             self.remove_child(terminated);
 
@@ -251,8 +248,8 @@ impl ActorCell {
     }
 
     pub fn handle_failure(&self,
-                    failed: BasicActorRef,
-                    strategy: Strategy) {
+                          failed: BasicActorRef,
+                          strategy: Strategy) {
         match strategy {
             Strategy::Stop => self.stop(failed),
             Strategy::Restart => self.restart_child(failed),
@@ -284,7 +281,7 @@ impl ActorCell {
     //             //         &es,
     //             //         self,
     //             //         myself); // todo implement
-                
+
     //             false
     //         }
     //         (Some(_), None, Some(_)) => {
@@ -325,8 +322,8 @@ impl fmt::Debug for ActorCell {
 
 impl TmpActorRefFactory for ActorCell {
     fn tmp_actor_of_props<A: Actor>(&self,
-                              _props: impl Into<BoxActorProd<A>>)
-                              -> Result<ActorRef<A::Msg>, CreateError> {
+                                    _props: impl Into<BoxActorProd<A>>)
+                                    -> Result<ActorRef<A::Msg>, CreateError> {
         let name = rand::random::<u64>();
         let _name = format!("{}", name);
 
@@ -337,7 +334,7 @@ impl TmpActorRefFactory for ActorCell {
     }
 
     fn tmp_actor_of<A: PropsConstructor>(&self)
-                              -> Result<ActorRef<<A::Actor as Actor>::Msg>, CreateError> {
+                                         -> Result<ActorRef<<A as Actor>::Msg>, CreateError> {
         let name = rand::random::<u64>();
         let _name = format!("{}", name);
 
@@ -358,15 +355,14 @@ impl<Msg> ExtendedCell<Msg>
     where Msg: Message
 {
     pub(crate) fn new(uid: ActorId,
-                        uri: ActorUri,
-                        parent: Option<BasicActorRef>,
-                        system: &ActorSystem,
-                        // perconf: Option<PersistenceConf>,
-                        any_mailbox: Arc<dyn AnySender>,
-                        sys_mailbox: MailboxSender<SystemMsg>,
-                        mailbox: MailboxSender<Msg>)
-                        -> Self {
-
+                      uri: ActorUri,
+                      parent: Option<BasicActorRef>,
+                      system: &ActorSystem,
+                      // perconf: Option<PersistenceConf>,
+                      any_mailbox: Arc<dyn AnySender>,
+                      sys_mailbox: MailboxSender<SystemMsg>,
+                      mailbox: MailboxSender<Msg>)
+                      -> Self {
         let cell = ActorCell {
             inner: Arc::new(
                 ActorCellInner {
@@ -386,21 +382,21 @@ impl<Msg> ExtendedCell<Msg>
                     kernel: None,
                     system: system.clone(),
                     mailbox: any_mailbox,
-                    sys_mailbox
+                    sys_mailbox,
                 }
             )
         };
 
         ExtendedCell {
             cell,
-            mailbox
+            mailbox,
         }
     }
 
     pub(crate) fn init(self, kernel: &KernelRef) -> Self {
         let cell = self.cell.init(kernel);
 
-        ExtendedCell { cell, .. self }
+        ExtendedCell { cell, ..self }
     }
 
     pub fn myself(&self) -> ActorRef<Msg> {
@@ -423,7 +419,7 @@ impl<Msg> ExtendedCell<Msg>
         self.cell.is_child(actor)
     }
 
-    pub fn children<'a>(&'a self) -> Box<dyn Iterator<Item = BasicActorRef> + 'a> {
+    pub fn children<'a>(&'a self) -> Box<dyn Iterator<Item=BasicActorRef> + 'a> {
         self.cell.children()
     }
 
@@ -442,14 +438,14 @@ impl<Msg> ExtendedCell<Msg>
     pub(crate) fn send_msg(&self, msg: Envelope<Msg>) -> MsgResult<Envelope<Msg>> {
         let mb = &self.mailbox;
         let k = self.cell.kernel();
-        
+
         dispatch(msg, mb, k, &self.system())
             .map_err(|e| {
                 let dl = e.clone(); // clone the failed message and send to dead letters
                 let dl = DeadLetter {
                     msg: format!("{:?}", dl.msg.msg),
                     sender: dl.msg.sender,
-                    recipient: self.cell.myself()
+                    recipient: self.cell.myself(),
                 };
 
                 self.cell
@@ -470,14 +466,14 @@ impl<Msg> ExtendedCell<Msg>
     }
 
     pub(crate) fn handle_failure(&self,
-                    failed: BasicActorRef,
-                    strategy: Strategy) {
+                                 failed: BasicActorRef,
+                                 strategy: Strategy) {
         self.cell.handle_failure(failed, strategy)
     }
 
     pub(crate) fn receive_cmd<A: Actor>(&self,
-                                cmd: SystemCmd,
-                                actor: &mut Option<A>) {
+                                        cmd: SystemCmd,
+                                        actor: &mut Option<A>) {
         self.cell.receive_cmd(cmd, actor)
     }
 
@@ -536,8 +532,8 @@ impl<Msg> Context<Msg>
 
 impl<Msg: Message> ActorRefFactory for Context<Msg> {
     fn actor_of_props<A>(&self,
-                   props: BoxActorProd<A>,
-                   name: &str) -> Result<ActorRef<A::Msg>, CreateError>
+                         props: BoxActorProd<A>,
+                         name: &str) -> Result<ActorRef<A::Msg>, CreateError>
         where A: Actor
     {
         self.system
@@ -549,7 +545,7 @@ impl<Msg: Message> ActorRefFactory for Context<Msg> {
     }
 
     fn actor_of<A>(&self,
-                   name: &str) -> Result<ActorRef<<A::Actor as Actor>::Msg>, CreateError>
+                   name: &str) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
         where A: PropsConstructor
     {
         self.system
@@ -589,7 +585,7 @@ impl<Msg> Run for Context<Msg>
     where Msg: Message
 {
     fn run<Fut>(&self, future: Fut)
-                    -> Result<RemoteHandle<<Fut as Future>::Output>, SpawnError>
+                -> Result<RemoteHandle<<Fut as Future>::Output>, SpawnError>
         where Fut: Future + Send + 'static, <Fut as Future>::Output: Send
     {
         self.system.run(future)
@@ -600,14 +596,13 @@ impl<Msg> Timer for Context<Msg>
     where Msg: Message
 {
     fn schedule<T, M>(&self,
-        initial_delay: Duration,
-        interval: Duration,
-        receiver: ActorRef<M>,
-        sender: Sender,
-        msg: T) -> Uuid
-            where T: Message + Into<M>, M: Message
+                      initial_delay: Duration,
+                      interval: Duration,
+                      receiver: ActorRef<M>,
+                      sender: Sender,
+                      msg: T) -> Uuid
+        where T: Message + Into<M>, M: Message
     {
-
         let id = Uuid::new_v4();
         let msg: M = msg.into();
 
@@ -617,7 +612,7 @@ impl<Msg> Timer for Context<Msg>
             interval: interval,
             receiver: receiver.into(),
             sender: sender,
-            msg: AnyMessage::new(msg, false)
+            msg: AnyMessage::new(msg, false),
         };
 
         let _ = self.system.timer.send(Job::Repeat(job)).unwrap();
@@ -625,13 +620,12 @@ impl<Msg> Timer for Context<Msg>
     }
 
     fn schedule_once<T, M>(&self,
-        delay: Duration,
-        receiver: ActorRef<M>,
-        sender: Sender,
-        msg: T) -> Uuid
-            where T: Message + Into<M>, M: Message
+                           delay: Duration,
+                           receiver: ActorRef<M>,
+                           sender: Sender,
+                           msg: T) -> Uuid
+        where T: Message + Into<M>, M: Message
     {
-
         let id = Uuid::new_v4();
         let msg: M = msg.into();
 
@@ -640,7 +634,7 @@ impl<Msg> Timer for Context<Msg>
             send_at: SystemTime::now() + delay,
             receiver: receiver.into(),
             sender: sender,
-            msg: AnyMessage::new(msg, true)
+            msg: AnyMessage::new(msg, true),
         };
 
         let _ = self.system.timer.send(Job::Once(job)).unwrap();
@@ -648,11 +642,11 @@ impl<Msg> Timer for Context<Msg>
     }
 
     fn schedule_at_time<T, M>(&self,
-        time: DateTime<Utc>,
-        receiver: ActorRef<M>,
-        sender: Sender,
-        msg: T) -> Uuid
-            where T: Message + Into<M>, M: Message
+                              time: DateTime<Utc>,
+                              receiver: ActorRef<M>,
+                              sender: Sender,
+                              msg: T) -> Uuid
+        where T: Message + Into<M>, M: Message
     {
         let time = SystemTime::UNIX_EPOCH +
             Duration::from_secs(time.timestamp() as u64);
@@ -665,7 +659,7 @@ impl<Msg> Timer for Context<Msg>
             send_at: time,
             receiver: receiver.into(),
             sender: sender,
-            msg: AnyMessage::new(msg, true)
+            msg: AnyMessage::new(msg, true),
         };
 
         let _ = self.system.timer.send(Job::Once(job)).unwrap();
