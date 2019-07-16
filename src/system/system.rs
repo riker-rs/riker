@@ -376,6 +376,16 @@ impl ActorRefFactory for ActorSystem {
                           self)
     }
 
+    fn actor_of_args<A>(&self, name: &str, args: A::Args) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
+        where A: ArgsPropsConstructor
+    {
+        self.provider
+            .create_actor(A::props_args(args),
+                          name,
+                          &self.user_root(),
+                          self)
+    }
+
     fn stop(&self, actor: impl ActorReference) {
         actor.sys_tell(SystemCmd::Stop.into());
     }
@@ -399,6 +409,16 @@ impl ActorRefFactory for &ActorSystem {
     {
         self.provider
             .create_actor(A::props(),
+                          name,
+                          &self.user_root(),
+                          self)
+    }
+
+    fn actor_of_args<A>(&self, name: &str, args: A::Args) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
+        where A: ArgsPropsConstructor
+    {
+        self.provider
+            .create_actor(A::props_args(args),
                           name,
                           &self.user_root(),
                           self)
@@ -428,6 +448,17 @@ impl TmpActorRefFactory for ActorSystem {
         let name = format!("{}", rand::random::<u64>());
         self.provider
             .create_actor(A::props(),
+                          &name,
+                          &self.temp_root(),
+                          self)
+    }
+
+    fn tmp_actor_of_args<A>(&self, args: A::Args) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
+        where A: ArgsPropsConstructor
+    {
+        let name = format!("{}", rand::random::<u64>());
+        self.provider
+            .create_actor(A::props_args(args),
                           &name,
                           &self.temp_root(),
                           self)

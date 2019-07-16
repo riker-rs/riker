@@ -343,6 +343,19 @@ impl TmpActorRefFactory for ActorCell {
         //     .create_actor(props, &name, &self.inner.system.temp_root())
         unimplemented!()
     }
+
+
+    fn tmp_actor_of_args<A>(&self, _args: A::Args) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
+        where A: ArgsPropsConstructor
+    {
+        let name = rand::random::<u64>();
+        let _name = format!("{}", name);
+
+        // self.inner
+        //     .kernel
+        //     .create_actor(props, &name, &self.inner.system.temp_root())
+        unimplemented!()
+    }
 }
 
 #[derive(Clone)]
@@ -551,6 +564,17 @@ impl<Msg: Message> ActorRefFactory for Context<Msg> {
         self.system
             .provider
             .create_actor(A::props(),
+                          name,
+                          &self.myself().into(),
+                          &self.system)
+    }
+
+    fn actor_of_args<A>(&self, name: &str, args: A::Args) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
+        where A: ArgsPropsConstructor
+    {
+        self.system
+            .provider
+            .create_actor(A::props_args(args),
                           name,
                           &self.myself().into(),
                           &self.system)

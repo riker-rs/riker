@@ -1,3 +1,29 @@
+use std::{
+    error::Error,
+    fmt,
+};
+
+use crate::validate::InvalidName;
+
+// Public riker::actor API (plus the pub data types in this file)
+pub use self::{
+    actor::{Actor, BoxActor, Receive, Strategy},
+    actor_cell::Context,
+    actor_ref::{
+        ActorRef, ActorReference, ActorRefFactory,
+        BasicActorRef, BoxedTell, Sender, Tell, TmpActorRefFactory,
+    },
+    channel::{
+        All, Channel, channel, ChannelMsg, ChannelRef,
+        DeadLetter, DLChannelMsg, EventsChannel, Publish,
+        Subscribe, SysTopic, Topic, Unsubscribe, UnsubscribeAll,
+    },
+    macros::actor,
+    props::{ActorArgs, ActorProducer, ArgsPropsConstructor, BoxActorProd, Props, PropsConstructor},
+    selection::{ActorSelection, ActorSelectionFactory},
+    uri::{ActorId, ActorPath, ActorUri},
+};
+
 pub(crate) mod actor;
 pub(crate) mod actor_cell;
 pub(crate) mod actor_ref;
@@ -6,32 +32,6 @@ pub(crate) mod macros;
 pub(crate) mod props;
 pub(crate) mod selection;
 pub(crate) mod uri;
-
-use std::{
-    fmt,
-    error::Error
-};
-
-use crate::validate::InvalidName;
-
-// Public riker::actor API (plus the pub data types in this file)
-pub use self::{
-    actor::{Actor, BoxActor, Receive, Strategy},
-    actor_ref::{
-        ActorRef, BasicActorRef, ActorReference,
-        ActorRefFactory, TmpActorRefFactory, Tell, BoxedTell, Sender
-    },
-    actor_cell::Context,
-    channel::{
-        Channel, EventsChannel, Topic, All, SysTopic,
-        Publish, Subscribe, Unsubscribe, UnsubscribeAll,
-        ChannelMsg, ChannelRef, DLChannelMsg, DeadLetter, channel
-    },
-    macros::actor,
-    selection::{ActorSelection, ActorSelectionFactory},
-    uri::{ActorId, ActorUri, ActorPath},
-    props::{Props, PropsConstructor, BoxActorProd, ActorProducer, ActorArgs}
-};
 
 #[allow(unused)]
 pub type MsgResult<T> = Result<(), MsgError<T>>;
@@ -72,7 +72,7 @@ impl<T> fmt::Debug for MsgError<T> {
 /// Error type when an `try_tell` fails on `Option<ActorRef<Msg>>`
 pub struct TryMsgError<T> {
     pub msg: T,
-} 
+}
 
 impl<T> TryMsgError<T> {
     pub fn new(msg: T) -> Self {

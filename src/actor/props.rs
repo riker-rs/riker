@@ -46,6 +46,11 @@ pub trait PropsConstructor: Actor {
     fn props() -> BoxActorProd<Self>;
 }
 
+pub trait ArgsPropsConstructor: Actor {
+    type Args;
+    fn props_args(args: Self::Args) -> BoxActorProd<Self>;
+}
+
 impl<A: Default + Actor> PropsConstructor for A {
     fn props() -> BoxActorProd<Self> {
         Props::new(Box::new(A::default))
