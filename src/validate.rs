@@ -3,7 +3,7 @@ use std::error::Error;
 use std::fmt;
 
 pub fn validate_name(name: &str) -> Result<(), InvalidName> {
-    let rgx = Regex::new(r"^[a-zA-Z0-9_-]*$").unwrap();
+    let rgx = Regex::new(r"^[a-zA-Z0-9_-]+$").unwrap();
     if !rgx.is_match(name) {
         Err(InvalidName { name: name.into() })
     } else {
@@ -34,7 +34,7 @@ impl fmt::Debug for InvalidName {
 }
 
 pub fn validate_path(path: &str) -> Result<(), InvalidPath> {
-    let rgx = Regex::new(r"^[a-zA-Z0-9/*._-]*$").unwrap();
+    let rgx = Regex::new(r"^[a-zA-Z0-9/*._-]+$").unwrap();
     if !rgx.is_match(path) {
         Err(InvalidPath { path: path.into() })
     } else {
