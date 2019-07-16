@@ -416,7 +416,7 @@ impl From<SysTopic> for Topic {
     }
 }
 
-pub fn channel<Msg>(name: &str, fact: impl ActorRefFactory)
+pub fn channel<Msg>(name: &str, fact: &impl ActorRefFactory)
                     -> Result<ChannelRef<Msg>, CreateError>
     where Msg: Message
 {

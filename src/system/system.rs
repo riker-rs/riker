@@ -355,24 +355,6 @@ impl ActorRefFactory for ActorSystem {
     }
 }
 
-impl ActorRefFactory for &ActorSystem {
-    fn actor_of<A>(&self,
-                props: BoxActorProd<A>,
-                name: &str) -> Result<ActorRef<A::Msg>, CreateError>
-        where A: Actor
-    {
-        self.provider
-            .create_actor(props,
-                        name,
-                        &self.user_root(),
-                        self)
-    }
-
-    fn stop(&self, actor: impl ActorReference) {
-        actor.sys_tell(SystemCmd::Stop.into());
-    }
-}
-
 impl TmpActorRefFactory for ActorSystem {
     fn tmp_actor_of<A>(&self, props: BoxActorProd<A>)
                     -> Result<ActorRef<A::Msg>, CreateError>
