@@ -166,9 +166,8 @@ impl BasicTimer {
     pub fn schedule_repeat(&mut self, mut job: RepeatJob) {
         if SystemTime::now() >= job.send_at {
             job.send();
-        } else {
-            self.repeat_jobs.push(job);
         }
+        self.repeat_jobs.push(job);
     }
 }
 
