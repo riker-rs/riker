@@ -1,29 +1,29 @@
-use std::thread;
 use std::{
     sync::{
         Arc,
-        atomic::{AtomicBool, Ordering}
+        atomic::{AtomicBool, Ordering},
     },
 };
+use std::thread;
 
 use config::Config;
 use log::trace;
 
 use crate::{
-    Envelope, Message, AnyMessage,
-    system::{
-        ActorSystem, SystemMsg, SystemEvent
-    },
-    actor::*,
-    actor::actor_cell::ExtendedCell,
-    system::ActorCreated,
+    actor::*, actor::actor_cell::ExtendedCell, AnyMessage,
+    Envelope,
     kernel::{
         kernel::Dock,
         queue::{
-            QueueWriter, QueueReader, EnqueueResult,
-            QueueEmpty, queue
-        }
-    }
+            EnqueueResult, queue, QueueEmpty,
+            QueueReader, QueueWriter,
+        },
+    },
+    Message,
+    system::{
+        ActorSystem, SystemEvent, SystemMsg,
+    },
+    system::ActorCreated,
 };
 
 pub trait MailboxSchedule {
@@ -32,10 +32,10 @@ pub trait MailboxSchedule {
     fn is_scheduled(&self) -> bool;
 }
 
-pub trait AnySender : Send + Sync {
+pub trait AnySender: Send + Sync {
     fn try_any_enqueue(&self, msg: &mut AnyMessage,
-                        sender: Sender)
-                        -> Result<(), ()>;
+                       sender: Sender)
+                       -> Result<(), ()>;
 
     fn set_sched(&self, b: bool);
 
@@ -50,7 +50,7 @@ pub struct MailboxSender<Msg: Message> {
 
 impl<Msg> MailboxSender<Msg>
     where Msg: Message
-{   
+{
     pub fn try_enqueue(&self, msg: Envelope<Msg>) -> EnqueueResult<Msg> {
         self.queue.try_enqueue(msg)
     }
@@ -72,12 +72,11 @@ impl<Msg> AnySender for MailboxSender<Msg>
     where Msg: Message
 {
     fn try_any_enqueue(&self, msg: &mut AnyMessage, sender: Sender)
-                        -> Result<(), ()> {
-        
+                       -> Result<(), ()> {
         let actual = msg.take()?;
         let msg = Envelope {
             msg: actual,
-            sender
+            sender,
         };
         self.try_enqueue(msg).map_err(|_| ())
     }
@@ -92,6 +91,7 @@ impl<Msg> AnySender for MailboxSender<Msg>
 }
 
 unsafe impl<Msg: Message> Send for MailboxSender<Msg> {}
+
 unsafe impl<Msg: Message> Sync for MailboxSender<Msg> {}
 
 #[derive(Clone)]
@@ -158,7 +158,6 @@ pub fn mailbox<Msg>(msg_process_limit: u32)
                     -> (MailboxSender<Msg>, MailboxSender<SystemMsg>, Mailbox<Msg>)
     where Msg: Message
 {
-    
     let (qw, qr) = queue::<Msg>();
     let (sqw, sqr) = queue::<SystemMsg>();
 
@@ -166,12 +165,12 @@ pub fn mailbox<Msg>(msg_process_limit: u32)
 
     let sender = MailboxSender {
         queue: qw,
-        scheduled: scheduled.clone()
+        scheduled: scheduled.clone(),
     };
 
     let sys_sender = MailboxSender {
         queue: sqw,
-        scheduled: scheduled.clone()
+        scheduled: scheduled.clone(),
     };
 
     let mailbox = MailboxInner {
@@ -179,7 +178,7 @@ pub fn mailbox<Msg>(msg_process_limit: u32)
         queue: qr,
         sys_queue: sqr,
         suspended: Arc::new(AtomicBool::new(true)),
-        scheduled
+        scheduled,
     };
 
     let mailbox = Mailbox {
@@ -190,14 +189,14 @@ pub fn mailbox<Msg>(msg_process_limit: u32)
 }
 
 pub fn run_mailbox<A>(mbox: Mailbox<A::Msg>,
-                        ctx: Context<A::Msg>,
-                        mut dock: Dock<A>)
+                      ctx: Context<A::Msg>,
+                      mut dock: Dock<A>)
     where A: Actor
 {
     let _sen = Sentinel {
         actor: ctx.myself().into(),
         parent: ctx.myself().parent(),
-        mbox: mbox.clone()
+        mbox: mbox.clone(),
     };
 
     let mut actor = dock.actor.lock().unwrap().take();
@@ -208,7 +207,7 @@ pub fn run_mailbox<A>(mbox: Mailbox<A::Msg>,
     if actor.is_some() && !mbox.is_suspended() {
         process_msgs(&mbox, &ctx, cell, &mut actor);
     }
-    
+
     process_sys_msgs(&mbox, &ctx, cell, &mut actor);
 
     if actor.is_some() {
@@ -225,9 +224,9 @@ pub fn run_mailbox<A>(mbox: Mailbox<A::Msg>,
 }
 
 fn process_msgs<A>(mbox: &Mailbox<A::Msg>,
-                    ctx: &Context<A::Msg>,
-                    cell: &ExtendedCell<A::Msg>,
-                    actor: &mut Option<A>)
+                   ctx: &Context<A::Msg>,
+                   cell: &ExtendedCell<A::Msg>,
+                   actor: &mut Option<A>)
     where A: Actor
 {
     let mut count = 0;
@@ -243,9 +242,9 @@ fn process_msgs<A>(mbox: &Mailbox<A::Msg>,
                         }
                         // (ActorMsg::Identify, sender) => handle_identify(sender, cell),
                     }
-                    
-                    count +=1;
-                },
+
+                    count += 1;
+                }
                 Err(_) => {
                     break;
                 }
@@ -257,9 +256,9 @@ fn process_msgs<A>(mbox: &Mailbox<A::Msg>,
 }
 
 fn process_sys_msgs<A>(mbox: &Mailbox<A::Msg>,
-                        ctx: &Context<A::Msg>,
-                        cell: &ExtendedCell<A::Msg>,
-                        actor: &mut Option<A>)
+                       ctx: &Context<A::Msg>,
+                       cell: &ExtendedCell<A::Msg>,
+                       actor: &mut Option<A>)
     where A: Actor
 {
     // All system messages are processed in this mailbox execution
@@ -287,15 +286,15 @@ fn process_sys_msgs<A>(mbox: &Mailbox<A::Msg>,
 }
 
 fn handle_init<A>(mbox: &Mailbox<A::Msg>,
-                    ctx: &Context<A::Msg>,
-                    cell: &ExtendedCell<A::Msg>,
-                    actor: &mut Option<A>)
+                  ctx: &Context<A::Msg>,
+                  cell: &ExtendedCell<A::Msg>,
+                  actor: &mut Option<A>)
     where A: Actor
 {
     trace!("ACTOR INIT");
     actor.as_mut().unwrap().pre_start(ctx);
     mbox.set_suspended(false);
-    
+
     if cell.is_user() {
         ctx.system.publish_event(ActorCreated { actor: cell.myself().into() }.into());
     }
@@ -316,17 +315,17 @@ fn handle_failed<A>(failed: BasicActorRef,
 }
 
 fn handle_evt<A>(evt: SystemEvent,
-                ctx: &Context<A::Msg>,
-                cell: &ExtendedCell<A::Msg>,
-                actor: &mut Option<A>)
+                 ctx: &Context<A::Msg>,
+                 cell: &ExtendedCell<A::Msg>,
+                 actor: &mut Option<A>)
     where A: Actor
 {
     if actor.is_some() {
         actor.as_mut()
-                .unwrap()
-                .sys_recv(ctx, SystemMsg::Event(evt.clone()), None);
+            .unwrap()
+            .sys_recv(ctx, SystemMsg::Event(evt.clone()), None);
     }
-    
+
     if let SystemEvent::ActorTerminated(terminated) = evt {
         cell.death_watch(&terminated.actor, actor);
     }
@@ -357,8 +356,8 @@ impl<Msg> Drop for Sentinel<Msg>
 }
 
 pub fn flush_to_deadletters<Msg>(mbox: &Mailbox<Msg>,
-                                actor: &BasicActorRef,
-                                sys: &ActorSystem)
+                                 actor: &BasicActorRef,
+                                 sys: &ActorSystem)
     where Msg: Message
 {
     loop {
@@ -368,15 +367,15 @@ pub fn flush_to_deadletters<Msg>(mbox: &Mailbox<Msg>,
                     (msg, sender) => {
                         let dl = DeadLetter {
                             msg: format!("{:?}", msg),
-                            sender: sender,
-                            recipient: actor.clone()
+                            sender,
+                            recipient: actor.clone(),
                         };
 
                         sys.dead_letters()
                             .tell(Publish { topic: "dead_letter".into(), msg: dl }, None);
                     }
                 }
-            },
+            }
             Err(_) => {
                 break;
             }

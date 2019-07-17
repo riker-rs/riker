@@ -82,15 +82,15 @@ impl Actor for RestartSup {
         self.actor_to_fail = ctx.actor_of::<PanicActor>("actor-to-fail").ok();
     }
 
+    fn supervisor_strategy(&self) -> Strategy {
+        Strategy::Restart
+    }
+
     fn recv(&mut self,
             ctx: &Context<Self::Msg>,
             msg: Self::Msg,
             sender: Sender) {
         self.receive(ctx, msg, sender)
-    }
-
-    fn supervisor_strategy(&self) -> Strategy {
-        Strategy::Restart
     }
 }
 
@@ -150,6 +150,10 @@ impl Actor for EscalateSup {
         self.actor_to_fail = ctx.actor_of::<PanicActor>("actor-to-fail").ok();
     }
 
+    fn supervisor_strategy(&self) -> Strategy {
+        Strategy::Escalate
+    }
+
     fn recv(&mut self,
             ctx: &Context<Self::Msg>,
             msg: Self::Msg,
@@ -160,10 +164,6 @@ impl Actor for EscalateSup {
         //     TestMsg::Panic => self.actor_to_fail.try_tell(msg, None).unwrap(),
         //     TestMsg::Probe(_) => self.actor_to_fail.try_tell(msg, None).unwrap(),
         // };
-    }
-
-    fn supervisor_strategy(&self) -> Strategy {
-        Strategy::Escalate
     }
 }
 
@@ -208,6 +208,10 @@ impl Actor for EscRestartSup {
         self.escalator = ctx.actor_of::<EscalateSup>("escalate-supervisor").ok();
     }
 
+    fn supervisor_strategy(&self) -> Strategy {
+        Strategy::Restart
+    }
+
     fn recv(&mut self,
             ctx: &Context<Self::Msg>,
             msg: Self::Msg,
@@ -218,10 +222,6 @@ impl Actor for EscRestartSup {
         //     TestMsg::Panic => self.escalator.try_tell(msg, None).unwrap(),
         //     TestMsg::Probe(_) => self.escalator.try_tell(msg, None).unwrap(),
         // };
-    }
-
-    fn supervisor_strategy(&self) -> Strategy {
-        Strategy::Restart
     }
 }
 

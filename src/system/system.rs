@@ -540,9 +540,9 @@ impl Timer for ActorSystem {
         let job = RepeatJob {
             id: id.clone(),
             send_at: SystemTime::now() + initial_delay,
-            interval: interval,
+            interval,
             receiver: receiver.into(),
-            sender: sender,
+            sender,
             msg: AnyMessage::new(msg, false),
         };
 
@@ -564,7 +564,7 @@ impl Timer for ActorSystem {
             id: id.clone(),
             send_at: SystemTime::now() + delay,
             receiver: receiver.into(),
-            sender: sender,
+            sender,
             msg: AnyMessage::new(msg, true),
         };
 
@@ -589,7 +589,7 @@ impl Timer for ActorSystem {
             id: id.clone(),
             send_at: time,
             receiver: receiver.into(),
-            sender: sender,
+            sender,
             msg: AnyMessage::new(msg, true),
         };
 

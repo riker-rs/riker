@@ -90,7 +90,7 @@ fn channel_publish() {
     listen.recv();
 
 // Publish a test message
-    chan.tell(Publish { msg: SomeMessage, topic: topic }, None);
+    chan.tell(Publish { msg: SomeMessage, topic }, None);
 
     p_assert_eq!(listen, ());
 }
@@ -192,13 +192,6 @@ impl Actor for EventSubscriber {
             .tell(Subscribe { actor: sub, topic: "*".into() }, None);
     }
 
-    fn recv(&mut self,
-            ctx: &Context<Self::Msg>,
-            msg: Self::Msg,
-            sender: Sender) {
-        self.receive(ctx, msg, sender);
-    }
-
     fn sys_recv(&mut self,
                 ctx: &Context<Self::Msg>,
                 msg: SystemMsg,
@@ -206,6 +199,13 @@ impl Actor for EventSubscriber {
         if let SystemMsg::Event(evt) = msg {
             self.receive(ctx, evt, sender);
         }
+    }
+
+    fn recv(&mut self,
+            ctx: &Context<Self::Msg>,
+            msg: Self::Msg,
+            sender: Sender) {
+        self.receive(ctx, msg, sender);
     }
 }
 

@@ -1,5 +1,5 @@
-use std::fmt::Debug;
 use std::fmt;
+use std::fmt::Debug;
 use std::marker::PhantomData;
 
 use riker_macros::{actor, actor_msg};
@@ -22,23 +22,16 @@ fn impls_test() {
 // }
 
 #[actor(String, u32)]
-#[derive(Clone)]
+#[derive(Clone, Default)]
 struct NewActor;
-
-impl NewActor {
-    fn actor() -> Self {
-        NewActor
-    }  
-}
 
 impl Actor for NewActor {
     type Msg = NewActorMsg;
 
     fn handle(&mut self,
-                ctx: &Context<Self::Msg>,
-                msg: Self::Msg,
-                sender: BasicActorRef) {
-
+              ctx: &Context<Self::Msg>,
+              msg: Self::Msg,
+              sender: BasicActorRef) {
         println!("handling..");
         self.receive(ctx, msg, sender);
     }
@@ -48,9 +41,9 @@ impl Receive<u32> for NewActor {
     type Msg = NewActorMsg;
 
     fn receive(&mut self,
-                ctx: &Context<Self::Msg>,
-                msg: u32,
-                sender: BasicActorRef) {
+               ctx: &Context<Self::Msg>,
+               msg: u32,
+               sender: BasicActorRef) {
         println!("u32");
     }
 }
@@ -59,13 +52,15 @@ impl Receive<String> for NewActor {
     type Msg = NewActorMsg;
 
     fn receive(&mut self,
-                ctx: &Context<Self::Msg>,
-                msg: String,
-                sender: BasicActorRef) {
+               ctx: &Context<Self::Msg>,
+               msg: String,
+               sender: BasicActorRef) {
         println!("String");
     }
 }
+
 struct BasicActorRef;
+
 type Context<T> = Option<T>;
 
 trait Actor: Send + 'static {
@@ -78,9 +73,7 @@ trait Actor: Send + 'static {
     /// 
     /// Panics in `pre_start` do not invoke the
     /// supervision strategy and the actor will be terminated.
-    fn pre_start(&mut self) {
-
-    }
+    fn pre_start(&mut self) {}
 
     /// Invoked after an actor has started.
     ///
@@ -88,38 +81,32 @@ trait Actor: Send + 'static {
     /// to a log file, emmitting metrics.
     /// 
     /// Panics in `post_start` follow the supervision strategy.
-    fn post_start(&mut self) {
-
-    }
+    fn post_start(&mut self) {}
 
     /// Invoked after an actor has been stopped.
-    fn post_stop(&mut self) {
-
-    }
+    fn post_stop(&mut self) {}
 
     fn sys_receive(&mut self,
-                    msg: Self::Msg) {
-        
-    }
+                   msg: Self::Msg) {}
 
     fn handle(&mut self,
-                ctx: &Context<Self::Msg>,
-                msg: Self::Msg,
-                sender: BasicActorRef);
+              ctx: &Context<Self::Msg>,
+              msg: Self::Msg,
+              sender: BasicActorRef);
 }
 
 trait Receive<Msg: Message> {
     type Msg: Message;
 
     fn receive(&mut self,
-                ctx: &Context<Self::Msg>,
-                msg: Msg,
-                sender: BasicActorRef);
+               ctx: &Context<Self::Msg>,
+               msg: Msg,
+               sender: BasicActorRef);
 }
 
 type BoxedTell<T> = Box<dyn Tell<T> + Send + 'static>;
 
-trait Tell<T> : Send + 'static {
+trait Tell<T>: Send + 'static {
     fn tell(&self, msg: T, sender: Option<BasicActorRef>);
     fn box_clone(&self) -> BoxedTell<T>;
 }
@@ -143,6 +130,7 @@ impl<T: 'static> Clone for BoxedTell<T> {
 }
 
 trait Message: Debug + Clone + Send + 'static {}
+
 impl<T: Debug + Clone + Send + 'static> Message for T {}
 
 #[derive(Clone)]
@@ -152,7 +140,7 @@ struct ActorRef<T: Message> {
 
 impl<T: Message> ActorRef<T> {
     fn send_msg(&self, msg: T, sender: Option<BasicActorRef>) {
-        let a = NewActor::actor();
+        let a = NewActor::default();
         // a.receive(msg);
     }
 } 

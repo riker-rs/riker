@@ -124,7 +124,7 @@ impl<A> ActorProps<A>
     where A: Actor + Send + 'static
 {
     pub fn new(creator: Box<dyn Fn() -> A + Send>) -> Box<dyn ActorProducer<Actor=A>> {
-        Box::new(ActorProps { creator: creator })
+        Box::new(ActorProps { creator })
     }
 }
 
@@ -165,8 +165,8 @@ impl<A, Args> ActorPropsWithArgs<A, Args>
 {
     pub fn new(creator: Box<dyn Fn(Args) -> A + Send>, args: Args) -> Box<dyn ActorProducer<Actor=A>> {
         Box::new(ActorPropsWithArgs {
-            creator: creator,
-            args: args,
+            creator,
+            args,
         })
     }
 }

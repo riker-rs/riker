@@ -1,19 +1,19 @@
 use std::sync::{
+    mpsc::{channel, Receiver, Sender},
     Mutex,
-    mpsc::{channel, Sender, Receiver}
 };
 
-use crate::{Message, Envelope};
+use crate::{Envelope, Message};
 
 pub fn queue<Msg: Message>() -> (QueueWriter<Msg>, QueueReader<Msg>) {
     let (tx, rx) = channel::<Envelope<Msg>>();
-   
+
     let qw = QueueWriter {
-        tx: tx,
+        tx,
     };
 
     let qr = QueueReaderInner {
-        rx: rx,
+        rx,
         next_item: None,
     };
 
@@ -43,7 +43,7 @@ pub struct QueueReader<Msg: Message> {
 
 struct QueueReaderInner<Msg: Message> {
     rx: Receiver<Envelope<Msg>>,
-    next_item: Option<Envelope<Msg>>
+    next_item: Option<Envelope<Msg>>,
 }
 
 impl<Msg: Message> QueueReader<Msg> {
@@ -55,7 +55,6 @@ impl<Msg: Message> QueueReader<Msg> {
         } else {
             inner.rx.recv().unwrap()
         }
-        
     }
 
     pub fn try_dequeue(&self) -> DequeueResult<Envelope<Msg>> {
@@ -66,7 +65,7 @@ impl<Msg: Message> QueueReader<Msg> {
             inner.rx.try_recv().map_err(|_| QueueEmpty)
         }
     }
-    
+
     pub fn has_msgs(&self) -> bool {
         let mut inner = self.inner.lock().unwrap();
         inner.next_item.is_some() || {
@@ -74,7 +73,7 @@ impl<Msg: Message> QueueReader<Msg> {
                 Ok(item) => {
                     inner.next_item = Some(item);
                     true
-                },
+                }
                 Err(_) => false
             }
         }
@@ -89,4 +88,5 @@ pub struct EnqueueError<T> {
 pub type EnqueueResult<Msg> = Result<(), EnqueueError<Envelope<Msg>>>;
 
 pub struct QueueEmpty;
+
 pub type DequeueResult<Msg> = Result<Msg, QueueEmpty>;

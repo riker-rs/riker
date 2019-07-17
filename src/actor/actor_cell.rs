@@ -334,7 +334,7 @@ impl TmpActorRefFactory for ActorCell {
     }
 
     fn tmp_actor_of<A: ActorFactory>(&self)
-                                         -> Result<ActorRef<<A as Actor>::Msg>, CreateError> {
+                                     -> Result<ActorRef<<A as Actor>::Msg>, CreateError> {
         let name = rand::random::<u64>();
         let _name = format!("{}", name);
 
@@ -633,9 +633,9 @@ impl<Msg> Timer for Context<Msg>
         let job = RepeatJob {
             id: id.clone(),
             send_at: SystemTime::now() + initial_delay,
-            interval: interval,
+            interval,
             receiver: receiver.into(),
-            sender: sender,
+            sender,
             msg: AnyMessage::new(msg, false),
         };
 
@@ -657,7 +657,7 @@ impl<Msg> Timer for Context<Msg>
             id: id.clone(),
             send_at: SystemTime::now() + delay,
             receiver: receiver.into(),
-            sender: sender,
+            sender,
             msg: AnyMessage::new(msg, true),
         };
 
@@ -682,7 +682,7 @@ impl<Msg> Timer for Context<Msg>
             id: id.clone(),
             send_at: time,
             receiver: receiver.into(),
-            sender: sender,
+            sender,
             msg: AnyMessage::new(msg, true),
         };
 

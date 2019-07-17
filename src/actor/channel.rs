@@ -2,23 +2,22 @@
 
 use std::{
     collections::HashMap,
-    hash::{Hash, Hasher}
+    hash::{Hash, Hasher},
 };
 
 use crate::{
-    Message,
-    system::{SystemMsg, SystemEvent},
     actor::{
-        BoxedTell, Actor, CreateError, Sender,
-        ActorReference, ActorRef, BasicActorRef, Context, Receive, ActorRefFactory
-    }
+        Actor, ActorRef, ActorReference, ActorRefFactory,
+        BasicActorRef, BoxedTell, Context, CreateError, Receive, Sender,
+    },
+    Message,
+    system::{SystemEvent, SystemMsg},
 };
 
 type Subs<Msg> = HashMap<Topic, Vec<BoxedTell<Msg>>>;
 
 /// A specialized actor for providing Publish/Subscribe capabilities to users.
 /// 
-
 
 
 // Generic Channel
@@ -54,21 +53,13 @@ impl<Msg> Actor for Channel<Msg>
         // ctx.myself.tell(msg, None);
     }
 
-    fn recv(&mut self,
-            ctx: &ChannelCtx<Msg>,
-            msg: ChannelMsg<Msg>,
-            sender: Sender) {
-
-        self.receive(ctx, msg, sender);
-    }
-
     // We expect to receive ActorTerminated messages because we subscribed
     // to this system event. This allows us to remove actors that have been
     // terminated but did not explicity unsubscribe before terminating.
     fn sys_recv(&mut self,
-                        _: &ChannelCtx<Msg>,
-                        msg: SystemMsg,
-                        sender: Sender) {
+                _: &ChannelCtx<Msg>,
+                msg: SystemMsg,
+                sender: Sender) {
         if let SystemMsg::Event(evt) = msg {
             match evt {
                 SystemEvent::ActorTerminated(terminated) => {
@@ -82,6 +73,13 @@ impl<Msg> Actor for Channel<Msg>
             }
         }
     }
+
+    fn recv(&mut self,
+            ctx: &ChannelCtx<Msg>,
+            msg: ChannelMsg<Msg>,
+            sender: Sender) {
+        self.receive(ctx, msg, sender);
+    }
 }
 
 impl<Msg> Receive<ChannelMsg<Msg>> for Channel<Msg>
@@ -90,10 +88,9 @@ impl<Msg> Receive<ChannelMsg<Msg>> for Channel<Msg>
     type Msg = ChannelMsg<Msg>;
 
     fn receive(&mut self,
-                ctx: &ChannelCtx<Msg>,
-                msg: Self::Msg,
-                sender: Sender) {
-        
+               ctx: &ChannelCtx<Msg>,
+               msg: Self::Msg,
+               sender: Sender) {
         match msg {
             ChannelMsg::Publish(p) => self.receive(ctx, p, sender),
             ChannelMsg::Subscribe(sub) => self.receive(ctx, sub, sender),
@@ -109,10 +106,9 @@ impl<Msg> Receive<Subscribe<Msg>> for Channel<Msg>
     type Msg = ChannelMsg<Msg>;
 
     fn receive(&mut self,
-                ctx: &ChannelCtx<Msg>,
-                msg: Subscribe<Msg>,
-                sender: Sender) {
-        
+               ctx: &ChannelCtx<Msg>,
+               msg: Subscribe<Msg>,
+               sender: Sender) {
         if self.subs.contains_key(&msg.topic) {
             self.subs.get_mut(&msg.topic).unwrap().push(msg.actor);
         } else {
@@ -127,10 +123,9 @@ impl<Msg> Receive<Unsubscribe<Msg>> for Channel<Msg>
     type Msg = ChannelMsg<Msg>;
 
     fn receive(&mut self,
-                ctx: &ChannelCtx<Msg>,
-                msg: Unsubscribe<Msg>,
-                sender: Sender) {
-        
+               ctx: &ChannelCtx<Msg>,
+               msg: Unsubscribe<Msg>,
+               sender: Sender) {
         unsubscribe(&mut self.subs, &msg.topic, &msg.actor);
     }
 }
@@ -141,10 +136,9 @@ impl<Msg> Receive<UnsubscribeAll<Msg>> for Channel<Msg>
     type Msg = ChannelMsg<Msg>;
 
     fn receive(&mut self,
-                ctx: &ChannelCtx<Msg>,
-                msg: UnsubscribeAll<Msg>,
-                sender: Sender) {
-        
+               ctx: &ChannelCtx<Msg>,
+               msg: UnsubscribeAll<Msg>,
+               sender: Sender) {
         let subs = self.subs.clone();
 
         for topic in subs.keys() {
@@ -159,10 +153,10 @@ impl<Msg> Receive<Publish<Msg>> for Channel<Msg>
     type Msg = ChannelMsg<Msg>;
 
     fn receive(&mut self,
-                ctx: &ChannelCtx<Msg>,
-                msg: Publish<Msg>,
-                sender: Sender) {
-                    
+               ctx: &ChannelCtx<Msg>,
+               msg: Publish<Msg>,
+               sender: Sender) {
+
         // send system event to actors subscribed to all topics
         if let Some(subs) = self.subs.get(&All.into()) {
             for sub in subs.iter() {
@@ -175,7 +169,7 @@ impl<Msg> Receive<Publish<Msg>> for Channel<Msg>
             for sub in subs.iter() {
                 sub.tell(msg.msg.clone(), sender.clone());
             }
-        }  
+        }
     }
 }
 
@@ -213,19 +207,18 @@ impl Actor for EventsChannel {
         self.0.pre_start(ctx);
     }
 
+    fn sys_recv(&mut self,
+                ctx: &ChannelCtx<SystemEvent>,
+                msg: SystemMsg,
+                sender: Sender) {
+        self.0.sys_recv(ctx, msg, sender);
+    }
+
     fn recv(&mut self,
             ctx: &ChannelCtx<SystemEvent>,
             msg: ChannelMsg<SystemEvent>,
             sender: Sender) {
-
         self.receive(ctx, msg, sender);
-    }
-
-    fn sys_recv(&mut self,
-                        ctx: &ChannelCtx<SystemEvent>,
-                        msg: SystemMsg,
-                        sender: Sender) {
-        self.0.sys_recv(ctx, msg, sender);
     }
 }
 
@@ -233,10 +226,10 @@ impl Receive<ChannelMsg<SystemEvent>> for EventsChannel {
     type Msg = ChannelMsg<SystemEvent>;
 
     fn receive(&mut self,
-                ctx: &ChannelCtx<SystemEvent>,
-                msg: Self::Msg,
-                sender: Sender) {
-        
+               ctx: &ChannelCtx<SystemEvent>,
+               msg: Self::Msg,
+               sender: Sender) {
+
         // Publish variant uses specialized EventsChannel Receive
         // All other variants use the wrapped Channel (self.0) Receive(s)
         match msg {
@@ -252,10 +245,10 @@ impl Receive<Publish<SystemEvent>> for EventsChannel {
     type Msg = ChannelMsg<SystemEvent>;
 
     fn receive(&mut self,
-                ctx: &ChannelCtx<SystemEvent>,
-                msg: Publish<SystemEvent>,
-                sender: Sender) {
-                    
+               ctx: &ChannelCtx<SystemEvent>,
+               msg: Publish<SystemEvent>,
+               sender: Sender) {
+
         // send system event to actors subscribed to all topics
         if let Some(subs) = self.0.subs.get(&All.into()) {
             for sub in subs.iter() {
@@ -270,7 +263,7 @@ impl Receive<Publish<SystemEvent>> for EventsChannel {
                 let evt = SystemMsg::Event(msg.msg.clone());
                 sub.sys_tell(evt);
             }
-        }  
+        }
     }
 }
 
