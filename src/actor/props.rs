@@ -42,17 +42,17 @@ impl Props {
 // pub type BoxActorProd<Msg> = Arc<Mutex<ActorProducer<Actor=BoxActor<Msg>>>>;
 pub type BoxActorProd<A> = Arc<Mutex<Box<dyn ActorProducer<Actor=A>>>>;
 
-pub trait PropsConstructor: Actor {
-    fn props() -> BoxActorProd<Self>;
+pub trait ActorFactory: Actor {
+    fn create() -> BoxActorProd<Self>;
 }
 
-pub trait ArgsPropsConstructor: Actor {
+pub trait ActorFactoryArgs: Actor {
     type Args;
-    fn props_args(args: Self::Args) -> BoxActorProd<Self>;
+    fn create_args(args: Self::Args) -> BoxActorProd<Self>;
 }
 
-impl<A: Default + Actor> PropsConstructor for A {
-    fn props() -> BoxActorProd<Self> {
+impl<A: Default + Actor> ActorFactory for A {
+    fn create() -> BoxActorProd<Self> {
         Props::new(Box::new(A::default))
     }
 }

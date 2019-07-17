@@ -22,7 +22,7 @@ use uuid::Uuid;
 use crate::{
     actor::{
         *,
-        props::PropsConstructor,
+        props::ActorFactory,
     }, AnyMessage,
     kernel::provider::{create_root, Provider},
     load_config,
@@ -321,10 +321,22 @@ impl ActorSystem {
     pub fn sys_actor_of<A>(&self,
                            name: &str)
                            -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-        where A: PropsConstructor
+        where A: ActorFactory
     {
         self.provider
-            .create_actor(A::props(),
+            .create_actor(A::create(),
+                          name,
+                          &self.sys_root(),
+                          self)
+    }
+
+    pub fn sys_actor_of_args<A>(&self,
+                                name: &str, args: A::Args)
+                                -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
+        where A: ActorFactoryArgs
+    {
+        self.provider
+            .create_actor(A::create_args(args),
                           name,
                           &self.sys_root(),
                           self)
@@ -367,20 +379,20 @@ impl ActorRefFactory for ActorSystem {
 
     fn actor_of<A>(&self,
                    name: &str) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-        where A: PropsConstructor
+        where A: ActorFactory
     {
         self.provider
-            .create_actor(A::props(),
+            .create_actor(A::create(),
                           name,
                           &self.user_root(),
                           self)
     }
 
     fn actor_of_args<A>(&self, name: &str, args: A::Args) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-        where A: ArgsPropsConstructor
+        where A: ActorFactoryArgs
     {
         self.provider
-            .create_actor(A::props_args(args),
+            .create_actor(A::create_args(args),
                           name,
                           &self.user_root(),
                           self)
@@ -405,20 +417,20 @@ impl ActorRefFactory for &ActorSystem {
     }
 
     fn actor_of<A>(&self, name: &str) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-        where A: PropsConstructor
+        where A: ActorFactory
     {
         self.provider
-            .create_actor(A::props(),
+            .create_actor(A::create(),
                           name,
                           &self.user_root(),
                           self)
     }
 
     fn actor_of_args<A>(&self, name: &str, args: A::Args) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-        where A: ArgsPropsConstructor
+        where A: ActorFactoryArgs
     {
         self.provider
-            .create_actor(A::props_args(args),
+            .create_actor(A::create_args(args),
                           name,
                           &self.user_root(),
                           self)
@@ -443,22 +455,22 @@ impl TmpActorRefFactory for ActorSystem {
     }
 
     fn tmp_actor_of<A>(&self) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-        where A: PropsConstructor
+        where A: ActorFactory
     {
         let name = format!("{}", rand::random::<u64>());
         self.provider
-            .create_actor(A::props(),
+            .create_actor(A::create(),
                           &name,
                           &self.temp_root(),
                           self)
     }
 
     fn tmp_actor_of_args<A>(&self, args: A::Args) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-        where A: ArgsPropsConstructor
+        where A: ActorFactoryArgs
     {
         let name = format!("{}", rand::random::<u64>());
         self.provider
-            .create_actor(A::props_args(args),
+            .create_actor(A::create_args(args),
                           &name,
                           &self.temp_root(),
                           self)
@@ -611,9 +623,24 @@ fn sys_actor_of<A>(prov: &Provider,
                    sys: &ActorSystem,
                    name: &str)
                    -> Result<ActorRef<<A as Actor>::Msg>, SystemError>
-    where A: PropsConstructor
+    where A: ActorFactory
 {
-    prov.create_actor(A::props(),
+    prov.create_actor(A::create(),
+                      name,
+                      &sys.sys_root(),
+                      sys)
+        .map_err(|_| SystemError::ModuleFailed(name.into()))
+}
+
+#[allow(dead_code)]
+fn sys_actor_of_args<A>(prov: &Provider,
+                        sys: &ActorSystem,
+                        name: &str,
+                        args: A::Args)
+                        -> Result<ActorRef<<A as Actor>::Msg>, SystemError>
+    where A: ActorFactoryArgs
+{
+    prov.create_actor(A::create_args(args),
                       name,
                       &sys.sys_root(),
                       sys)

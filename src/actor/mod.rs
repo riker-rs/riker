@@ -19,7 +19,7 @@ pub use self::{
         Subscribe, SysTopic, Topic, Unsubscribe, UnsubscribeAll,
     },
     macros::actor,
-    props::{ActorArgs, ActorProducer, ArgsPropsConstructor, BoxActorProd, Props, PropsConstructor},
+    props::{ActorArgs, ActorProducer, ActorFactory, BoxActorProd, Props, ActorFactoryArgs},
     selection::{ActorSelection, ActorSelectionFactory},
     uri::{ActorId, ActorPath, ActorUri},
 };
