@@ -3,6 +3,8 @@ use std::{
     fmt,
 };
 
+pub use riker_macros::actor;
+
 use crate::validate::InvalidName;
 
 // Public riker::actor API (plus the pub data types in this file)
@@ -18,8 +20,7 @@ pub use self::{
         DeadLetter, DLChannelMsg, EventsChannel, Publish,
         Subscribe, SysTopic, Topic, Unsubscribe, UnsubscribeAll,
     },
-    macros::actor,
-    props::{ActorArgs, ActorProducer, ActorFactory, BoxActorProd, Props, ActorFactoryArgs},
+    props::{ActorArgs, ActorFactory, ActorFactoryArgs, ActorProducer, BoxActorProd, Props},
     selection::{ActorSelection, ActorSelectionFactory},
     uri::{ActorId, ActorPath, ActorUri},
 };
@@ -28,7 +29,6 @@ pub(crate) mod actor;
 pub(crate) mod actor_cell;
 pub(crate) mod actor_ref;
 pub(crate) mod channel;
-pub(crate) mod macros;
 pub(crate) mod props;
 pub(crate) mod selection;
 pub(crate) mod uri;
