@@ -61,7 +61,7 @@ pub fn kernel<A>(props: BoxActorProd<A>,
     let actor_ref = ActorRef::new(cell);
 
     let f = async move {
-        while let Some(msg) = await!(rx.next()) {
+        while let Some(msg) = rx.next().await {
             match msg {
                 KernelMsg::RunActor => {
                     let ctx = Context {
