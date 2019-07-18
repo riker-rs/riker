@@ -21,7 +21,7 @@ impl PartialEq for ActorPath {
 
 impl PartialEq<str> for ActorPath {
     fn eq(&self, other: &str) -> bool {
-        self.0 == Arc::new(other.to_string()) // todo inefficient
+        *self.0 == other
     }
 }
 
