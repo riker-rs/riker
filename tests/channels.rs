@@ -20,15 +20,14 @@ struct Subscriber {
     topic: Topic,
 }
 
-impl ActorFactoryArgs for Subscriber {
-    type Args = (ChannelRef<SomeMessage>, Topic);
-    fn create_args(args: Self::Args) -> BoxActorProd<Self>
+impl ActorFactoryArgs<(ChannelRef<SomeMessage>, Topic)> for Subscriber {
+    fn create_args(args: (ChannelRef<SomeMessage>, Topic)) -> BoxActorProd<Self>
     {
-        Props::new_args(Box::new(|(chan, topic)| Subscriber {
+        Props::new_args(|(chan, topic)| Subscriber {
             probe: None,
             chan,
             topic,
-        }), args)
+        }, args)
     }
 }
 
@@ -81,7 +80,7 @@ fn channel_publish() {
 // The topic we'll be publishing to. Endow our subscriber test actor with this.
 // On Subscriber's pre_start it will subscribe to this channel+topic
     let topic = Topic::from("my-topic");
-    let sub = sys.actor_of_args::<Subscriber>("sub-actor", (chan.clone(), topic.clone())).unwrap();
+    let sub = sys.actor_of_args::<Subscriber, _>("sub-actor", (chan.clone(), topic.clone())).unwrap();
 
     let (probe, listen) = probe();
     sub.tell(TestProbe(probe), None);
@@ -105,7 +104,7 @@ fn channel_publish_subscribe_all() {
 // The '*' All topic. Endow our subscriber test actor with this.
 // On Subscriber's pre_start it will subscribe to all topics on this channel.
     let topic = Topic::from("*");
-    let sub = sys.actor_of_args::<Subscriber>("sub-actor", (chan.clone(), topic.clone())).unwrap();
+    let sub = sys.actor_of_args::<Subscriber, _>("sub-actor", (chan.clone(), topic.clone())).unwrap();
 
     let (probe, listen) = probe();
     sub.tell(TestProbe(probe), None);
