@@ -20,23 +20,21 @@ impl Props {
     /// Creates an `ActorProducer` with no factory method parameters.
     /// 
 
-    pub fn new<A, F>(creator: F)
-                     -> Arc<Mutex<Box<dyn ActorProducer<Actor=A>>>>
-        where A: Actor + Send + 'static,
-              F: Fn() -> A + Send + 'static
+    pub fn new<A>(creator: Box<dyn Fn() -> A + Send>)
+                  -> Arc<Mutex<Box<dyn ActorProducer<Actor=A>>>>
+        where A: Actor + Send + 'static
     {
-        Arc::new(Mutex::new(ActorProps::new(Box::new(creator))))
+        Arc::new(Mutex::new(ActorProps::new(creator)))
     }
 
     /// Creates an `ActorProducer` with one or more factory method parameters.
     /// 
 
-    pub fn new_args<A, F, Args>(creator: F, args: Args)
-                                -> Arc<Mutex<Box<dyn ActorProducer<Actor=A>>>>
-        where A: Actor + Send + 'static, Args: ActorArgs + 'static,
-              F: Fn(Args) -> A + Send + 'static
+    pub fn new_args<A, Args>(creator: Box<dyn Fn(Args) -> A + Send>, args: Args)
+                             -> Arc<Mutex<Box<dyn ActorProducer<Actor=A>>>>
+        where A: Actor + Send + 'static, Args: ActorArgs + 'static
     {
-        Arc::new(Mutex::new(ActorPropsWithArgs::new(Box::new(creator), args)))
+        Arc::new(Mutex::new(ActorPropsWithArgs::new(creator, args)))
     }
 }
 
@@ -45,14 +43,17 @@ impl Props {
 pub type BoxActorProd<A> = Arc<Mutex<Box<dyn ActorProducer<Actor=A>>>>;
 
 pub trait ActorFactory: Actor {
+    fn create() -> BoxActorProd<Self>;
+}
+
+pub trait ActorFactoryArgs: Actor {
     type Args;
-    fn create(args: Self::Args) -> BoxActorProd<Self>;
+    fn create_args(args: Self::Args) -> BoxActorProd<Self>;
 }
 
 impl<A: Default + Actor> ActorFactory for A {
-    type Args = ();
-    fn create(_args: Self::Args) -> BoxActorProd<Self> {
-        Props::new(A::default)
+    fn create() -> BoxActorProd<Self> {
+        Props::new(Box::new(A::default))
     }
 }
 

@@ -321,10 +321,10 @@ impl ActorSystem {
     pub fn sys_actor_of<A>(&self,
                            name: &str)
                            -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-        where A: ActorFactory<Args=()>
+        where A: ActorFactory
     {
         self.provider
-            .create_actor(A::create(()),
+            .create_actor(A::create(),
                           name,
                           &self.sys_root(),
                           self)
@@ -333,10 +333,10 @@ impl ActorSystem {
     pub fn sys_actor_of_args<A>(&self,
                                 name: &str, args: A::Args)
                                 -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-        where A: ActorFactory
+        where A: ActorFactoryArgs
     {
         self.provider
-            .create_actor(A::create(args),
+            .create_actor(A::create_args(args),
                           name,
                           &self.sys_root(),
                           self)
@@ -353,7 +353,7 @@ impl ActorSystem {
         let (tx, rx) = oneshot::channel::<()>();
         let tx = Arc::new(Mutex::new(Some(tx)));
 
-        let props = Props::new_args(ShutdownActor::new, tx);
+        let props = Props::new_args(Box::new(ShutdownActor::new), tx);
         self.tmp_actor_of_props(props).unwrap();
 
         rx
@@ -379,20 +379,20 @@ impl ActorRefFactory for ActorSystem {
 
     fn actor_of<A>(&self,
                    name: &str) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-        where A: ActorFactory<Args=()>
+        where A: ActorFactory
     {
         self.provider
-            .create_actor(A::create(()),
+            .create_actor(A::create(),
                           name,
                           &self.user_root(),
                           self)
     }
 
     fn actor_of_args<A>(&self, name: &str, args: A::Args) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-        where A: ActorFactory
+        where A: ActorFactoryArgs
     {
         self.provider
-            .create_actor(A::create(args),
+            .create_actor(A::create_args(args),
                           name,
                           &self.user_root(),
                           self)
@@ -417,20 +417,20 @@ impl ActorRefFactory for &ActorSystem {
     }
 
     fn actor_of<A>(&self, name: &str) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-        where A: ActorFactory<Args=()>
+        where A: ActorFactory
     {
         self.provider
-            .create_actor(A::create(()),
+            .create_actor(A::create(),
                           name,
                           &self.user_root(),
                           self)
     }
 
     fn actor_of_args<A>(&self, name: &str, args: A::Args) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-        where A: ActorFactory
+        where A: ActorFactoryArgs
     {
         self.provider
-            .create_actor(A::create(args),
+            .create_actor(A::create_args(args),
                           name,
                           &self.user_root(),
                           self)
@@ -455,22 +455,22 @@ impl TmpActorRefFactory for ActorSystem {
     }
 
     fn tmp_actor_of<A>(&self) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-        where A: ActorFactory<Args=()>
+        where A: ActorFactory
     {
         let name = format!("{}", rand::random::<u64>());
         self.provider
-            .create_actor(A::create(()),
+            .create_actor(A::create(),
                           &name,
                           &self.temp_root(),
                           self)
     }
 
     fn tmp_actor_of_args<A>(&self, args: A::Args) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-        where A: ActorFactory
+        where A: ActorFactoryArgs
     {
         let name = format!("{}", rand::random::<u64>());
         self.provider
-            .create_actor(A::create(args),
+            .create_actor(A::create_args(args),
                           &name,
                           &self.temp_root(),
                           self)
@@ -623,9 +623,9 @@ fn sys_actor_of<A>(prov: &Provider,
                    sys: &ActorSystem,
                    name: &str)
                    -> Result<ActorRef<<A as Actor>::Msg>, SystemError>
-    where A: ActorFactory<Args=()>
+    where A: ActorFactory
 {
-    prov.create_actor(A::create(()),
+    prov.create_actor(A::create(),
                       name,
                       &sys.sys_root(),
                       sys)
@@ -638,9 +638,9 @@ fn sys_actor_of_args<A>(prov: &Provider,
                         name: &str,
                         args: A::Args)
                         -> Result<ActorRef<<A as Actor>::Msg>, SystemError>
-    where A: ActorFactory
+    where A: ActorFactoryArgs
 {
-    prov.create_actor(A::create(args),
+    prov.create_actor(A::create_args(args),
                       name,
                       &sys.sys_root(),
                       sys)

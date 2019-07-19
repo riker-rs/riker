@@ -20,15 +20,15 @@ struct Subscriber {
     topic: Topic,
 }
 
-impl ActorFactory for Subscriber {
+impl ActorFactoryArgs for Subscriber {
     type Args = (ChannelRef<SomeMessage>, Topic);
-    fn create(args: Self::Args) -> BoxActorProd<Self>
+    fn create_args(args: Self::Args) -> BoxActorProd<Self>
     {
-        Props::new_args(|(chan, topic)| Subscriber {
+        Props::new_args(Box::new(|(chan, topic)| Subscriber {
             probe: None,
             chan,
             topic,
-        }, args)
+        }), args)
     }
 }
 

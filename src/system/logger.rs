@@ -1,12 +1,12 @@
-use config::Config;
 use log;
 use log::{info, Level};
-use runtime_fmt::{rt_format_args, rt_println};
+use config::Config;
+use runtime_fmt::{rt_println, rt_format_args};
 
 use crate::{
     actor::{
         ActorRef, Tell, BoxActorProd, Props, Actor,
-        Context, BasicActorRef, ChannelMsg, All, DeadLetter, Subscribe,
+        Context, BasicActorRef,ChannelMsg, All, DeadLetter, Subscribe
     }
 };
 
@@ -23,7 +23,7 @@ impl Logger {
                 actor: ActorRef<LogEntry>) -> Self {
         let logger = Logger {
             level,
-            actor,
+            actor
         };
 
         let _ = log::set_boxed_logger(Box::new(logger.clone())); // result is Err for some reason (.unwrap() panics)
@@ -42,7 +42,8 @@ impl log::Log for Logger {
         self.actor.tell(LogEntry::from(record), None);
     }
 
-    fn flush(&self) {}
+    fn flush(&self) {
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -57,7 +58,7 @@ impl<'a> From<&'a log::Record<'a>> for LogEntry {
         LogEntry {
             level: record.level(),
             module: record.module_path().map(|m| m.to_string()),
-            body: format!("{}", record.args()),
+            body: format!("{}", record.args())
         }
     }
 }
@@ -77,7 +78,7 @@ impl SimpleLogger {
     }
 
     pub fn props(cfg: LoggerConfig) -> BoxActorProd<LogActor> {
-        Props::new_args(SimpleLogger::actor,
+        Props::new_args(Box::new(SimpleLogger::actor),
                         cfg)
     }
 }
@@ -86,9 +87,9 @@ impl Actor for SimpleLogger {
     type Msg = LogEntry;
 
     fn recv(&mut self,
-            _: &Context<LogEntry>,
-            entry: LogEntry,
-            _: Option<BasicActorRef>) {
+                _: &Context<LogEntry>,
+                entry: LogEntry,
+                _: Option<BasicActorRef>) {
         let now = chrono::Utc::now();
         let f_match: Vec<&String> = self.cfg.filter.iter()
             .filter(|f| entry.module.as_ref().map(|m| m.contains(*f)).unwrap_or(false))
@@ -140,8 +141,9 @@ impl DeadLetterLogger {
     }
 
     pub fn props(dl_chan: &ActorRef<ChannelMsg<DeadLetter>>)
-                 -> BoxActorProd<DeadLetterLogger> {
-        Props::new_args(DeadLetterLogger::new, dl_chan.clone())
+                    -> BoxActorProd<DeadLetterLogger> {
+        
+        Props::new_args(Box::new(DeadLetterLogger::new), dl_chan.clone())
     }
 }
 
@@ -154,9 +156,9 @@ impl Actor for DeadLetterLogger {
     }
 
     fn recv(&mut self,
-            _: &Context<Self::Msg>,
-            msg: Self::Msg,
-            _: Option<BasicActorRef>) {
+                _: &Context<Self::Msg>,
+                msg: Self::Msg,
+                _: Option<BasicActorRef>) {
         info!("DeadLetter: {:?} => {:?} ({:?})", msg.sender, msg.recipient, msg.msg)
     }
 }
