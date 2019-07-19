@@ -20,7 +20,7 @@ pub use self::{
         DeadLetter, DLChannelMsg, EventsChannel, Publish,
         Subscribe, SysTopic, Topic, Unsubscribe, UnsubscribeAll,
     },
-    props::{ActorArgs, ActorFactory, ActorFactoryArgs, ActorProducer, BoxActorProd, Props},
+    props::{ActorArgs, ActorFactory, ActorProducer, BoxActorProd, Props},
     selection::{ActorSelection, ActorSelectionFactory},
     uri::{ActorId, ActorPath, ActorUri},
 };

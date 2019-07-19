@@ -5,7 +5,7 @@ use crate::{
         Actor, actor_cell::{ActorCell, ExtendedCell}, ActorPath, ActorUri,
         BoxActorProd,
         CreateError,
-        props::{ActorFactory, ActorFactoryArgs},
+        props::ActorFactory,
     }, AnyMessage, Envelope,
     Message,
     system::{ActorSystem, SystemMsg},
@@ -520,10 +520,10 @@ pub trait ActorRefFactory {
         where A: Actor;
 
     fn actor_of<A>(&self, name: &str) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-        where A: ActorFactory;
+        where A: ActorFactory<Args=()>;
 
     fn actor_of_args<A>(&self, name: &str, args: A::Args) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-        where A: ActorFactoryArgs;
+        where A: ActorFactory;
 
     fn stop(&self, actor: impl ActorReference);
 }
@@ -536,8 +536,8 @@ pub trait TmpActorRefFactory {
         where A: Actor;
 
     fn tmp_actor_of<A>(&self) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-        where A: ActorFactory;
+        where A: ActorFactory<Args=()>;
 
     fn tmp_actor_of_args<A>(&self, args: A::Args) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-        where A: ActorFactoryArgs;
+        where A: ActorFactory;
 }
