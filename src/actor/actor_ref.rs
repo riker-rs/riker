@@ -520,10 +520,10 @@ pub trait ActorRefFactory {
         where A: Actor;
 
     fn actor_of<A>(&self, name: &str) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-        where A: ActorFactory;
+        where A: ActorFactory + Actor;
 
-    fn actor_of_args<A>(&self, name: &str, args: A::Args) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-        where A: ActorFactoryArgs;
+    fn actor_of_args<A, Args>(&self, name: &str, args: Args) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
+        where A: ActorFactoryArgs<Args>;
 
     fn stop(&self, actor: impl ActorReference);
 }
@@ -536,8 +536,8 @@ pub trait TmpActorRefFactory {
         where A: Actor;
 
     fn tmp_actor_of<A>(&self) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-        where A: ActorFactory;
+        where A: ActorFactory + Actor;
 
-    fn tmp_actor_of_args<A>(&self, args: A::Args) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-        where A: ActorFactoryArgs;
+    fn tmp_actor_of_args<A, Args>(&self, args: Args) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
+        where A: ActorFactoryArgs<Args>;
 }

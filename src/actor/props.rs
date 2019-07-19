@@ -20,9 +20,10 @@ impl Props {
     /// Creates an `ActorProducer` with no factory method parameters.
     /// 
 
-    pub fn new<A>(creator: Box<dyn Fn() -> A + Send>)
-                  -> Arc<Mutex<Box<dyn ActorProducer<Actor=A>>>>
-        where A: Actor + Send + 'static
+    pub fn new<A, F>(creator: F)
+                     -> Arc<Mutex<Box<dyn ActorProducer<Actor=A>>>>
+        where A: Actor + Send + 'static,
+              F: Fn() -> A + Send + 'static
     {
         Arc::new(Mutex::new(ActorProps::new(creator)))
     }
@@ -30,11 +31,14 @@ impl Props {
     /// Creates an `ActorProducer` with one or more factory method parameters.
     /// 
 
-    pub fn new_args<A, Args>(creator: Box<dyn Fn(Args) -> A + Send>, args: Args)
-                             -> Arc<Mutex<Box<dyn ActorProducer<Actor=A>>>>
-        where A: Actor + Send + 'static, Args: ActorArgs + 'static
+    pub fn new_args<A, Args, F>(creator: F, args: Args)
+                                -> Arc<Mutex<Box<dyn ActorProducer<Actor=A>>>>
+        where A: Actor + Send + 'static,
+              Args: ActorArgs + 'static,
+              F: Fn(Args) -> A + Send + 'static
+
     {
-        Arc::new(Mutex::new(ActorPropsWithArgs::new(creator, args)))
+        Arc::new(Mutex::new(ActorPropsWithArgs::new(Box::new(creator), args)))
     }
 }
 
@@ -46,14 +50,13 @@ pub trait ActorFactory: Actor {
     fn create() -> BoxActorProd<Self>;
 }
 
-pub trait ActorFactoryArgs: Actor {
-    type Args;
-    fn create_args(args: Self::Args) -> BoxActorProd<Self>;
+pub trait ActorFactoryArgs<Args>: Actor {
+    fn create_args(args: Args) -> BoxActorProd<Self>;
 }
 
 impl<A: Default + Actor> ActorFactory for A {
     fn create() -> BoxActorProd<Self> {
-        Props::new(Box::new(A::default))
+        Props::new(A::default)
     }
 }
 
@@ -69,13 +72,13 @@ pub trait ActorProducer: fmt::Debug + Send + UnwindSafe + RefUnwindSafe {
     type Actor: Actor;
 
     /// Produces an instance of an `Actor`.
-    /// 
+    ///
     /// The underlying factory method provided
     /// in the original `Props::new(f: Fn() -> A + Send`) or
     /// `Props::new(f: Fn(Args) -> A + Send>, args: Args)` is called.
-    /// 
+    ///
     /// Any parameters `Args` will be cloned and passed to the function.
-    /// 
+    ///
     /// # Panics
     /// If the provided factory method panics the panic will be caught
     /// by the system, resulting in an error result returning to `actor_of`.
@@ -123,8 +126,10 @@ impl<A: Actor> RefUnwindSafe for ActorProps<A> {}
 impl<A> ActorProps<A>
     where A: Actor + Send + 'static
 {
-    pub fn new(creator: Box<dyn Fn() -> A + Send>) -> Box<dyn ActorProducer<Actor=A>> {
-        Box::new(ActorProps { creator })
+    pub fn new<F>(creator: F) -> Box<dyn ActorProducer<Actor=A>>
+        where F: Fn() -> A + Send + 'static
+    {
+        Box::new(ActorProps { creator: Box::new(creator) })
     }
 }
 
@@ -161,11 +166,14 @@ impl<A: Actor, Args: ActorArgs> UnwindSafe for ActorPropsWithArgs<A, Args> {}
 impl<A: Actor, Args: ActorArgs> RefUnwindSafe for ActorPropsWithArgs<A, Args> {}
 
 impl<A, Args> ActorPropsWithArgs<A, Args>
-    where A: Actor + Send + 'static, Args: ActorArgs + 'static
+    where A: Actor + Send + 'static,
+          Args: ActorArgs + 'static
 {
-    pub fn new(creator: Box<dyn Fn(Args) -> A + Send>, args: Args) -> Box<dyn ActorProducer<Actor=A>> {
+    pub fn new<F>(creator: F, args: Args) -> Box<dyn ActorProducer<Actor=A>>
+        where F: Fn(Args) -> A + Send + 'static
+    {
         Box::new(ActorPropsWithArgs {
-            creator,
+            creator: Box::new(creator),
             args,
         })
     }

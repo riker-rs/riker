@@ -330,10 +330,10 @@ impl ActorSystem {
                           self)
     }
 
-    pub fn sys_actor_of_args<A>(&self,
-                                name: &str, args: A::Args)
-                                -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-        where A: ActorFactoryArgs
+    pub fn sys_actor_of_args<A, Args>(&self,
+                                      name: &str, args: Args)
+                                      -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
+        where A: ActorFactoryArgs<Args>
     {
         self.provider
             .create_actor(A::create_args(args),
@@ -388,8 +388,8 @@ impl ActorRefFactory for ActorSystem {
                           self)
     }
 
-    fn actor_of_args<A>(&self, name: &str, args: A::Args) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-        where A: ActorFactoryArgs
+    fn actor_of_args<A, Args>(&self, name: &str, args: Args) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
+        where A: ActorFactoryArgs<Args>
     {
         self.provider
             .create_actor(A::create_args(args),
@@ -426,8 +426,8 @@ impl ActorRefFactory for &ActorSystem {
                           self)
     }
 
-    fn actor_of_args<A>(&self, name: &str, args: A::Args) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-        where A: ActorFactoryArgs
+    fn actor_of_args<A, Args>(&self, name: &str, args: Args) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
+        where A: ActorFactoryArgs<Args>
     {
         self.provider
             .create_actor(A::create_args(args),
@@ -465,8 +465,8 @@ impl TmpActorRefFactory for ActorSystem {
                           self)
     }
 
-    fn tmp_actor_of_args<A>(&self, args: A::Args) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-        where A: ActorFactoryArgs
+    fn tmp_actor_of_args<A, Args>(&self, args: Args) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
+        where A: ActorFactoryArgs<Args>
     {
         let name = format!("{}", rand::random::<u64>());
         self.provider
@@ -633,12 +633,12 @@ fn sys_actor_of<A>(prov: &Provider,
 }
 
 #[allow(dead_code)]
-fn sys_actor_of_args<A>(prov: &Provider,
-                        sys: &ActorSystem,
-                        name: &str,
-                        args: A::Args)
-                        -> Result<ActorRef<<A as Actor>::Msg>, SystemError>
-    where A: ActorFactoryArgs
+fn sys_actor_of_args<A, Args>(prov: &Provider,
+                              sys: &ActorSystem,
+                              name: &str,
+                              args: Args)
+                              -> Result<ActorRef<<A as Actor>::Msg>, SystemError>
+    where A: ActorFactoryArgs<Args>
 {
     prov.create_actor(A::create_args(args),
                       name,

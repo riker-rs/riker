@@ -334,7 +334,7 @@ impl TmpActorRefFactory for ActorCell {
     }
 
     fn tmp_actor_of<A: ActorFactory>(&self)
-                                     -> Result<ActorRef<<A as Actor>::Msg>, CreateError> {
+                                             -> Result<ActorRef<<A as Actor>::Msg>, CreateError> {
         let name = rand::random::<u64>();
         let _name = format!("{}", name);
 
@@ -345,8 +345,8 @@ impl TmpActorRefFactory for ActorCell {
     }
 
 
-    fn tmp_actor_of_args<A>(&self, _args: A::Args) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-        where A: ActorFactoryArgs
+    fn tmp_actor_of_args<A, Args>(&self, _args: Args) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
+        where A: ActorFactoryArgs<Args>
     {
         let name = rand::random::<u64>();
         let _name = format!("{}", name);
@@ -569,8 +569,8 @@ impl<Msg: Message> ActorRefFactory for Context<Msg> {
                           &self.system)
     }
 
-    fn actor_of_args<A>(&self, name: &str, args: A::Args) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-        where A: ActorFactoryArgs
+    fn actor_of_args<A, Args>(&self, name: &str, args: Args) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
+        where A: ActorFactoryArgs<Args>
     {
         self.system
             .provider
