@@ -38,7 +38,7 @@ impl Props {
               F: Fn(Args) -> A + Send + 'static
 
     {
-        Arc::new(Mutex::new(ActorPropsWithArgs::new(Box::new(creator), args)))
+        Arc::new(Mutex::new(ActorPropsWithArgs::new(creator, args)))
     }
 }
 

@@ -353,7 +353,7 @@ impl ActorSystem {
         let (tx, rx) = oneshot::channel::<()>();
         let tx = Arc::new(Mutex::new(Some(tx)));
 
-        let props = Props::new_args(Box::new(ShutdownActor::new), tx);
+        let props = Props::new_args(ShutdownActor::new, tx);
         self.tmp_actor_of_props(props).unwrap();
 
         rx

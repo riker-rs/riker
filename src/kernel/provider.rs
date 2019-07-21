@@ -152,7 +152,7 @@ fn root(sys: &ActorSystem) -> BasicActorRef {
     let bigbang = BasicActorRef::new(bb_cell);
 
     // root
-    let props: BoxActorProd<Guardian> = Props::new_args(Box::new(Guardian::new), "root".to_string());
+    let props: BoxActorProd<Guardian> = Props::new_args(Guardian::new, "root".to_string());
     let (sender, sys_sender, mb) = mailbox::<SystemMsg>(100);
 
     let cell = ExtendedCell::new(uri.uid,
@@ -184,7 +184,7 @@ fn guardian(uid: ActorId,
         host: Arc::new("localhost".to_string()),
     };
 
-    let props: BoxActorProd<Guardian> = Props::new_args(Box::new(Guardian::new), name.to_string());
+    let props: BoxActorProd<Guardian> = Props::new_args(Guardian::new, name.to_string());
     let (sender, sys_sender, mb) = mailbox::<SystemMsg>(100);
 
     let cell = ExtendedCell::new(uri.uid,
