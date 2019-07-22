@@ -42,7 +42,7 @@ impl Provider {
     }
 
     pub fn create_actor<A>(&self,
-                           props: BoxActorProd<A>,
+                           props: impl Into<BoxActorProd<A>>,
                            name: &str,
                            parent: &BasicActorRef,
                            sys: &ActorSystem) -> Result<ActorRef<A::Msg>, CreateError>
@@ -75,7 +75,7 @@ impl Provider {
                                      sys_sender.clone(),
                                      sender.clone());
 
-        let k = kernel(props, cell.clone(), mb, sys)?;
+        let k = kernel(props.into(), cell.clone(), mb, sys)?;
         let cell = cell.init(&k);
 
         let actor = ActorRef::new(cell);

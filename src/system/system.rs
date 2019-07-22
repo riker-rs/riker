@@ -607,12 +607,12 @@ impl Timer for ActorSystem {
 
 fn sys_actor_of_props<A>(prov: &Provider,
                          sys: &ActorSystem,
-                         props: BoxActorProd<A>,
+                         props: impl Into<BoxActorProd<A>>,
                          name: &str)
                          -> Result<ActorRef<A::Msg>, SystemError>
     where A: Actor
 {
-    prov.create_actor(props,
+    prov.create_actor(props.into(),
                       name,
                       &sys.sys_root(),
                       sys)
