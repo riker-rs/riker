@@ -306,13 +306,13 @@ impl ActorSystem {
 
     /// Create an actor under the system root
     pub fn sys_actor_of_props<A>(&self,
-                                 props: BoxActorProd<A>,
+                                 props: impl Into<BoxActorProd<A>>,
                                  name: &str)
                                  -> Result<ActorRef<A::Msg>, CreateError>
         where A: Actor
     {
         self.provider
-            .create_actor(props,
+            .create_actor(props.into(),
                           name,
                           &self.sys_root(),
                           self)
@@ -366,7 +366,7 @@ unsafe impl Sync for ActorSystem {}
 
 impl ActorRefFactory for ActorSystem {
     fn actor_of_props<A>(&self,
-                         props: BoxActorProd<A>,
+                         props: impl Into<BoxActorProd<A>>,
                          name: &str) -> Result<ActorRef<A::Msg>, CreateError>
         where A: Actor
     {
@@ -405,7 +405,7 @@ impl ActorRefFactory for ActorSystem {
 
 impl ActorRefFactory for &ActorSystem {
     fn actor_of_props<A>(&self,
-                         props: BoxActorProd<A>,
+                         props: impl Into<BoxActorProd<A>>,
                          name: &str) -> Result<ActorRef<A::Msg>, CreateError>
         where A: Actor
     {

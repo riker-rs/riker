@@ -514,7 +514,7 @@ impl<Msg: Message> PartialEq for ActorRef<Msg> {
 /// invoked after the `ActorRef` is returned.
 pub trait ActorRefFactory {
     fn actor_of_props<A>(&self,
-                         props: BoxActorProd<A>,
+                         props: impl Into<BoxActorProd<A>>,
                          name: &str)
                          -> Result<ActorRef<A::Msg>, CreateError>
         where A: Actor;

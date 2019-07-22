@@ -334,7 +334,7 @@ impl TmpActorRefFactory for ActorCell {
     }
 
     fn tmp_actor_of<A: ActorFactory>(&self)
-                                             -> Result<ActorRef<<A as Actor>::Msg>, CreateError> {
+                                     -> Result<ActorRef<<A as Actor>::Msg>, CreateError> {
         let name = rand::random::<u64>();
         let _name = format!("{}", name);
 
@@ -545,7 +545,7 @@ impl<Msg> Context<Msg>
 
 impl<Msg: Message> ActorRefFactory for Context<Msg> {
     fn actor_of_props<A>(&self,
-                         props: BoxActorProd<A>,
+                         props: impl Into<BoxActorProd<A>>,
                          name: &str) -> Result<ActorRef<A::Msg>, CreateError>
         where A: Actor
     {
