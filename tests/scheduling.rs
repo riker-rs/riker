@@ -73,7 +73,7 @@ impl Receive<SomeMessage> for ScheduleOnce {
 fn schedule_once() {
     let sys = ActorSystem::new().unwrap();
 
-    let props = Props::new(Box::new(ScheduleOnce::new));
+    let props = Props::new(ScheduleOnce::new);
     let actor = sys.actor_of(props, "schedule-once").unwrap();
 
     let (probe, listen) = probe();
@@ -90,7 +90,7 @@ fn schedule_once() {
 fn schedule_at_time() {
     let sys = ActorSystem::new().unwrap();
 
-    let props = Props::new(Box::new(ScheduleOnce::new));
+    let props = Props::new(ScheduleOnce::new);
     let actor = sys.actor_of(props, "schedule-once").unwrap();
 
     let (probe, listen) = probe();
@@ -175,7 +175,7 @@ impl Receive<SomeMessage> for ScheduleRepeat {
 fn schedule_repeat() {
     let sys = ActorSystem::new().unwrap();
 
-    let props = Props::new(Box::new(ScheduleRepeat::new));
+    let props = Props::new(ScheduleRepeat::new);
     let actor = sys.actor_of(props, "schedule-repeat").unwrap();
 
     let (probe, listen) = probe();

@@ -20,9 +20,10 @@ impl Props {
     /// Creates an `ActorProducer` with no factory method parameters.
     /// 
     
-    pub fn new<A>(creator: Box<dyn Fn() -> A + Send>)
-        -> Arc<Mutex<Box<dyn ActorProducer<Actor = A>>>>
-        where A: Actor + Send + 'static
+    pub fn new<A, F>(creator: F)
+        -> Arc<Mutex<impl ActorProducer<Actor = A>>>
+        where A: Actor + Send + 'static,
+              F: Fn() -> A + Send + 'static
     {
         Arc::new(Mutex::new(ActorProps::new(creator)))
     }
@@ -30,9 +31,10 @@ impl Props {
     /// Creates an `ActorProducer` with one or more factory method parameters.
     /// 
     
-    pub fn new_args<A, Args>(creator: Box<dyn Fn(Args) -> A + Send>, args: Args)
-        -> Arc<Mutex<Box<dyn ActorProducer<Actor = A>>>>
-        where A: Actor + Send + 'static, Args: ActorArgs + 'static        
+    pub fn new_args<A, Args, F>(creator: F, args: Args)
+        -> Arc<Mutex<impl ActorProducer<Actor = A>>>
+        where A: Actor + Send + 'static, Args: ActorArgs + 'static,
+              F: Fn(Args) -> A + Send + 'static
     {
         Arc::new(Mutex::new(ActorPropsWithArgs::new(creator, args)))
     }
@@ -108,8 +110,10 @@ impl<A: Actor> RefUnwindSafe for ActorProps<A> {}
 impl<A> ActorProps<A> 
     where A: Actor + Send + 'static
 {
-    pub fn new(creator: Box<dyn Fn() -> A + Send>) -> Box<dyn ActorProducer<Actor = A>> {
-        Box::new(ActorProps { creator: creator })
+    pub fn new<F>(creator: F) -> impl ActorProducer<Actor = A>
+        where F: Fn() -> A + Send + 'static
+    {
+        ActorProps { creator: Box::new(creator) }
     }
 }
 
@@ -147,11 +151,13 @@ impl<A: Actor, Args: ActorArgs> RefUnwindSafe for ActorPropsWithArgs<A, Args> {}
 impl<A, Args> ActorPropsWithArgs<A, Args>
     where A: Actor + Send + 'static, Args: ActorArgs + 'static
 {
-    pub fn new(creator: Box<dyn Fn(Args) -> A + Send>, args: Args) -> Box<dyn ActorProducer<Actor = A>> {
-        Box::new(ActorPropsWithArgs {
-            creator: creator,
-            args: args,
-        })
+    pub fn new<F>(creator: F, args: Args) -> impl ActorProducer<Actor = A>
+        where F: Fn(Args) -> A + Send + 'static
+    {
+        ActorPropsWithArgs {
+            creator: Box::new(creator),
+            args,
+        }
     }
 }
 

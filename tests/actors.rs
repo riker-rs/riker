@@ -68,7 +68,7 @@ impl Receive<Add> for Counter {
 fn actor_create() {
     let sys = ActorSystem::new().unwrap();
 
-    let props = Props::new(Box::new(Counter::actor));
+    let props = Props::new(Counter::actor);
     assert!(sys.actor_of(props.clone(), "valid-name").is_ok());
 
     assert!(sys.actor_of(props.clone(), "/").is_err());
@@ -84,7 +84,7 @@ fn actor_create() {
 fn actor_tell() {
     let sys = ActorSystem::new().unwrap();
 
-    let props = Props::new(Box::new(Counter::actor));
+    let props = Props::new(Counter::actor);
     let actor = sys.actor_of(props, "me").unwrap();
 
     let (probe, listen) = probe();
@@ -101,7 +101,7 @@ fn actor_tell() {
 fn actor_try_tell() {
     let sys = ActorSystem::new().unwrap();
 
-    let props = Props::new(Box::new(Counter::actor));
+    let props = Props::new(Counter::actor);
     let actor = sys.actor_of(props, "me").unwrap();
     let actor: BasicActorRef = actor.into();
 
@@ -134,16 +134,16 @@ impl Actor for Parent {
     type Msg = TestProbe;
 
     fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
-        let props = Props::new(Box::new(Child::actor));
+        let props = Props::new(Child::actor);
         ctx.actor_of(props, "child_a").unwrap();
 
-        let props = Props::new(Box::new(Child::actor));
+        let props = Props::new(Child::actor);
         ctx.actor_of(props, "child_b").unwrap();
 
-        let props = Props::new(Box::new(Child::actor));
+        let props = Props::new(Child::actor);
         ctx.actor_of(props, "child_c").unwrap();
 
-        let props = Props::new(Box::new(Child::actor));
+        let props = Props::new(Child::actor);
         ctx.actor_of(props, "child_d").unwrap();
     }
 
@@ -182,7 +182,7 @@ impl Actor for Child {
 fn actor_stop() {
     let system = ActorSystem::new().unwrap();
 
-    let props = Props::new(Box::new(Parent::actor));
+    let props = Props::new(Parent::actor);
     let parent = system.actor_of(props, "parent").unwrap();
 
     let (probe, listen) = probe();

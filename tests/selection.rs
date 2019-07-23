@@ -44,11 +44,11 @@ impl Actor for SelectTest {
 
     fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
         // create first child actor
-        let props = Props::new(Box::new(Child::new));
+        let props = Props::new(Child::new);
         let _ = ctx.actor_of(props, "child_a").unwrap();
 
         // create second child actor
-        let props = Props::new(Box::new(Child::new));
+        let props = Props::new(Child::new);
         let _ = ctx.actor_of(props, "child_b").unwrap();
     }
 
@@ -65,7 +65,7 @@ impl Actor for SelectTest {
 fn select_child() {
     let sys = ActorSystem::new().unwrap();
 
-    let props = Props::new(Box::new(SelectTest::new));
+    let props = Props::new(SelectTest::new);
     sys.actor_of(props, "select-actor").unwrap();
 
     let (probe, listen) = probe();
@@ -82,7 +82,7 @@ fn select_child() {
 fn select_child_of_child() {
     let sys = ActorSystem::new().unwrap();
 
-    let props = Props::new(Box::new(SelectTest::new));
+    let props = Props::new(SelectTest::new);
     sys.actor_of(props, "select-actor").unwrap();
 
     // delay to allow 'select-actor' pre_start to create 'child_a' and 'child_b'
@@ -103,7 +103,7 @@ fn select_child_of_child() {
 fn select_all_children_of_child() {
     let sys = ActorSystem::new().unwrap();
 
-    let props = Props::new(Box::new(SelectTest::new));
+    let props = Props::new(SelectTest::new);
     sys.actor_of(props, "select-actor").unwrap();
 
     // delay to allow 'select-actor' pre_start to create 'child_a' and 'child_b'
@@ -143,11 +143,11 @@ impl Actor for SelectTest2 {
 
     fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
         // create first child actor
-        let props = Props::new(Box::new(Child::new));
+        let props = Props::new(Child::new);
         let _ = ctx.actor_of(props, "child_a").unwrap();
 
         // create second child actor
-        let props = Props::new(Box::new(Child::new));
+        let props = Props::new(Child::new);
         let _ = ctx.actor_of(props, "child_b").unwrap();
     }
 
@@ -182,7 +182,7 @@ impl Actor for SelectTest2 {
 fn select_from_context() {
     let sys = ActorSystem::new().unwrap();
 
-    let props = Props::new(Box::new(SelectTest2::new));
+    let props = Props::new(SelectTest2::new);
     let actor = sys.actor_of(props, "select-actor").unwrap();
 
     let (probe, listen) = probe();
@@ -258,7 +258,7 @@ fn select_paths() {
 // fn select_no_actors() {
 //     let sys = ActorSystem::new().unwrap();
 
-//     let props = Props::new(Box::new(DeadLettersActor::new));
+//     let props = Props::new(DeadLettersActor::new);
 //     let act = sys.actor_of(props, "dl-subscriber").unwrap();
 
 //     let (probe, listen) = probe();

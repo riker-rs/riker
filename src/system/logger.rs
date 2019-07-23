@@ -78,7 +78,7 @@ impl SimpleLogger {
     }
 
     pub fn props(cfg: LoggerConfig) -> BoxActorProd<LogActor> {
-        Props::new_args(Box::new(SimpleLogger::actor),
+        Props::new_args(SimpleLogger::actor,
                         cfg)
     }
 }
@@ -143,7 +143,7 @@ impl DeadLetterLogger {
     pub fn props(dl_chan: &ActorRef<ChannelMsg<DeadLetter>>)
                     -> BoxActorProd<DeadLetterLogger> {
         
-        Props::new_args(Box::new(DeadLetterLogger::new), dl_chan.clone())
+        Props::new_args(DeadLetterLogger::new, dl_chan.clone())
     }
 }
 
