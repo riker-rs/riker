@@ -1,10 +1,5 @@
 #![crate_name = "riker"]
-#![feature(
-        async_await,
-        await_macro,
-        arbitrary_self_types,
-        bind_by_move_pattern_guards
-)]
+#![feature(async_await)]
 
 // #![allow(warnings)] // toggle for easier compile error fixing 
 
@@ -84,8 +79,13 @@ impl AnyMessage {
     {
         if self.one_time {
             match self.msg.take() {
-                Some(m) if m.is::<T>() => Ok(*m.downcast::<T>().unwrap()),
-                Some(_) => Err(()),
+                Some(m) => {
+                    if m.is::<T>() {
+                        Ok(*m.downcast::<T>().unwrap())
+                    } else {
+                        Err(())
+                    }
+                },
                 None => Err(())
             }
         } else {
