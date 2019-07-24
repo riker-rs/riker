@@ -43,7 +43,7 @@ impl KernelRef {
         let mut exec = sys.exec.clone(); 
         exec.spawn(
             async move {
-                tx.send(msg).await.unwrap();
+                drop(tx.send(msg).await);
             }
         ).unwrap();
     } 
