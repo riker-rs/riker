@@ -327,7 +327,7 @@ impl ActorSystem {
         let (tx, rx) = oneshot::channel::<()>();
         let tx = Arc::new(Mutex::new(Some(tx)));
 
-        let props = Props::new_args(Box::new(ShutdownActor::new), tx);
+        let props = Props::new_args(ShutdownActor::new, tx);
         self.tmp_actor_of(props).unwrap();
 
         rx
@@ -530,10 +530,10 @@ fn sys_channels(prov: &Provider,
                 sys: &ActorSystem)
                 -> Result<SysChannels, SystemError> {
 
-    let props = Props::new(Box::new(EventsChannel::new));
+    let props = Props::new(EventsChannel::new);
     let sys_events = sys_actor_of(prov, sys, props, "sys_events")?;
 
-    let props = Props::new(Box::new(Channel::<DeadLetter>::new));
+    let props = Props::new(Channel::<DeadLetter>::new);
     let dead_letters = sys_actor_of(prov, sys, props, "dead_letters")?;
 
     // subscribe the dead_letters channel to actor terminated events

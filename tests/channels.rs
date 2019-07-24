@@ -30,7 +30,7 @@ impl Subscriber {
     }
 
     fn props(chan: ChannelRef<SomeMessage>, topic: Topic) -> BoxActorProd<Subscriber> {
-        Props::new_args(Box::new(Subscriber::actor), (chan, topic))
+        Props::new_args(Subscriber::actor, (chan, topic))
     }
 }
 
@@ -199,7 +199,7 @@ impl EventSubscriber {
     }
 
     fn props() -> BoxActorProd<EventSubscriber> {
-        Props::new(Box::new(EventSubscriber::new))
+        Props::new(EventSubscriber::new)
     }
 }
 
@@ -287,7 +287,7 @@ fn channel_system_events() {
     listen.recv();
 
     // Create an actor
-    let props = Props::new(Box::new(DumbActor::new));
+    let props = Props::new(DumbActor::new);
     let dumb = sys.actor_of(props, "dumb-actor").unwrap();
     // ActorCreated event was received
     p_assert_eq!(listen, ());
@@ -318,7 +318,7 @@ impl DeadLetterSub {
     }
 
     fn props() -> BoxActorProd<DeadLetterSub> {
-        Props::new(Box::new(DeadLetterSub::new))
+        Props::new(DeadLetterSub::new)
     }
 }
 
@@ -378,7 +378,7 @@ fn channel_dead_letters() {
     // wait for the probe to arrive at the actor before attempting to stop the actor
     listen.recv();
 
-    let props = Props::new(Box::new(DumbActor::new));
+    let props = Props::new(DumbActor::new);
     let dumb = sys.actor_of(props, "dumb-actor").unwrap();
     
     // immediately stop the actor and attempt to send a message

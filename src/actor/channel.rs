@@ -41,7 +41,7 @@ impl<Msg> Channel<Msg>
     }
 
     pub fn props() -> BoxActorProd<Channel<Msg>> {
-        Props::new(Box::new(Channel::new))
+        Props::new(Channel::new)
     }
 }
 
@@ -206,7 +206,7 @@ impl EventsChannel {
     }
 
     pub fn props() -> BoxActorProd<Channel<SystemEvent>> {
-        Props::new(Box::new(Channel::new))
+        Props::new(Channel::new)
     }
 }
 

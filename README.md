@@ -61,7 +61,7 @@ impl MyActor {
     }
 
     fn props() -> BoxActorProd<MyActor> {
-        Props::new(Box::new(MyActor::actor))
+        Props::new(MyActor::actor)
     }
 }
 

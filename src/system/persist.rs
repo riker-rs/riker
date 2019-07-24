@@ -24,7 +24,7 @@ impl<Evs: EventStore> EsManager<Evs> {
 
     pub fn props(config: &Config) -> BoxActorProd<Evs::Msg> {
         let es = Evs::new(config);
-        Props::new_args(Box::new(EsManager::new), es)
+        Props::new_args(EsManager::new, es)
     }
 }
 
@@ -150,7 +150,7 @@ pub fn query<Msg, Ctx>(id: &String,
                         rec: ActorRef<Msg>)
     where Msg: Message, Ctx: TmpActorRefFactory<Msg=Msg>
 {
-    let props = Props::new_args(Box::new(EsQueryActor::actor), rec);
+    let props = Props::new_args(EsQueryActor::actor, rec);
     let actor = ctx.tmp_actor_of(props).unwrap();
     es.tell(ESMsg::Load(id.clone(), keyspace.clone()), Some(actor));
 }

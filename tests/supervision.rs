@@ -39,16 +39,16 @@ impl Actor for PanicActor {
     type Msg = PanicActorMsg;
 
     fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
-        let props = Props::new(Box::new(DumbActor::new));
+        let props = Props::new(DumbActor::new);
         ctx.actor_of(props, "child_a").unwrap();
 
-        let props = Props::new(Box::new(DumbActor::new));
+        let props = Props::new(DumbActor::new);
         ctx.actor_of(props, "child_b").unwrap();
 
-        let props = Props::new(Box::new(DumbActor::new));
+        let props = Props::new(DumbActor::new);
         ctx.actor_of(props, "child_c").unwrap();
 
-        let props = Props::new(Box::new(DumbActor::new));
+        let props = Props::new(DumbActor::new);
         ctx.actor_of(props, "child_d").unwrap();
     }
 
@@ -100,7 +100,7 @@ impl Actor for RestartSup {
     type Msg = RestartSupMsg;
 
     fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
-        let props = Props::new(Box::new(PanicActor::new));
+        let props = Props::new(PanicActor::new);
         self.actor_to_fail = ctx.actor_of(props, "actor-to-fail").ok();
     }
 
@@ -149,7 +149,7 @@ fn supervision_restart_failed_actor() {
     let sys = ActorSystem::new().unwrap();
 
     for i in 0..100 {
-        let props = Props::new(Box::new(RestartSup::new));
+        let props = Props::new(RestartSup::new);
         let sup = sys.actor_of(props, &format!("supervisor_{}", i)).unwrap();
 
         // Make the test actor panic
@@ -179,7 +179,7 @@ impl Actor for EscalateSup {
     type Msg = EscalateSupMsg;
 
     fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
-        let props = Props::new(Box::new(PanicActor::new));
+        let props = Props::new(PanicActor::new);
         self.actor_to_fail = ctx.actor_of(props, "actor-to-fail").ok();
     }
 
@@ -247,7 +247,7 @@ impl Actor for EscRestartSup {
     type Msg = EscRestartSupMsg;
 
     fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
-        let props = Props::new(Box::new(EscalateSup::new));
+        let props = Props::new(EscalateSup::new);
         self.escalator = ctx.actor_of(props, "escalate-supervisor").ok();
     }
 
@@ -302,7 +302,7 @@ impl Receive<Panic> for EscRestartSup {
 fn supervision_escalate_failed_actor() {
     let sys = ActorSystem::new().unwrap();
 
-    let props = Props::new(Box::new(EscRestartSup::new));
+    let props = Props::new(EscRestartSup::new);
     let sup = sys.actor_of(props, "supervisor").unwrap();
 
     // Make the test actor panic
