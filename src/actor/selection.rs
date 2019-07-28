@@ -30,8 +30,10 @@ use crate::{
 /// A selection is anchored to an `ActorRef` and the path is relative
 /// to that actor's path.
 /// 
-/// If a `selection.tell` results in the message being sent to zero actors,
-/// the message is sent to dead letters.
+/// `selection.try_tell()` is used to message actors in the selection.
+/// Since a selection is a collection of `BasicActorRef`s messaging is
+/// un-typed. Messages not supported by any actor in the selection will
+/// be dropped.
 #[derive(Debug)]
 pub struct ActorSelection {
     anchor: BasicActorRef,
