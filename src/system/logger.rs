@@ -1,7 +1,6 @@
 use log;
 use log::{info, Level};
 use config::Config;
-use runtime_fmt::{rt_println, rt_format_args};
 
 use crate::{
     actor::{
@@ -95,13 +94,17 @@ impl Actor for SimpleLogger {
             .filter(|f| entry.module.as_ref().map(|m| m.contains(*f)).unwrap_or(false))
             .collect();
         if f_match.is_empty() {
-            rt_println!(self.cfg.log_fmt,
-                        date = now.format(&self.cfg.date_fmt),
-                        time = now.format(&self.cfg.time_fmt),
-                        level = entry.level,
-                        module = entry.module.unwrap_or_default(),
-                        body = entry.body
-                        ).unwrap();
+            // note:
+            // println! below has replaced rt_println! from runtime-fmt crate.
+            // The log format is fixed as "{date} {time} {level} [{module}] {body}".
+            // It's not clear if runtime-fmt is maintained any longer as so we'll
+            // attempt to find an alternative to provide configurable formatting.
+            println!("{} {} {} [{}] {}",
+                        now.format(&self.cfg.date_fmt),
+                        now.format(&self.cfg.time_fmt),
+                        entry.level,
+                        entry.module.unwrap_or_default(),
+                        entry.body);
         }
     }
 }
