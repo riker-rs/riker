@@ -3,8 +3,8 @@ extern crate riker_testkit;
 
 use riker::actors::*;
 
-use riker_testkit::probe::{Probe, ProbeReceive};
 use riker_testkit::probe::channel::{probe, ChannelProbe};
+use riker_testkit::probe::{Probe, ProbeReceive};
 
 #[derive(Clone, Debug)]
 pub struct Add;
@@ -22,7 +22,7 @@ impl Counter {
     fn actor() -> Counter {
         Counter {
             probe: None,
-            count: 0
+            count: 0,
         }
     }
 }
@@ -31,10 +31,7 @@ impl Actor for Counter {
     // we used the #[actor] attribute so CounterMsg is the Msg type
     type Msg = CounterMsg;
 
-    fn recv(&mut self,
-                ctx: &Context<Self::Msg>,
-                msg: Self::Msg,
-                sender: Sender) {
+    fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender) {
         self.receive(ctx, msg, sender);
     }
 }
@@ -42,10 +39,7 @@ impl Actor for Counter {
 impl Receive<TestProbe> for Counter {
     type Msg = CounterMsg;
 
-    fn receive(&mut self,
-                _ctx: &Context<Self::Msg>,
-                msg: TestProbe,
-                _sender: Sender) {
+    fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: TestProbe, _sender: Sender) {
         self.probe = Some(msg)
     }
 }
@@ -53,10 +47,7 @@ impl Receive<TestProbe> for Counter {
 impl Receive<Add> for Counter {
     type Msg = CounterMsg;
 
-    fn receive(&mut self,
-                _ctx: &Context<Self::Msg>,
-                _msg: Add,
-                _sender: Sender) {
+    fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: Add, _sender: Sender) {
         self.count += 1;
         if self.count == 1_000_000 {
             self.probe.as_ref().unwrap().0.event(())
@@ -106,7 +97,9 @@ fn actor_try_tell() {
     let actor: BasicActorRef = actor.into();
 
     let (probe, listen) = probe();
-    actor.try_tell(CounterMsg::TestProbe(TestProbe(probe)), None).unwrap();
+    actor
+        .try_tell(CounterMsg::TestProbe(TestProbe(probe)), None)
+        .unwrap();
 
     assert!(actor.try_tell(CounterMsg::Add(Add), None).is_ok());
     assert!(actor.try_tell("invalid-type".to_string(), None).is_err());
@@ -124,9 +117,7 @@ struct Parent {
 
 impl Parent {
     fn actor() -> Self {
-        Parent {
-            probe: None
-        }
+        Parent { probe: None }
     }
 }
 
@@ -153,11 +144,7 @@ impl Actor for Parent {
         self.probe.as_ref().unwrap().0.event(());
     }
 
-    fn recv(&mut self,
-                _ctx: &Context<Self::Msg>,
-                msg: Self::Msg,
-                _sender: Sender) {
-
+    fn recv(&mut self, _ctx: &Context<Self::Msg>, msg: Self::Msg, _sender: Sender) {
         self.probe = Some(msg);
         self.probe.as_ref().unwrap().0.event(());
     }
@@ -191,7 +178,7 @@ fn actor_stop() {
 
     // wait for the probe to arrive at the actor before attempting to stop the actor
     listen.recv();
-    
+
     system.stop(&parent);
     p_assert_eq!(listen, ());
 }

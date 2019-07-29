@@ -1,7 +1,7 @@
 #![crate_name = "riker"]
 #![feature(async_await)]
 
-// #![allow(warnings)] // toggle for easier compile error fixing 
+// #![allow(warnings)] // toggle for easier compile error fixing
 
 #[allow(unused_imports)]
 extern crate log;
@@ -12,11 +12,10 @@ pub mod actor;
 pub mod kernel;
 pub mod system;
 
-use std::env;
-use std::fmt::Debug;
-use std::fmt;
 use std::any::Any;
-
+use std::env;
+use std::fmt;
+use std::fmt::Debug;
 
 use config::{Config, File};
 
@@ -27,7 +26,8 @@ pub fn load_config() -> Config {
 
     cfg.set_default("debug", true).unwrap();
     cfg.set_default("log.level", "debug").unwrap();
-    cfg.set_default("log.log_format", "{date} {time} {level} [{module}] {body}").unwrap();
+    cfg.set_default("log.log_format", "{date} {time} {level} [{module}] {body}")
+        .unwrap();
     cfg.set_default("log.date_format", "%Y-%m-%d").unwrap();
     cfg.set_default("log.time_format", "%H:%M:%S%:z").unwrap();
     cfg.set_default("mailbox.msg_process_limit", 1000).unwrap();
@@ -37,12 +37,14 @@ pub fn load_config() -> Config {
     // load the system config
     // riker.toml contains settings for anything related to the actor framework and its modules
     let path = env::var("RIKER_CONF").unwrap_or("config/riker.toml".into());
-    cfg.merge(File::with_name(&format!("{}", path)).required(false)).unwrap();
+    cfg.merge(File::with_name(&format!("{}", path)).required(false))
+        .unwrap();
 
     // load the user application config
     // app.toml or app.yaml contains settings specific to the user application
     let path = env::var("APP_CONF").unwrap_or("config/app".into());
-    cfg.merge(File::with_name(&format!("{}", path)).required(false)).unwrap();
+    cfg.merge(File::with_name(&format!("{}", path)).required(false))
+        .unwrap();
     cfg
 }
 
@@ -58,7 +60,6 @@ unsafe impl<T: Message> Send for Envelope<T> {}
 pub trait Message: Debug + Clone + Send + 'static {}
 impl<T: Debug + Clone + Send + 'static> Message for T {}
 
-
 pub struct AnyMessage {
     pub one_time: bool,
     pub msg: Option<Box<dyn Any + Send>>,
@@ -66,16 +67,18 @@ pub struct AnyMessage {
 
 impl AnyMessage {
     pub fn new<T>(msg: T, one_time: bool) -> Self
-        where T: Any + Message
-    {    
+    where
+        T: Any + Message,
+    {
         AnyMessage {
             one_time,
-            msg: Some(Box::new(msg))
+            msg: Some(Box::new(msg)),
         }
     }
 
     pub fn take<T>(&mut self) -> Result<T, ()>
-        where T: Any + Message
+    where
+        T: Any + Message,
     {
         if self.one_time {
             match self.msg.take() {
@@ -85,14 +88,14 @@ impl AnyMessage {
                     } else {
                         Err(())
                     }
-                },
-                None => Err(())
+                }
+                None => Err(()),
             }
         } else {
             match self.msg.as_ref() {
                 Some(ref m) if m.is::<T>() => Ok(m.downcast_ref::<T>().map(|t| t.clone()).unwrap()),
                 Some(_) => Err(()),
-                None => Err(())
+                None => Err(()),
             }
         }
     }
@@ -111,10 +114,7 @@ impl Debug for AnyMessage {
 }
 
 pub mod actors {
-    pub use crate::{Message, AnyMessage};
     pub use crate::actor::*;
-    pub use crate::system::{
-        ActorSystem, SystemBuilder, SystemMsg,
-        SystemEvent, Run, Timer
-    };
+    pub use crate::system::{ActorSystem, Run, SystemBuilder, SystemEvent, SystemMsg, Timer};
+    pub use crate::{AnyMessage, Message};
 }

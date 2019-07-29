@@ -1,21 +1,15 @@
-use std::{
-    sync::{Arc, Mutex},
-    collections::HashSet,
-};
 use log::trace;
+use std::{
+    collections::HashSet,
+    sync::{Arc, Mutex},
+};
 
 use crate::{
-    actor::*,
     actor::actor_cell::{ActorCell, ExtendedCell},
-    kernel::{
-        kernel::kernel,
-        mailbox::mailbox
-    },
-    system::{
-        ActorSystem, SystemMsg,
-        system::SysActors
-    },
-    validate::validate_name
+    actor::*,
+    kernel::{kernel::kernel, mailbox::mailbox},
+    system::{system::SysActors, ActorSystem, SystemMsg},
+    validate::validate_name,
 };
 
 #[derive(Clone)]
@@ -31,24 +25,27 @@ struct ProviderInner {
 impl Provider {
     pub fn new() -> Self {
         let inner = ProviderInner {
-                paths: HashSet::new(),
-                counter: 100 // ActorIds start at 100
+            paths: HashSet::new(),
+            counter: 100, // ActorIds start at 100
         };
 
         Provider {
-            inner: Arc::new(Mutex::new(inner))
+            inner: Arc::new(Mutex::new(inner)),
         }
     }
 
-    pub fn create_actor<A>(&self,
-                        props: BoxActorProd<A>,
-                        name: &str,
-                        parent: &BasicActorRef,
-                        sys: &ActorSystem) -> Result<ActorRef<A::Msg>, CreateError>
-        where A: Actor + 'static
+    pub fn create_actor<A>(
+        &self,
+        props: BoxActorProd<A>,
+        name: &str,
+        parent: &BasicActorRef,
+        sys: &ActorSystem,
+    ) -> Result<ActorRef<A::Msg>, CreateError>
+    where
+        A: Actor + 'static,
     {
         validate_name(name)?;
-        
+
         let path = ActorPath::new(&format!("{}/{}", parent.path(), name));
         trace!("Attempting to create actor at: {}", path);
 
@@ -58,21 +55,21 @@ impl Provider {
             uid,
             path,
             name: Arc::new(name.into()),
-            host: sys.host()
+            host: sys.host(),
         };
 
-        let (sender, sys_sender, mb) =
-                                    mailbox::<A::Msg>(sys.sys_settings()
-                                    .msg_process_limit);
+        let (sender, sys_sender, mb) = mailbox::<A::Msg>(sys.sys_settings().msg_process_limit);
 
-        let cell = ExtendedCell::new(uri.uid,
-                                    uri.clone(),
-                                    Some(parent.clone()),
-                                    sys,
-                                    // None,/*perconf*/
-                                    Arc::new(sender.clone()),
-                                    sys_sender.clone(),
-                                    sender.clone());
+        let cell = ExtendedCell::new(
+            uri.uid,
+            uri.clone(),
+            Some(parent.clone()),
+            sys,
+            // None,/*perconf*/
+            Arc::new(sender.clone()),
+            sys_sender.clone(),
+            sender.clone(),
+        );
 
         let k = kernel(props, cell.clone(), mb, sys)?;
         let cell = cell.init(&k);
@@ -98,9 +95,7 @@ impl Provider {
 
                 Ok(id)
             }
-            Err(_) => {
-                Err(CreateError::System)
-            }
+            Err(_) => Err(CreateError::System),
         }
     }
 
@@ -117,7 +112,7 @@ pub fn create_root(sys: &ActorSystem) -> SysActors {
         root: root.clone(),
         user: guardian(1, "user", "/user", &root, sys),
         sysm: guardian(2, "system", "/system", &root, sys),
-        temp: guardian(3, "temp", "/temp", &root, sys)
+        temp: guardian(3, "temp", "/temp", &root, sys),
     }
 }
 
@@ -126,7 +121,7 @@ fn root(sys: &ActorSystem) -> BasicActorRef {
         uid: 0,
         name: Arc::new("root".to_string()),
         path: ActorPath::new("/"),
-        host: Arc::new("localhost".to_string())
+        host: Arc::new("localhost".to_string()),
     };
     let (sender, sys_sender, _mb) = mailbox::<SystemMsg>(100);
 
@@ -140,13 +135,15 @@ fn root(sys: &ActorSystem) -> BasicActorRef {
     //     tx
     // };
 
-    let bb_cell = ActorCell::new(0,
-                                uri.clone(),
-                                None,
-                                sys,
-                                // None, // old perfaconf
-                                Arc::new(sender),
-                                sys_sender);
+    let bb_cell = ActorCell::new(
+        0,
+        uri.clone(),
+        None,
+        sys,
+        // None, // old perfaconf
+        Arc::new(sender),
+        sys_sender,
+    );
 
     let bigbang = BasicActorRef::new(bb_cell);
 
@@ -154,14 +151,16 @@ fn root(sys: &ActorSystem) -> BasicActorRef {
     let props: BoxActorProd<Guardian> = Props::new_args(Guardian::new, "root".to_string());
     let (sender, sys_sender, mb) = mailbox::<SystemMsg>(100);
 
-    let cell = ExtendedCell::new(uri.uid,
-                                uri.clone(),
-                                Some(bigbang.clone()),
-                                sys,
-                                // None,/*perconf*/
-                                Arc::new(sender.clone()),
-                                sys_sender.clone(),
-                                sender.clone());
+    let cell = ExtendedCell::new(
+        uri.uid,
+        uri.clone(),
+        Some(bigbang.clone()),
+        sys,
+        // None,/*perconf*/
+        Arc::new(sender.clone()),
+        sys_sender.clone(),
+        sender.clone(),
+    );
 
     let k = kernel(props, cell.clone(), mb, sys).unwrap();
     let cell = cell.init(&k);
@@ -170,30 +169,33 @@ fn root(sys: &ActorSystem) -> BasicActorRef {
     BasicActorRef::from(actor_ref)
 }
 
-fn guardian(uid: ActorId,
-                name: &str,
-                path: &str,
-                root: &BasicActorRef,
-                sys: &ActorSystem)
-                -> BasicActorRef {
+fn guardian(
+    uid: ActorId,
+    name: &str,
+    path: &str,
+    root: &BasicActorRef,
+    sys: &ActorSystem,
+) -> BasicActorRef {
     let uri = ActorUri {
         uid,
         name: Arc::new(name.to_string()),
         path: ActorPath::new(path),
-        host: Arc::new("localhost".to_string())
+        host: Arc::new("localhost".to_string()),
     };
 
     let props: BoxActorProd<Guardian> = Props::new_args(Guardian::new, name.to_string());
     let (sender, sys_sender, mb) = mailbox::<SystemMsg>(100);
 
-    let cell = ExtendedCell::new(uri.uid,
-                                uri.clone(),
-                                Some(root.clone()),
-                                sys,
-                                // None,/*perconf*/
-                                Arc::new(sender.clone()),
-                                sys_sender.clone(),
-                                sender.clone());
+    let cell = ExtendedCell::new(
+        uri.uid,
+        uri.clone(),
+        Some(root.clone()),
+        sys,
+        // None,/*perconf*/
+        Arc::new(sender.clone()),
+        sys_sender.clone(),
+        sender.clone(),
+    );
 
     let k = kernel(props, cell.clone(), mb, sys).unwrap();
     let cell = cell.init(&k);
@@ -210,9 +212,7 @@ struct Guardian {
 
 impl Guardian {
     fn new(name: String) -> Self {
-        let actor = Guardian {
-            name
-        };
+        let actor = Guardian { name };
 
         actor
     }

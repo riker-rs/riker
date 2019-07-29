@@ -1,16 +1,14 @@
 use std::sync::{
+    mpsc::{channel, Receiver, Sender},
     Mutex,
-    mpsc::{channel, Sender, Receiver}
 };
 
-use crate::{Message, Envelope};
+use crate::{Envelope, Message};
 
 pub fn queue<Msg: Message>() -> (QueueWriter<Msg>, QueueReader<Msg>) {
     let (tx, rx) = channel::<Envelope<Msg>>();
-   
-    let qw = QueueWriter {
-        tx: tx,
-    };
+
+    let qw = QueueWriter { tx: tx };
 
     let qr = QueueReaderInner {
         rx: rx,
@@ -18,7 +16,7 @@ pub fn queue<Msg: Message>() -> (QueueWriter<Msg>, QueueReader<Msg>) {
     };
 
     let qr = QueueReader {
-        inner: Mutex::new(qr)
+        inner: Mutex::new(qr),
     };
 
     (qw, qr)
@@ -31,7 +29,8 @@ pub struct QueueWriter<Msg: Message> {
 
 impl<Msg: Message> QueueWriter<Msg> {
     pub fn try_enqueue(&self, msg: Envelope<Msg>) -> EnqueueResult<Msg> {
-        self.tx.send(msg)
+        self.tx
+            .send(msg)
             .map(|_| ())
             .map_err(|e| EnqueueError { msg: e.0 })
     }
@@ -43,7 +42,7 @@ pub struct QueueReader<Msg: Message> {
 
 struct QueueReaderInner<Msg: Message> {
     rx: Receiver<Envelope<Msg>>,
-    next_item: Option<Envelope<Msg>>
+    next_item: Option<Envelope<Msg>>,
 }
 
 impl<Msg: Message> QueueReader<Msg> {
@@ -55,7 +54,6 @@ impl<Msg: Message> QueueReader<Msg> {
         } else {
             inner.rx.recv().unwrap()
         }
-        
     }
 
     pub fn try_dequeue(&self) -> DequeueResult<Envelope<Msg>> {
@@ -66,7 +64,7 @@ impl<Msg: Message> QueueReader<Msg> {
             inner.rx.try_recv().map_err(|_| QueueEmpty)
         }
     }
-    
+
     pub fn has_msgs(&self) -> bool {
         let mut inner = self.inner.lock().unwrap();
         inner.next_item.is_some() || {
@@ -74,8 +72,8 @@ impl<Msg: Message> QueueReader<Msg> {
                 Ok(item) => {
                     inner.next_item = Some(item);
                     true
-                },
-                Err(_) => false
+                }
+                Err(_) => false,
             }
         }
     }
@@ -83,7 +81,7 @@ impl<Msg: Message> QueueReader<Msg> {
 
 #[derive(Clone, Debug)]
 pub struct EnqueueError<T> {
-    pub msg: T
+    pub msg: T,
 }
 
 pub type EnqueueResult<Msg> = Result<(), EnqueueError<Envelope<Msg>>>;
