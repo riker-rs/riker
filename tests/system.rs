@@ -1,4 +1,4 @@
-#![feature(async_await, await_macro, arbitrary_self_types)]
+#![feature(async_await, await_macro)]
 
 use futures::executor::block_on;
 use riker::actors::*;
