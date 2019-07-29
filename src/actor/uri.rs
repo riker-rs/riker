@@ -1,7 +1,7 @@
 use std::{
     fmt,
     hash::{Hash, Hasher},
-    sync::Arc
+    sync::Arc,
 };
 
 pub type ActorId = usize;
@@ -25,7 +25,7 @@ impl PartialEq<str> for ActorPath {
     }
 }
 
-impl Eq for ActorPath { }
+impl Eq for ActorPath {}
 
 impl Hash for ActorPath {
     fn hash<H: Hasher>(&self, state: &mut H) {
@@ -53,7 +53,7 @@ impl Clone for ActorPath {
 
 /// An `ActorUri` represents the location of an actor, including the
 /// path and actor system host.
-/// 
+///
 /// Note: `host` is currently unused but will be utilized when
 /// networking and clustering are introduced.
 #[derive(Clone)]
@@ -70,7 +70,7 @@ impl PartialEq for ActorUri {
     }
 }
 
-impl Eq for ActorUri { }
+impl Eq for ActorUri {}
 
 impl Hash for ActorUri {
     fn hash<H: Hasher>(&self, state: &mut H) {

@@ -3,8 +3,8 @@ extern crate riker_testkit;
 
 use riker::actors::*;
 
-use riker_testkit::probe::{Probe, ProbeReceive};
 use riker_testkit::probe::channel::{probe, ChannelProbe};
+use riker_testkit::probe::{Probe, ProbeReceive};
 
 #[derive(Clone, Debug)]
 pub struct TestProbe(ChannelProbe<(), ()>);
@@ -22,11 +22,7 @@ impl Child {
 impl Actor for Child {
     type Msg = TestProbe;
 
-    fn recv(&mut self,
-            _ctx: &Context<Self::Msg>,
-            msg: Self::Msg,
-            _sender: Sender) {
-
+    fn recv(&mut self, _ctx: &Context<Self::Msg>, msg: Self::Msg, _sender: Sender) {
         msg.0.event(());
     }
 }
@@ -52,11 +48,7 @@ impl Actor for SelectTest {
         let _ = ctx.actor_of(props, "child_b").unwrap();
     }
 
-    fn recv(&mut self,
-            _ctx: &Context<Self::Msg>,
-            msg: Self::Msg,
-            _sender: Sender) {
-
+    fn recv(&mut self, _ctx: &Context<Self::Msg>, msg: Self::Msg, _sender: Sender) {
         msg.0.event(());
     }
 }
@@ -72,7 +64,7 @@ fn select_child() {
 
     // select test actors through actor selection: /root/user/select-actor/*
     let sel = sys.select("select-actor").unwrap();
-    
+
     sel.try_tell(TestProbe(probe), None);
 
     p_assert_eq!(listen, ());
@@ -151,11 +143,7 @@ impl Actor for SelectTest2 {
         let _ = ctx.actor_of(props, "child_b").unwrap();
     }
 
-    fn recv(&mut self,
-            ctx: &Context<Self::Msg>,
-            msg: Self::Msg,
-            _sender: Sender) {
-
+    fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, _sender: Sender) {
         // up and down: ../select-actor/child_a
         let sel = ctx.select("../select-actor/child_a").unwrap();
         sel.try_tell(msg.clone(), None);
@@ -263,12 +251,12 @@ fn select_paths() {
 
 //     let (probe, listen) = probe();
 //     act.tell(TestMsg(probe.clone()), None);
-    
+
 //     // wait for the probe to arrive at the dl sub before doing select
 //     listen.recv();
 
 //     let sel = sys.select("nothing-here").unwrap();
-    
+
 //     sel.tell(TestMsg(probe), None);
 
 //     p_assert_eq!(listen, ());

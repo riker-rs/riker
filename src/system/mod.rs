@@ -2,18 +2,15 @@ pub(crate) mod logger;
 pub(crate) mod system;
 pub(crate) mod timer;
 
-use std::{
-    fmt,
-    error::Error
-};
+use std::{error::Error, fmt};
 
 use crate::actor::BasicActorRef;
 
 // Public riker::system API (plus the pub data types in this file)
 pub use self::{
-    system::{ActorSystem, SystemBuilder, Run},
-    timer::{Timer, BasicTimer},
-    logger::LogEntry
+    logger::LogEntry,
+    system::{ActorSystem, Run, SystemBuilder},
+    timer::{BasicTimer, Timer},
 };
 
 #[derive(Clone, Debug)]
@@ -122,8 +119,12 @@ pub enum SystemError {
 impl Error for SystemError {
     fn description(&self) -> &str {
         match *self {
-            SystemError::ModuleFailed(_) => "Failed to create actor system. Cause: Sub module failed to start",
-            SystemError::InvalidName(_) => "Failed to create actor system. Cause: Invalid actor system name",
+            SystemError::ModuleFailed(_) => {
+                "Failed to create actor system. Cause: Sub module failed to start"
+            }
+            SystemError::InvalidName(_) => {
+                "Failed to create actor system. Cause: Invalid actor system name"
+            }
         }
     }
 }
@@ -131,8 +132,12 @@ impl Error for SystemError {
 impl fmt::Display for SystemError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            SystemError::ModuleFailed(ref m) => f.write_str(&format!("{} ({})", self.description(), m)),
-            SystemError::InvalidName(ref name) => f.write_str(&format!("{} ({})", self.description(), name)),
+            SystemError::ModuleFailed(ref m) => {
+                f.write_str(&format!("{} ({})", self.description(), m))
+            }
+            SystemError::InvalidName(ref name) => {
+                f.write_str(&format!("{} ({})", self.description(), name))
+            }
         }
     }
 }
