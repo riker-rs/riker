@@ -1,5 +1,4 @@
 #![crate_name = "riker"]
-#![feature(async_await)]
 
 // #![allow(warnings)] // toggle for easier compile error fixing
 
