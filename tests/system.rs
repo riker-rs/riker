@@ -1,5 +1,3 @@
-#![feature(async_await, await_macro)]
-
 use futures::executor::block_on;
 use riker::actors::*;
 
