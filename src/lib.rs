@@ -2,7 +2,6 @@
 
 // #![allow(warnings)] // toggle for easier compile error fixing
 
-#[allow(unused_imports)]
 extern crate log;
 
 mod validate;

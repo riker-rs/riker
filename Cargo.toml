@@ -15,10 +15,11 @@ travis-ci = { repository = "riker-rs/riker" }
 
 [dependencies]
 riker-macros = { path = "riker-macros", version = "0.1" }
+async-trait = "0.1.11"
 bytes = "0.4"
 chrono = "0.4"
 config = "0.9"
-futures-preview = "0.3.0-alpha.16"
+futures-preview = "0.3.0-alpha.18"
 log = { version = "0.4", features = ["std"] }
 rand = "0.4"
 regex = "0.2"

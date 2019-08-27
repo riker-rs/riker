@@ -44,7 +44,7 @@ impl KernelRef {
     }
 }
 
-pub fn dispatch<Msg>(
+pub async fn dispatch<Msg>(
     msg: Envelope<Msg>,
     mbox: &MailboxSender<Msg>,
     kernel: &KernelRef,
@@ -53,7 +53,7 @@ pub fn dispatch<Msg>(
 where
     Msg: Message,
 {
-    match mbox.try_enqueue(msg) {
+    match mbox.try_enqueue(msg).await {
         Ok(_) => {
             if !mbox.is_scheduled() {
                 mbox.set_scheduled(true);
@@ -66,14 +66,14 @@ where
     }
 }
 
-pub fn dispatch_any(
+pub async fn dispatch_any(
     msg: &mut AnyMessage,
     sender: crate::actor::Sender,
     mbox: &Arc<dyn AnySender>,
     kernel: &KernelRef,
     sys: &ActorSystem,
 ) -> Result<(), ()> {
-    match mbox.try_any_enqueue(msg, sender) {
+    match mbox.try_any_enqueue(msg, sender).await {
         Ok(_) => {
             if !mbox.is_sched() {
                 mbox.set_sched(true);

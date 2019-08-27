@@ -1,9 +1,9 @@
 use std::{
     panic::{catch_unwind, AssertUnwindSafe},
-    sync::{Arc, Mutex},
+    sync::Arc,
 };
 
-use futures::{channel::mpsc::channel, task::SpawnExt, StreamExt};
+use futures::{channel::mpsc::channel, task::SpawnExt, StreamExt, FutureExt, lock::Mutex};
 use log::warn;
 
 use crate::{
@@ -32,7 +32,7 @@ impl<A: Actor> Clone for Dock<A> {
     }
 }
 
-pub fn kernel<A>(
+pub async fn kernel<A>(
     props: BoxActorProd<A>,
     cell: ExtendedCell<A::Msg>,
     mailbox: Mailbox<A::Msg>,
@@ -70,13 +70,13 @@ where
                     let mb = mailbox.clone();
                     let d = dock.clone();
 
-                    let _ = std::panic::catch_unwind(AssertUnwindSafe(|| run_mailbox(mb, ctx, d))); //.unwrap();
+                    let _ = AssertUnwindSafe(run_mailbox(mb, ctx, d)).catch_unwind().await;
                 }
                 KernelMsg::RestartActor => {
-                    restart_actor(&dock, actor_ref.clone().into(), &props, &asys);
+                    restart_actor(&dock, actor_ref.clone().into(), &props, &asys).await;
                 }
                 KernelMsg::TerminateActor => {
-                    terminate_actor(&mailbox, actor_ref.clone().into(), &asys);
+                    terminate_actor(&mailbox, actor_ref.clone().into(), &asys).await;
                     break;
                 }
                 KernelMsg::Sys(s) => {
@@ -90,7 +90,7 @@ where
     Ok(kr)
 }
 
-fn restart_actor<A>(
+async fn restart_actor<A>(
     dock: &Dock<A>,
     actor_ref: BasicActorRef,
     props: &BoxActorProd<A>,
@@ -98,7 +98,7 @@ fn restart_actor<A>(
 ) where
     A: Actor,
 {
-    let mut a = dock.actor.lock().unwrap();
+    let mut a = dock.actor.lock().await;
     match start_actor(props) {
         Ok(actor) => {
             *a = Some(actor);
@@ -111,12 +111,12 @@ fn restart_actor<A>(
     }
 }
 
-fn terminate_actor<Msg>(mbox: &Mailbox<Msg>, actor_ref: BasicActorRef, sys: &ActorSystem)
+async fn terminate_actor<Msg>(mbox: &Mailbox<Msg>, actor_ref: BasicActorRef, sys: &ActorSystem)
 where
     Msg: Message,
 {
     sys.provider.unregister(actor_ref.path());
-    flush_to_deadletters(mbox, &actor_ref, sys);
+    flush_to_deadletters(mbox, &actor_ref, sys).await;
     sys.publish_event(
         ActorTerminated {
             actor: actor_ref.clone(),

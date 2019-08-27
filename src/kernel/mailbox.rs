@@ -3,6 +3,7 @@ use std::sync::{
     Arc,
 };
 use std::thread;
+use async_trait::async_trait;
 
 use config::Config;
 use log::trace;
@@ -25,8 +26,9 @@ pub trait MailboxSchedule {
     fn is_scheduled(&self) -> bool;
 }
 
+#[async_trait]
 pub trait AnySender: Send + Sync {
-    fn try_any_enqueue(&self, msg: &mut AnyMessage, sender: Sender) -> Result<(), ()>;
+    async fn try_any_enqueue(&self, msg: &mut AnyMessage, sender: Sender) -> Result<(), ()>;
 
     fn set_sched(&self, b: bool);
 
@@ -43,8 +45,8 @@ impl<Msg> MailboxSender<Msg>
 where
     Msg: Message,
 {
-    pub fn try_enqueue(&self, msg: Envelope<Msg>) -> EnqueueResult<Msg> {
-        self.queue.try_enqueue(msg)
+    pub async fn try_enqueue(&self, msg: Envelope<Msg>) -> EnqueueResult<Msg> {
+        self.queue.try_enqueue(msg).await
     }
 }
 
@@ -61,17 +63,18 @@ where
     }
 }
 
+#[async_trait]
 impl<Msg> AnySender for MailboxSender<Msg>
 where
     Msg: Message,
 {
-    fn try_any_enqueue(&self, msg: &mut AnyMessage, sender: Sender) -> Result<(), ()> {
+    async fn try_any_enqueue(&self, msg: &mut AnyMessage, sender: Sender) -> Result<(), ()> {
         let actual = msg.take()?;
         let msg = Envelope {
             msg: actual,
             sender,
         };
-        self.try_enqueue(msg).map_err(|_| ())
+        self.try_enqueue(msg).await.map_err(|_| ())
     }
 
     fn set_sched(&self, b: bool) {
@@ -101,24 +104,24 @@ pub struct MailboxInner<Msg: Message> {
 
 impl<Msg: Message> Mailbox<Msg> {
     #[allow(dead_code)]
-    pub fn dequeue(&self) -> Envelope<Msg> {
-        self.inner.queue.dequeue()
+    pub async fn dequeue(&self) -> Envelope<Msg> {
+        self.inner.queue.dequeue().await
     }
 
-    pub fn try_dequeue(&self) -> Result<Envelope<Msg>, QueueEmpty> {
-        self.inner.queue.try_dequeue()
+    pub async fn try_dequeue(&self) -> Result<Envelope<Msg>, QueueEmpty> {
+        self.inner.queue.try_dequeue().await
     }
 
-    pub fn sys_try_dequeue(&self) -> Result<Envelope<SystemMsg>, QueueEmpty> {
-        self.inner.sys_queue.try_dequeue()
+    pub async fn sys_try_dequeue(&self) -> Result<Envelope<SystemMsg>, QueueEmpty> {
+        self.inner.sys_queue.try_dequeue().await
     }
 
-    pub fn has_msgs(&self) -> bool {
-        self.inner.queue.has_msgs()
+    pub async fn has_msgs(&self) -> bool {
+        self.inner.queue.has_msgs().await
     }
 
-    pub fn has_sys_msgs(&self) -> bool {
-        self.inner.sys_queue.has_msgs()
+    pub async fn has_sys_msgs(&self) -> bool {
+        self.inner.sys_queue.has_msgs().await
     }
 
     pub fn set_suspended(&self, b: bool) {
@@ -183,7 +186,7 @@ where
     (sender, sys_sender, mailbox)
 }
 
-pub fn run_mailbox<A>(mbox: Mailbox<A::Msg>, ctx: Context<A::Msg>, mut dock: Dock<A>)
+pub async fn run_mailbox<A>(mbox: Mailbox<A::Msg>, ctx: Context<A::Msg>, mut dock: Dock<A>)
 where
     A: Actor,
 {
@@ -193,31 +196,26 @@ where
         mbox: mbox.clone(),
     };
 
-    let mut actor = dock.actor.lock().unwrap().take();
+    let mut actor = dock.actor.lock().await;
     let cell = &mut dock.cell;
 
-    process_sys_msgs(&mbox, &ctx, cell, &mut actor);
+    process_sys_msgs(&mbox, &ctx, cell, &mut actor).await;
 
     if actor.is_some() && !mbox.is_suspended() {
-        process_msgs(&mbox, &ctx, cell, &mut actor);
+        process_msgs(&mbox, &ctx, cell, &mut actor).await;
     }
 
-    process_sys_msgs(&mbox, &ctx, cell, &mut actor);
-
-    if actor.is_some() {
-        let mut a = dock.actor.lock().unwrap();
-        *a = actor;
-    }
+    process_sys_msgs(&mbox, &ctx, cell, &mut actor).await;
 
     mbox.set_scheduled(false);
 
-    let has_msgs = mbox.has_msgs() || mbox.has_sys_msgs();
+    let has_msgs = mbox.has_msgs().await || mbox.has_sys_msgs().await;
     if has_msgs && !mbox.is_scheduled() {
         ctx.kernel.schedule(&ctx.system);
     }
 }
 
-fn process_msgs<A>(
+async fn process_msgs<A>(
     mbox: &Mailbox<A::Msg>,
     ctx: &Context<A::Msg>,
     cell: &ExtendedCell<A::Msg>,
@@ -229,12 +227,12 @@ fn process_msgs<A>(
 
     loop {
         if count < mbox.msg_process_limit() {
-            match mbox.try_dequeue() {
+            match mbox.try_dequeue().await {
                 Ok(msg) => {
                     match (msg.msg, msg.sender) {
                         (msg, sender) => {
                             actor.as_mut().unwrap().recv(ctx, msg, sender);
-                            process_sys_msgs(&mbox, &ctx, cell, actor);
+                            process_sys_msgs(&mbox, &ctx, cell, actor).await;
                         }
                         // (ActorMsg::Identify, sender) => handle_identify(sender, cell),
                     }
@@ -251,7 +249,7 @@ fn process_msgs<A>(
     }
 }
 
-fn process_sys_msgs<A>(
+async fn process_sys_msgs<A>(
     mbox: &Mailbox<A::Msg>,
     ctx: &Context<A::Msg>,
     cell: &ExtendedCell<A::Msg>,
@@ -265,7 +263,7 @@ fn process_sys_msgs<A>(
     // This prevents during actor restart.
     let mut sys_msgs: Vec<Envelope<SystemMsg>> = Vec::new();
     loop {
-        match mbox.sys_try_dequeue() {
+        match mbox.sys_try_dequeue().await {
             Ok(sys_msg) => {
                 sys_msgs.push(sys_msg);
             }
@@ -363,12 +361,12 @@ where
     }
 }
 
-pub fn flush_to_deadletters<Msg>(mbox: &Mailbox<Msg>, actor: &BasicActorRef, sys: &ActorSystem)
+pub async fn flush_to_deadletters<Msg>(mbox: &Mailbox<Msg>, actor: &BasicActorRef, sys: &ActorSystem)
 where
     Msg: Message,
 {
     loop {
-        match mbox.try_dequeue() {
+        match mbox.try_dequeue().await {
             Ok(msg) => match (msg.msg, msg.sender) {
                 (msg, sender) => {
                     let dl = DeadLetter {

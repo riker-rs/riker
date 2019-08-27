@@ -391,9 +391,9 @@ impl From<SysTopic> for Topic {
     }
 }
 
-pub fn channel<Msg>(name: &str, fact: &impl ActorRefFactory) -> Result<ChannelRef<Msg>, CreateError>
+pub async fn channel<Msg>(name: &str, fact: &impl ActorRefFactory) -> Result<ChannelRef<Msg>, CreateError>
 where
     Msg: Message,
 {
-    fact.actor_of(Channel::<Msg>::props(), name)
+    fact.actor_of(Channel::<Msg>::props(), name).await
 }

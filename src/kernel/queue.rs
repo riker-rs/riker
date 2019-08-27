@@ -1,17 +1,16 @@
-use std::sync::{
-    mpsc::{channel, Receiver, Sender},
-    Mutex,
-};
+use std::sync::Arc;
+
+use futures::{channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender}, lock::Mutex, prelude::*};
 
 use crate::{Envelope, Message};
 
 pub fn queue<Msg: Message>() -> (QueueWriter<Msg>, QueueReader<Msg>) {
-    let (tx, rx) = channel::<Envelope<Msg>>();
+    let (tx, rx) = unbounded::<Envelope<Msg>>();
 
-    let qw = QueueWriter { tx: tx };
+    let qw = QueueWriter { tx: Arc::new(Mutex::new(tx)) };
 
     let qr = QueueReaderInner {
-        rx: rx,
+        rx,
         next_item: None,
     };
 
@@ -24,15 +23,15 @@ pub fn queue<Msg: Message>() -> (QueueWriter<Msg>, QueueReader<Msg>) {
 
 #[derive(Clone)]
 pub struct QueueWriter<Msg: Message> {
-    tx: Sender<Envelope<Msg>>,
+    tx: Arc<Mutex<UnboundedSender<Envelope<Msg>>>>,
 }
 
 impl<Msg: Message> QueueWriter<Msg> {
-    pub fn try_enqueue(&self, msg: Envelope<Msg>) -> EnqueueResult<Msg> {
-        self.tx
-            .send(msg)
-            .map(|_| ())
-            .map_err(|e| EnqueueError { msg: e.0 })
+    pub async fn try_enqueue(&self, msg: Envelope<Msg>) -> EnqueueResult<Msg> {
+        let mut tx = self.tx.lock().await;
+        tx.send(msg.clone())
+            .await
+            .map_err(|_| EnqueueError { msg })
     }
 }
 
@@ -41,39 +40,43 @@ pub struct QueueReader<Msg: Message> {
 }
 
 struct QueueReaderInner<Msg: Message> {
-    rx: Receiver<Envelope<Msg>>,
+    rx: UnboundedReceiver<Envelope<Msg>>,
     next_item: Option<Envelope<Msg>>,
 }
 
 impl<Msg: Message> QueueReader<Msg> {
     #[allow(dead_code)]
-    pub fn dequeue(&self) -> Envelope<Msg> {
-        let mut inner = self.inner.lock().unwrap();
+    pub async fn dequeue(&self) -> Envelope<Msg> {
+        let mut inner = self.inner.lock().await;
         if let Some(item) = inner.next_item.take() {
             item
         } else {
-            inner.rx.recv().unwrap()
+            inner.rx.next().await.unwrap()
         }
     }
 
-    pub fn try_dequeue(&self) -> DequeueResult<Envelope<Msg>> {
-        let mut inner = self.inner.lock().unwrap();
+    pub async fn try_dequeue(&self) -> DequeueResult<Envelope<Msg>> {
+        let mut inner = self.inner.lock().await;
         if let Some(item) = inner.next_item.take() {
             Ok(item)
         } else {
-            inner.rx.try_recv().map_err(|_| QueueEmpty)
+            inner.rx
+                .try_next()
+                .map(|v| v.unwrap())
+                .map_err(|_| QueueEmpty)
         }
     }
 
-    pub fn has_msgs(&self) -> bool {
-        let mut inner = self.inner.lock().unwrap();
+    pub async fn has_msgs(&self) -> bool {
+        let mut inner = self.inner.lock().await;
         inner.next_item.is_some() || {
-            match inner.rx.try_recv() {
-                Ok(item) => {
+            match inner.rx.try_next() {
+                Ok(Some(item)) => {
                     inner.next_item = Some(item);
                     true
                 }
-                Err(_) => false,
+                Ok(None)
+                | Err(_) => false,
             }
         }
     }

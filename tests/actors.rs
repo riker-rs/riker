@@ -1,6 +1,8 @@
 #[macro_use]
 extern crate riker_testkit;
 
+use futures::executor::block_on;
+
 use riker::actors::*;
 
 use riker_testkit::probe::channel::{probe, ChannelProbe};
@@ -57,7 +59,7 @@ impl Receive<Add> for Counter {
 
 #[test]
 fn actor_create() {
-    let sys = ActorSystem::new().unwrap();
+    let sys = block_on(ActorSystem::new()).unwrap();
 
     let props = Props::new(Counter::actor);
     assert!(sys.actor_of(props.clone(), "valid-name").is_ok());
@@ -73,7 +75,7 @@ fn actor_create() {
 
 #[test]
 fn actor_tell() {
-    let sys = ActorSystem::new().unwrap();
+    let sys = block_on(ActorSystem::new()).unwrap();
 
     let props = Props::new(Counter::actor);
     let actor = sys.actor_of(props, "me").unwrap();
@@ -90,22 +92,20 @@ fn actor_tell() {
 
 #[test]
 fn actor_try_tell() {
-    let sys = ActorSystem::new().unwrap();
+    let sys = block_on(ActorSystem::new()).unwrap();
 
     let props = Props::new(Counter::actor);
-    let actor = sys.actor_of(props, "me").unwrap();
+    let actor = block_on(sys.actor_of(props, "me")).unwrap();
     let actor: BasicActorRef = actor.into();
 
     let (probe, listen) = probe();
-    actor
-        .try_tell(CounterMsg::TestProbe(TestProbe(probe)), None)
-        .unwrap();
+    block_on(actor.try_tell(CounterMsg::TestProbe(TestProbe(probe)), None)).unwrap();
 
-    assert!(actor.try_tell(CounterMsg::Add(Add), None).is_ok());
-    assert!(actor.try_tell("invalid-type".to_string(), None).is_err());
+    assert!(block_on(actor.try_tell(CounterMsg::Add(Add), None)).is_ok());
+    assert!(block_on(actor.try_tell("invalid-type".to_string(), None)).is_err());
 
     for _ in 0..1_000_000 {
-        actor.try_tell(CounterMsg::Add(Add), None).unwrap();
+        block_on(actor.try_tell(CounterMsg::Add(Add), None)).unwrap();
     }
 
     p_assert_eq!(listen, ());

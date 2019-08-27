@@ -34,7 +34,7 @@ impl Provider {
         }
     }
 
-    pub fn create_actor<A>(
+    pub async fn create_actor<A>(
         &self,
         props: BoxActorProd<A>,
         name: &str,
@@ -71,7 +71,7 @@ impl Provider {
             sender.clone(),
         );
 
-        let k = kernel(props, cell.clone(), mb, sys)?;
+        let k = kernel(props, cell.clone(), mb, sys).await?;
         let cell = cell.init(&k);
 
         let actor = ActorRef::new(cell);
@@ -105,18 +105,18 @@ impl Provider {
     }
 }
 
-pub fn create_root(sys: &ActorSystem) -> SysActors {
-    let root = root(sys);
+pub async fn create_root(sys: &ActorSystem) -> SysActors {
+    let root = root(sys).await;
 
     SysActors {
         root: root.clone(),
-        user: guardian(1, "user", "/user", &root, sys),
-        sysm: guardian(2, "system", "/system", &root, sys),
-        temp: guardian(3, "temp", "/temp", &root, sys),
+        user: guardian(1, "user", "/user", &root, sys).await,
+        sysm: guardian(2, "system", "/system", &root, sys).await,
+        temp: guardian(3, "temp", "/temp", &root, sys).await,
     }
 }
 
-fn root(sys: &ActorSystem) -> BasicActorRef {
+async fn root(sys: &ActorSystem) -> BasicActorRef {
     let uri = ActorUri {
         uid: 0,
         name: Arc::new("root".to_string()),
@@ -162,14 +162,14 @@ fn root(sys: &ActorSystem) -> BasicActorRef {
         sender.clone(),
     );
 
-    let k = kernel(props, cell.clone(), mb, sys).unwrap();
+    let k = kernel(props, cell.clone(), mb, sys).await.unwrap();
     let cell = cell.init(&k);
     let actor_ref = ActorRef::new(cell);
 
     BasicActorRef::from(actor_ref)
 }
 
-fn guardian(
+async fn guardian(
     uid: ActorId,
     name: &str,
     path: &str,
@@ -197,7 +197,7 @@ fn guardian(
         sender.clone(),
     );
 
-    let k = kernel(props, cell.clone(), mb, sys).unwrap();
+    let k = kernel(props, cell.clone(), mb, sys).await.unwrap();
     let cell = cell.init(&k);
     let actor_ref = ActorRef::new(cell);
 

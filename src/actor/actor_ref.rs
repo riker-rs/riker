@@ -1,4 +1,5 @@
 use std::fmt;
+use async_trait::async_trait;
 
 use crate::{
     actor::{
@@ -179,7 +180,7 @@ impl BasicActorRef {
     /// Send a message to this actor
     ///
     /// Returns a result. If the message type is not supported Error is returned.
-    pub fn try_tell<Msg>(
+    pub async fn try_tell<Msg>(
         &self,
         msg: Msg,
         sender: impl Into<Option<BasicActorRef>>,
@@ -187,15 +188,16 @@ impl BasicActorRef {
     where
         Msg: Message + Send,
     {
-        self.try_tell_any(&mut AnyMessage::new(msg, true), sender)
+        let mut msg = AnyMessage::new(msg, true);
+        self.try_tell_any(&mut msg, sender).await
     }
 
-    pub fn try_tell_any(
+    pub async fn try_tell_any(
         &self,
         msg: &mut AnyMessage,
         sender: impl Into<Option<BasicActorRef>>,
     ) -> Result<(), ()> {
-        self.cell.send_any_msg(msg, sender.into())
+        self.cell.send_any_msg(msg, sender.into()).await
     }
 }
 
@@ -472,8 +474,9 @@ impl<Msg: Message> PartialEq for ActorRef<Msg> {
 /// It is advised to return from the actor's factory method quickly and
 /// handle any initialization in the actor's `pre_start` method, which is
 /// invoked after the `ActorRef` is returned.
+#[async_trait]
 pub trait ActorRefFactory {
-    fn actor_of<A>(
+    async fn actor_of<A>(
         &self,
         props: BoxActorProd<A>,
         name: &str,
@@ -485,8 +488,9 @@ pub trait ActorRefFactory {
 }
 
 /// Produces `ActorRef`s under the `temp` guardian actor.
+#[async_trait]
 pub trait TmpActorRefFactory {
-    fn tmp_actor_of<A>(&self, props: BoxActorProd<A>) -> Result<ActorRef<A::Msg>, CreateError>
+    async fn tmp_actor_of<A>(&self, props: BoxActorProd<A>) -> Result<ActorRef<A::Msg>, CreateError>
     where
         A: Actor;
 }

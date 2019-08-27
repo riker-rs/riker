@@ -9,6 +9,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 
+use async_trait::async_trait;
 use chrono::prelude::*;
 use futures::{future::RemoteHandle, task::SpawnError, Future};
 use uuid::Uuid;
@@ -132,7 +133,7 @@ impl ActorCell {
         self.inner.system.user_root().is_child(&self.myself())
     }
 
-    pub(crate) fn send_any_msg(
+    pub(crate) async fn send_any_msg(
         &self,
         msg: &mut AnyMessage,
         sender: crate::actor::Sender,
@@ -140,14 +141,14 @@ impl ActorCell {
         let mb = &self.inner.mailbox;
         let k = self.kernel();
 
-        dispatch_any(msg, sender, mb, k, &self.inner.system)
+        dispatch_any(msg, sender, mb, k, &self.inner.system).await
     }
 
-    pub(crate) fn send_sys_msg(&self, msg: Envelope<SystemMsg>) -> MsgResult<Envelope<SystemMsg>> {
+    pub(crate) async fn send_sys_msg(&self, msg: Envelope<SystemMsg>) -> MsgResult<Envelope<SystemMsg>> {
         let mb = &self.inner.sys_mailbox;
 
         let k = self.kernel();
-        dispatch(msg, mb, k, &self.inner.system)
+        dispatch(msg, mb, k, &self.inner.system).await
     }
 
     pub(crate) fn is_child(&self, actor: &BasicActorRef) -> bool {
@@ -304,8 +305,9 @@ impl fmt::Debug for ActorCell {
     }
 }
 
+#[async_trait]
 impl TmpActorRefFactory for ActorCell {
-    fn tmp_actor_of<A: Actor>(
+    async fn tmp_actor_of<A: Actor>(
         &self,
         _props: BoxActorProd<A>,
     ) -> Result<ActorRef<A::Msg>, CreateError> {
@@ -406,11 +408,11 @@ where
         self.cell.is_user()
     }
 
-    pub(crate) fn send_msg(&self, msg: Envelope<Msg>) -> MsgResult<Envelope<Msg>> {
+    pub(crate) async fn send_msg(&self, msg: Envelope<Msg>) -> MsgResult<Envelope<Msg>> {
         let mb = &self.mailbox;
         let k = self.cell.kernel();
 
-        dispatch(msg, mb, k, &self.system()).map_err(|e| {
+        dispatch(msg, mb, k, &self.system()).await.map_err(|e| {
             let dl = e.clone(); // clone the failed message and send to dead letters
             let dl = DeadLetter {
                 msg: format!("{:?}", dl.msg.msg),
@@ -430,8 +432,8 @@ where
         })
     }
 
-    pub(crate) fn send_sys_msg(&self, msg: Envelope<SystemMsg>) -> MsgResult<Envelope<SystemMsg>> {
-        self.cell.send_sys_msg(msg)
+    pub(crate) async fn send_sys_msg(&self, msg: Envelope<SystemMsg>) -> MsgResult<Envelope<SystemMsg>> {
+        self.cell.send_sys_msg(msg).await
     }
 
     pub fn system(&self) -> &ActorSystem {
@@ -497,8 +499,9 @@ where
     }
 }
 
+#[async_trait]
 impl<Msg: Message> ActorRefFactory for Context<Msg> {
-    fn actor_of<A>(
+    async fn actor_of<A>(
         &self,
         props: BoxActorProd<A>,
         name: &str,
@@ -506,9 +509,10 @@ impl<Msg: Message> ActorRefFactory for Context<Msg> {
     where
         A: Actor,
     {
+        let parent = self.myself().into();
         self.system
             .provider
-            .create_actor(props, name, &self.myself().into(), &self.system)
+            .create_actor(props, name, &parent, &self.system).await
     }
 
     fn stop(&self, actor: impl ActorReference) {

@@ -6,6 +6,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 
+use async_trait::async_trait;
 use chrono::prelude::*;
 use config::Config;
 use futures::{
@@ -59,12 +60,12 @@ impl SystemBuilder {
         }
     }
 
-    pub fn create(self) -> Result<ActorSystem, SystemError> {
+    pub async fn create(self) -> Result<ActorSystem, SystemError> {
         let cfg = self.cfg.unwrap_or(load_config());
         let exec = self.exec.unwrap_or(default_exec(&cfg));
         let log = self.log.unwrap_or(default_log(&cfg));
 
-        ActorSystem::create(self.name.as_ref().unwrap(), exec, log, cfg)
+        ActorSystem::create(self.name.as_ref().unwrap(), exec, log, cfg).await
     }
 
     pub fn name(self, name: &str) -> Self {
@@ -113,34 +114,34 @@ impl ActorSystem {
     /// Create a new `ActorSystem` instance
     ///
     /// Requires a type that implements the `Model` trait.
-    pub fn new() -> Result<ActorSystem, SystemError> {
+    pub async fn new() -> Result<ActorSystem, SystemError> {
         let cfg = load_config();
         let exec = default_exec(&cfg);
         let log = default_log(&cfg);
 
-        ActorSystem::create("riker", exec, log, cfg)
+        ActorSystem::create("riker", exec, log, cfg).await
     }
 
     /// Create a new `ActorSystem` instance with provided name
     ///
     /// Requires a type that implements the `Model` trait.
-    pub fn with_name(name: &str) -> Result<ActorSystem, SystemError> {
+    pub async fn with_name(name: &str) -> Result<ActorSystem, SystemError> {
         let cfg = load_config();
         let exec = default_exec(&cfg);
         let log = default_log(&cfg);
 
-        ActorSystem::create(name, exec, log, cfg)
+        ActorSystem::create(name, exec, log, cfg).await
     }
 
     /// Create a new `ActorSystem` instance bypassing default config behavior
-    pub fn with_config(name: &str, cfg: Config) -> Result<ActorSystem, SystemError> {
+    pub async fn with_config(name: &str, cfg: Config) -> Result<ActorSystem, SystemError> {
         let exec = default_exec(&cfg);
         let log = default_log(&cfg);
 
-        ActorSystem::create(name, exec, log, cfg)
+        ActorSystem::create(name, exec, log, cfg).await
     }
 
-    fn create(
+    async fn create(
         name: &str,
         exec: ThreadPool,
         log: BoxActorProd<LogActor>,
@@ -182,18 +183,18 @@ impl ActorSystem {
         };
 
         // 3. create initial actor hierarchy
-        let sys_actors = create_root(&sys);
+        let sys_actors = create_root(&sys).await;
         sys.sys_actors = Some(sys_actors);
 
         // 4. start logger
-        sys.log = Some(logger(&prov, &sys, &cfg, log)?);
+        sys.log = Some(logger(&prov, &sys, &cfg, log).await?);
 
         // 5. start system channels
-        sys.sys_channels = Some(sys_channels(&prov, &sys)?);
+        sys.sys_channels = Some(sys_channels(&prov, &sys).await?);
 
         // 6. start dead letter logger
         let props = DeadLetterLogger::props(sys.dead_letters());
-        let _dl_logger = sys_actor_of(&prov, &sys, props, "dl_logger")?;
+        let _dl_logger = sys_actor_of(&prov, &sys, props, "dl_logger").await?;
 
         sys.complete_start();
 
@@ -305,7 +306,7 @@ impl ActorSystem {
     }
 
     /// Create an actor under the system root
-    pub fn sys_actor_of<A>(
+    pub async fn sys_actor_of<A>(
         &self,
         props: BoxActorProd<A>,
         name: &str,
@@ -315,6 +316,7 @@ impl ActorSystem {
     {
         self.provider
             .create_actor(props, name, &self.sys_root(), self)
+            .await
     }
 
     /// Shutdown the actor system
@@ -324,12 +326,12 @@ impl ActorSystem {
     ///
     /// Does not block. Returns a future which is completed when all
     /// actors have successfully stopped.
-    pub fn shutdown(&self) -> Shutdown {
+    pub async fn shutdown(&self) -> Shutdown {
         let (tx, rx) = oneshot::channel::<()>();
         let tx = Arc::new(Mutex::new(Some(tx)));
 
         let props = Props::new_args(ShutdownActor::new, tx);
-        self.tmp_actor_of(props).unwrap();
+        self.tmp_actor_of(props).await.unwrap();
 
         rx
     }
@@ -338,8 +340,9 @@ impl ActorSystem {
 unsafe impl Send for ActorSystem {}
 unsafe impl Sync for ActorSystem {}
 
+#[async_trait]
 impl ActorRefFactory for ActorSystem {
-    fn actor_of<A>(
+    async fn actor_of<A>(
         &self,
         props: BoxActorProd<A>,
         name: &str,
@@ -349,6 +352,7 @@ impl ActorRefFactory for ActorSystem {
     {
         self.provider
             .create_actor(props, name, &self.user_root(), self)
+            .await
     }
 
     fn stop(&self, actor: impl ActorReference) {
@@ -356,14 +360,16 @@ impl ActorRefFactory for ActorSystem {
     }
 }
 
+#[async_trait]
 impl TmpActorRefFactory for ActorSystem {
-    fn tmp_actor_of<A>(&self, props: BoxActorProd<A>) -> Result<ActorRef<A::Msg>, CreateError>
+    async fn tmp_actor_of<A>(&self, props: BoxActorProd<A>) -> Result<ActorRef<A::Msg>, CreateError>
     where
         A: Actor,
     {
         let name = format!("{}", rand::random::<u64>());
         self.provider
             .create_actor(props, &name, &self.temp_root(), self)
+            .await
     }
 }
 
@@ -510,7 +516,7 @@ impl Timer for ActorSystem {
 
 // helper functions
 
-fn sys_actor_of<A>(
+async fn sys_actor_of<A>(
     prov: &Provider,
     sys: &ActorSystem,
     props: BoxActorProd<A>,
@@ -520,16 +526,17 @@ where
     A: Actor,
 {
     prov.create_actor(props, name, &sys.sys_root(), sys)
+        .await
         .map_err(|_| SystemError::ModuleFailed(name.into()))
 }
 
-fn logger(
+async fn logger(
     prov: &Provider,
     sys: &ActorSystem,
     cfg: &Config,
     props: BoxActorProd<LogActor>,
 ) -> Result<Logger, SystemError> {
-    let logger = sys_actor_of(prov, sys, props, "logger")?;
+    let logger = sys_actor_of(prov, sys, props, "logger").await?;
 
     let level = cfg
         .get_str("log.level")
@@ -539,12 +546,12 @@ fn logger(
     Ok(Logger::init(level, logger))
 }
 
-fn sys_channels(prov: &Provider, sys: &ActorSystem) -> Result<SysChannels, SystemError> {
+async fn sys_channels(prov: &Provider, sys: &ActorSystem) -> Result<SysChannels, SystemError> {
     let props = Props::new(EventsChannel::new);
-    let sys_events = sys_actor_of(prov, sys, props, "sys_events")?;
+    let sys_events = sys_actor_of(prov, sys, props, "sys_events").await?;
 
     let props = Props::new(Channel::<DeadLetter>::new);
-    let dead_letters = sys_actor_of(prov, sys, props, "dead_letters")?;
+    let dead_letters = sys_actor_of(prov, sys, props, "dead_letters").await?;
 
     // subscribe the dead_letters channel to actor terminated events
     // so that any future subscribed actors that terminate are automatically
