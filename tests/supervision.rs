@@ -1,6 +1,8 @@
 #[macro_use]
 extern crate riker_testkit;
 
+use futures::executor::block_on;
+
 use riker::actors::*;
 
 use riker_testkit::probe::channel::{probe, ChannelProbe};
@@ -122,7 +124,7 @@ impl Receive<Panic> for RestartSup {
 
 #[test]
 fn supervision_restart_failed_actor() {
-    let sys = ActorSystem::new().unwrap();
+    let sys = block_on(ActorSystem::new()).unwrap();
 
     for i in 0..100 {
         let props = Props::new(RestartSup::new);
@@ -240,10 +242,10 @@ impl Receive<Panic> for EscRestartSup {
 
 #[test]
 fn supervision_escalate_failed_actor() {
-    let sys = ActorSystem::new().unwrap();
+    let sys = block_on(ActorSystem::new()).unwrap();
 
     let props = Props::new(EscRestartSup::new);
-    let sup = sys.actor_of(props, "supervisor").unwrap();
+    let sup = block_on(sys.actor_of(props, "supervisor")).unwrap();
 
     // Make the test actor panic
     sup.tell(Panic, None);

@@ -62,15 +62,15 @@ fn actor_create() {
     let sys = block_on(ActorSystem::new()).unwrap();
 
     let props = Props::new(Counter::actor);
-    assert!(sys.actor_of(props.clone(), "valid-name").is_ok());
+    assert!(block_on(sys.actor_of(props.clone(), "valid-name")).is_ok());
 
-    assert!(sys.actor_of(props.clone(), "/").is_err());
-    assert!(sys.actor_of(props.clone(), "*").is_err());
-    assert!(sys.actor_of(props.clone(), "/a/b/c").is_err());
-    assert!(sys.actor_of(props.clone(), "@").is_err());
-    assert!(sys.actor_of(props.clone(), "#").is_err());
-    assert!(sys.actor_of(props.clone(), "abc*").is_err());
-    assert!(sys.actor_of(props, "!").is_err());
+    assert!(block_on(sys.actor_of(props.clone(), "/")).is_err());
+    assert!(block_on(sys.actor_of(props.clone(), "*")).is_err());
+    assert!(block_on(sys.actor_of(props.clone(), "/a/b/c")).is_err());
+    assert!(block_on(sys.actor_of(props.clone(), "@")).is_err());
+    assert!(block_on(sys.actor_of(props.clone(), "#")).is_err());
+    assert!(block_on(sys.actor_of(props.clone(), "abc*")).is_err());
+    assert!(block_on(sys.actor_of(props, "!")).is_err());
 }
 
 #[test]
@@ -78,7 +78,7 @@ fn actor_tell() {
     let sys = block_on(ActorSystem::new()).unwrap();
 
     let props = Props::new(Counter::actor);
-    let actor = sys.actor_of(props, "me").unwrap();
+    let actor = block_on(sys.actor_of(props, "me")).unwrap();
 
     let (probe, listen) = probe();
     actor.tell(TestProbe(probe), None);
@@ -167,7 +167,7 @@ impl Actor for Child {
 #[test]
 #[allow(dead_code)]
 fn actor_stop() {
-    let system = ActorSystem::new().unwrap();
+    let system = block_on(ActorSystem::new()).unwrap();
 
     let props = Props::new(Parent::actor);
     let parent = system.actor_of(props, "parent").unwrap();

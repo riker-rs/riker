@@ -1,6 +1,8 @@
 #[macro_use]
 extern crate riker_testkit;
 
+use futures::executor::block_on;
+
 use riker::actors::*;
 
 use riker_testkit::probe::channel::{probe, ChannelProbe};
@@ -55,7 +57,7 @@ impl Actor for SelectTest {
 
 #[test]
 fn select_child() {
-    let sys = ActorSystem::new().unwrap();
+    let sys = block_on(ActorSystem::new()).unwrap();
 
     let props = Props::new(SelectTest::new);
     sys.actor_of(props, "select-actor").unwrap();
@@ -72,7 +74,7 @@ fn select_child() {
 
 #[test]
 fn select_child_of_child() {
-    let sys = ActorSystem::new().unwrap();
+    let sys = block_on(ActorSystem::new()).unwrap();
 
     let props = Props::new(SelectTest::new);
     sys.actor_of(props, "select-actor").unwrap();
@@ -93,7 +95,7 @@ fn select_child_of_child() {
 
 #[test]
 fn select_all_children_of_child() {
-    let sys = ActorSystem::new().unwrap();
+    let sys = block_on(ActorSystem::new()).unwrap();
 
     let props = Props::new(SelectTest::new);
     sys.actor_of(props, "select-actor").unwrap();
@@ -168,7 +170,7 @@ impl Actor for SelectTest2 {
 
 #[test]
 fn select_from_context() {
-    let sys = ActorSystem::new().unwrap();
+    let sys = block_on(ActorSystem::new()).unwrap();
 
     let props = Props::new(SelectTest2::new);
     let actor = sys.actor_of(props, "select-actor").unwrap();
@@ -188,7 +190,7 @@ fn select_from_context() {
 
 #[test]
 fn select_paths() {
-    let sys = ActorSystem::new().unwrap();
+    let sys = block_on(ActorSystem::new()).unwrap();
 
     assert!(sys.select("foo/").is_ok());
     assert!(sys.select("/foo/").is_ok());
@@ -244,7 +246,7 @@ fn select_paths() {
 
 // #[test]
 // fn select_no_actors() {
-//     let sys = ActorSystem::new().unwrap();
+//     let sys = block_on(ActorSystem::new()).unwrap();
 
 //     let props = Props::new(DeadLettersActor::new);
 //     let act = sys.actor_of(props, "dl-subscriber").unwrap();

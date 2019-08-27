@@ -9,6 +9,7 @@ use riker_testkit::probe::{Probe, ProbeReceive};
 use chrono::{Duration as CDuration, Utc};
 use std::time::Duration;
 use uuid::Uuid;
+use futures::executor::block_on;
 
 #[derive(Clone, Debug)]
 pub struct TestProbe(ChannelProbe<(), ()>);
@@ -141,10 +142,10 @@ impl Receive<SomeMessage> for ScheduleRepeat {
 
 #[test]
 fn schedule_repeat() {
-    let sys = ActorSystem::new().unwrap();
+    let sys = block_on(ActorSystem::new()).unwrap();
 
     let props = Props::new(ScheduleRepeat::new);
-    let actor = sys.actor_of(props, "schedule-repeat").unwrap();
+    let actor = block_on(sys.actor_of(props, "schedule-repeat")).unwrap();
 
     let (probe, listen) = probe();
 

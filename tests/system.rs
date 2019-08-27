@@ -3,15 +3,15 @@ use riker::actors::*;
 
 #[test]
 fn system_create() {
-    assert!(ActorSystem::new().is_ok());
-    assert!(ActorSystem::with_name("valid-name").is_ok());
+    assert!(block_on(ActorSystem::new()).is_ok());
+    assert!(block_on(ActorSystem::with_name("valid-name")).is_ok());
 
-    assert!(ActorSystem::with_name("/").is_err());
-    assert!(ActorSystem::with_name("*").is_err());
-    assert!(ActorSystem::with_name("/a/b/c").is_err());
-    assert!(ActorSystem::with_name("@").is_err());
-    assert!(ActorSystem::with_name("#").is_err());
-    assert!(ActorSystem::with_name("abc*").is_err());
+    assert!(block_on(ActorSystem::with_name("/")).is_err());
+    assert!(block_on(ActorSystem::with_name("*")).is_err());
+    assert!(block_on(ActorSystem::with_name("/a/b/c")).is_err());
+    assert!(block_on(ActorSystem::with_name("@")).is_err());
+    assert!(block_on(ActorSystem::with_name("#")).is_err());
+    assert!(block_on(ActorSystem::with_name("abc*")).is_err());
 }
 
 struct ShutdownTest {
@@ -41,7 +41,7 @@ impl Actor for ShutdownTest {
 #[test]
 #[allow(dead_code)]
 fn system_shutdown() {
-    let sys = ActorSystem::new().unwrap();
+    let sys = block_on(ActorSystem::new()).unwrap();
 
     let props = Props::new_args(ShutdownTest::actor, 1);
     let _ = sys.actor_of(props, "test-actor-1").unwrap();
@@ -51,7 +51,7 @@ fn system_shutdown() {
 
 #[test]
 fn system_futures_exec() {
-    let sys = ActorSystem::new().unwrap();
+    let sys = block_on(ActorSystem::new()).unwrap();
 
     for i in 0..100 {
         let f = sys.run(async move { format!("some_val_{}", i) }).unwrap();
@@ -62,7 +62,7 @@ fn system_futures_exec() {
 
 #[test]
 fn system_futures_panic() {
-    let sys = ActorSystem::new().unwrap();
+    let sys = block_on(ActorSystem::new()).unwrap();
 
     for _ in 0..100 {
         let _ = sys
@@ -81,14 +81,14 @@ fn system_futures_panic() {
 
 #[test]
 fn system_load_app_config() {
-    let sys = ActorSystem::new().unwrap();
+    let sys = block_on(ActorSystem::new()).unwrap();
 
     assert_eq!(sys.config().get_int("app.some_setting").unwrap() as i64, 1);
 }
 
 #[test]
 fn system_builder() {
-    let sys = SystemBuilder::new().name("my-sys").create().unwrap();
+    let sys = block_on(SystemBuilder::new().name("my-sys").create()).unwrap();
 
     block_on(sys.shutdown()).unwrap();
 }

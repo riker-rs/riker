@@ -5,6 +5,7 @@ use riker::actors::*;
 
 use riker_testkit::probe::channel::{probe, ChannelProbe};
 use riker_testkit::probe::{Probe, ProbeReceive};
+use futures::executor::block_on;
 
 #[derive(Clone, Debug)]
 pub struct TestProbe(ChannelProbe<(), ()>);
@@ -75,7 +76,7 @@ fn channel_publish() {
     let sys = ActorSystem::new().unwrap();
 
     // Create the channel we'll be using
-    let chan: ChannelRef<SomeMessage> = channel("my-chan", &sys).unwrap();
+    let chan: ChannelRef<SomeMessage> = block_on(channel("my-chan", &sys)).unwrap();
 
     // The topic we'll be publishing to. Endow our subscriber test actor with this.
     // On Subscriber's pre_start it will subscribe to this channel+topic
@@ -274,9 +275,9 @@ impl Receive<SystemEvent> for EventSubscriber {
 
 #[test]
 fn channel_system_events() {
-    let sys = ActorSystem::new().unwrap();
+    let sys = block_on(ActorSystem::new()).unwrap();
 
-    let actor = sys.actor_of(EventSubscriber::props(), "event-sub").unwrap();
+    let actor = block_on(sys.actor_of(EventSubscriber::props(), "event-sub")).unwrap();
 
     let (probe, listen) = probe();
     actor.tell(TestProbe(probe), None);
@@ -287,7 +288,7 @@ fn channel_system_events() {
 
     // Create an actor
     let props = Props::new(DumbActor::new);
-    let dumb = sys.actor_of(props, "dumb-actor").unwrap();
+    let dumb = block_on(sys.actor_of(props, "dumb-actor")).unwrap();
     // ActorCreated event was received
     p_assert_eq!(listen, ());
 
@@ -357,9 +358,9 @@ impl Receive<DeadLetter> for DeadLetterSub {
 
 #[test]
 fn channel_dead_letters() {
-    let sys = ActorSystem::new().unwrap();
-    let actor = sys
-        .actor_of(DeadLetterSub::props(), "dl-subscriber")
+    let sys = block_on(ActorSystem::new()).unwrap();
+    let actor = block_on(sys
+        .actor_of(DeadLetterSub::props(), "dl-subscriber"))
         .unwrap();
 
     let (probe, listen) = probe();
@@ -369,7 +370,7 @@ fn channel_dead_letters() {
     listen.recv();
 
     let props = Props::new(DumbActor::new);
-    let dumb = sys.actor_of(props, "dumb-actor").unwrap();
+    let dumb = block_on(sys.actor_of(props, "dumb-actor")).unwrap();
 
     // immediately stop the actor and attempt to send a message
     sys.stop(&dumb);
