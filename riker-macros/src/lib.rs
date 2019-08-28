@@ -103,14 +103,15 @@ fn receive(aname: &Ident,
     let vars = types.types.iter().map(|t| {
         let vname = &t.name;
         quote!{
-            #name::#vname(msg) => <#aname>::receive(self, ctx, msg, sender),
+            #name::#vname(msg) => <#aname>::receive(self, ctx, msg, sender).await,
         }
     });
     quote!{
+        #[async_trait]
         impl Receive<#name> for #aname {
             type Msg = #name;
 
-            fn receive(&mut self,
+            async fn receive(&mut self,
                         ctx: &Context<Self::Msg>,
                         msg: #name,
                         sender: Option<BasicActorRef>) {

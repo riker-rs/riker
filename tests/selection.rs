@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate riker_testkit;
 
+use async_trait::async_trait;
 use futures::executor::block_on;
 
 use riker::actors::*;
@@ -21,10 +22,11 @@ impl Child {
     }
 }
 
+#[async_trait]
 impl Actor for Child {
     type Msg = TestProbe;
 
-    fn recv(&mut self, _ctx: &Context<Self::Msg>, msg: Self::Msg, _sender: Sender) {
+    async fn recv(&mut self, _ctx: &Context<Self::Msg>, msg: Self::Msg, _sender: Sender) {
         msg.0.event(());
     }
 }
@@ -37,20 +39,21 @@ impl SelectTest {
     }
 }
 
+#[async_trait]
 impl Actor for SelectTest {
     type Msg = TestProbe;
 
-    fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
+    async fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
         // create first child actor
         let props = Props::new(Child::new);
-        let _ = ctx.actor_of(props, "child_a").unwrap();
+        let _ = ctx.actor_of(props, "child_a").await.unwrap();
 
         // create second child actor
         let props = Props::new(Child::new);
-        let _ = ctx.actor_of(props, "child_b").unwrap();
+        let _ = ctx.actor_of(props, "child_b").await.unwrap();
     }
 
-    fn recv(&mut self, _ctx: &Context<Self::Msg>, msg: Self::Msg, _sender: Sender) {
+    async fn recv(&mut self, _ctx: &Context<Self::Msg>, msg: Self::Msg, _sender: Sender) {
         msg.0.event(());
     }
 }
@@ -60,7 +63,7 @@ fn select_child() {
     let sys = block_on(ActorSystem::new()).unwrap();
 
     let props = Props::new(SelectTest::new);
-    sys.actor_of(props, "select-actor").unwrap();
+    block_on(sys.actor_of(props, "select-actor")).unwrap();
 
     let (probe, listen) = probe();
 
@@ -77,7 +80,7 @@ fn select_child_of_child() {
     let sys = block_on(ActorSystem::new()).unwrap();
 
     let props = Props::new(SelectTest::new);
-    sys.actor_of(props, "select-actor").unwrap();
+    block_on(sys.actor_of(props, "select-actor")).unwrap();
 
     // delay to allow 'select-actor' pre_start to create 'child_a' and 'child_b'
     // Direct messaging on the actor_ref doesn't have this same issue
@@ -98,7 +101,7 @@ fn select_all_children_of_child() {
     let sys = block_on(ActorSystem::new()).unwrap();
 
     let props = Props::new(SelectTest::new);
-    sys.actor_of(props, "select-actor").unwrap();
+    block_on(sys.actor_of(props, "select-actor")).unwrap();
 
     // delay to allow 'select-actor' pre_start to create 'child_a' and 'child_b'
     // Direct messaging on the actor_ref doesn't have this same issue
@@ -132,20 +135,21 @@ impl SelectTest2 {
     }
 }
 
+#[async_trait]
 impl Actor for SelectTest2 {
     type Msg = TestProbe;
 
-    fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
+    async fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
         // create first child actor
         let props = Props::new(Child::new);
-        let _ = ctx.actor_of(props, "child_a").unwrap();
+        let _ = ctx.actor_of(props, "child_a").await.unwrap();
 
         // create second child actor
         let props = Props::new(Child::new);
-        let _ = ctx.actor_of(props, "child_b").unwrap();
+        let _ = ctx.actor_of(props, "child_b").await.unwrap();
     }
 
-    fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, _sender: Sender) {
+    async fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, _sender: Sender) {
         // up and down: ../select-actor/child_a
         let sel = ctx.select("../select-actor/child_a").unwrap();
         sel.try_tell(msg.clone(), None);
@@ -173,10 +177,10 @@ fn select_from_context() {
     let sys = block_on(ActorSystem::new()).unwrap();
 
     let props = Props::new(SelectTest2::new);
-    let actor = sys.actor_of(props, "select-actor").unwrap();
+    let actor = block_on(sys.actor_of(props, "select-actor")).unwrap();
 
     let (probe, listen) = probe();
-    actor.tell(TestProbe(probe), None);
+    block_on(actor.tell(TestProbe(probe), None));
 
     // seven events back expected:
     p_assert_eq!(listen, ());

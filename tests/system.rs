@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use futures::executor::block_on;
 use riker::actors::*;
 
@@ -24,18 +25,19 @@ impl ShutdownTest {
     }
 }
 
+#[async_trait]
 impl Actor for ShutdownTest {
     type Msg = ();
 
-    fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
+    async fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
         if self.level < 10 {
             let props = Props::new_args(ShutdownTest::actor, self.level + 1);
-            ctx.actor_of(props, format!("test-actor-{}", self.level + 1).as_str())
-                .unwrap();
+            let name = format!("test-actor-{}", self.level + 1);
+            ctx.actor_of(props, &name).await.unwrap();
         }
     }
 
-    fn recv(&mut self, _: &Context<Self::Msg>, _: Self::Msg, _: Sender) {}
+    async fn recv(&mut self, _: &Context<Self::Msg>, _: Self::Msg, _: Sender) { /* empty */ }
 }
 
 #[test]
@@ -44,9 +46,9 @@ fn system_shutdown() {
     let sys = block_on(ActorSystem::new()).unwrap();
 
     let props = Props::new_args(ShutdownTest::actor, 1);
-    let _ = sys.actor_of(props, "test-actor-1").unwrap();
+    let _ = block_on(sys.actor_of(props, "test-actor-1")).unwrap();
 
-    block_on(sys.shutdown()).unwrap();
+    let _ = block_on(sys.shutdown());
 }
 
 #[test]
@@ -90,5 +92,5 @@ fn system_load_app_config() {
 fn system_builder() {
     let sys = block_on(SystemBuilder::new().name("my-sys").create()).unwrap();
 
-    block_on(sys.shutdown()).unwrap();
+    let _ = block_on(sys.shutdown());
 }

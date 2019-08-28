@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate riker_testkit;
 
+use async_trait::async_trait;
 use futures::executor::block_on;
 
 use riker::actors::*;
@@ -29,27 +30,30 @@ impl Counter {
     }
 }
 
+#[async_trait]
 impl Actor for Counter {
     // we used the #[actor] attribute so CounterMsg is the Msg type
     type Msg = CounterMsg;
 
-    fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender) {
-        self.receive(ctx, msg, sender);
+    async fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender) {
+        self.receive(ctx, msg, sender).await;
     }
 }
 
+#[async_trait]
 impl Receive<TestProbe> for Counter {
     type Msg = CounterMsg;
 
-    fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: TestProbe, _sender: Sender) {
+    async fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: TestProbe, _sender: Sender) {
         self.probe = Some(msg)
     }
 }
 
+#[async_trait]
 impl Receive<Add> for Counter {
     type Msg = CounterMsg;
 
-    fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: Add, _sender: Sender) {
+    async fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: Add, _sender: Sender) {
         self.count += 1;
         if self.count == 1_000_000 {
             self.probe.as_ref().unwrap().0.event(())
@@ -81,10 +85,10 @@ fn actor_tell() {
     let actor = block_on(sys.actor_of(props, "me")).unwrap();
 
     let (probe, listen) = probe();
-    actor.tell(TestProbe(probe), None);
+    block_on(actor.tell(TestProbe(probe), None));
 
     for _ in 0..1_000_000 {
-        actor.tell(Add, None);
+        block_on(actor.tell(Add, None));
     }
 
     p_assert_eq!(listen, ());
@@ -121,21 +125,22 @@ impl Parent {
     }
 }
 
+#[async_trait]
 impl Actor for Parent {
     type Msg = TestProbe;
 
-    fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
+    async fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
         let props = Props::new(Child::actor);
-        ctx.actor_of(props, "child_a").unwrap();
+        ctx.actor_of(props, "child_a").await.unwrap();
 
         let props = Props::new(Child::actor);
-        ctx.actor_of(props, "child_b").unwrap();
+        ctx.actor_of(props, "child_b").await.unwrap();
 
         let props = Props::new(Child::actor);
-        ctx.actor_of(props, "child_c").unwrap();
+        ctx.actor_of(props, "child_c").await.unwrap();
 
         let props = Props::new(Child::actor);
-        ctx.actor_of(props, "child_d").unwrap();
+        ctx.actor_of(props, "child_d").await.unwrap();
     }
 
     fn post_stop(&mut self) {
@@ -144,7 +149,7 @@ impl Actor for Parent {
         self.probe.as_ref().unwrap().0.event(());
     }
 
-    fn recv(&mut self, _ctx: &Context<Self::Msg>, msg: Self::Msg, _sender: Sender) {
+    async fn recv(&mut self, _ctx: &Context<Self::Msg>, msg: Self::Msg, _sender: Sender) {
         self.probe = Some(msg);
         self.probe.as_ref().unwrap().0.event(());
     }
@@ -158,10 +163,11 @@ impl Child {
     }
 }
 
+#[async_trait]
 impl Actor for Child {
     type Msg = ();
 
-    fn recv(&mut self, _: &Context<Self::Msg>, _: Self::Msg, _: Sender) {}
+    async fn recv(&mut self, _: &Context<Self::Msg>, _: Self::Msg, _: Sender) { /* empty */ }
 }
 
 #[test]
@@ -170,15 +176,15 @@ fn actor_stop() {
     let system = block_on(ActorSystem::new()).unwrap();
 
     let props = Props::new(Parent::actor);
-    let parent = system.actor_of(props, "parent").unwrap();
+    let parent = block_on(system.actor_of(props, "parent")).unwrap();
 
     let (probe, listen) = probe();
-    parent.tell(TestProbe(probe), None);
+    block_on(parent.tell(TestProbe(probe), None));
     system.print_tree();
 
     // wait for the probe to arrive at the actor before attempting to stop the actor
     listen.recv();
 
-    system.stop(&parent);
+    block_on(system.stop(&parent));
     p_assert_eq!(listen, ());
 }

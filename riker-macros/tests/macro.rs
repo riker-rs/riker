@@ -2,24 +2,8 @@ use std::fmt::Debug;
 use std::fmt;
 use std::marker::PhantomData;
 
-use riker_macros::{actor, actor_msg};
-
-#[test]
-fn impls_test() {
-    let en = NewActorMsg::U32(1);
-
-    let actor = ActorRef::<NewActorMsg> {
-        x: PhantomData
-    };
-
-    // actor.tell(5, None);
-}
-
-// #[derive(Clone, Debug)]
-// enum NewActorMsg {
-//     U32(u32),
-//     String(String),
-// }
+use async_trait::async_trait;
+use riker_macros::actor;
 
 #[actor(String, u32)]
 #[derive(Clone)]
@@ -31,43 +15,53 @@ impl NewActor {
     }  
 }
 
+#[async_trait]
 impl Actor for NewActor {
     type Msg = NewActorMsg;
 
-    fn handle(&mut self,
+    async fn recv(&mut self,
                 ctx: &Context<Self::Msg>,
                 msg: Self::Msg,
-                sender: BasicActorRef) {
+                sender: Sender) {
 
         println!("handling..");
-        self.receive(ctx, msg, sender);
+        self.receive(ctx, msg, sender).await;
     }
 }
 
+#[async_trait]
 impl Receive<u32> for NewActor {
     type Msg = NewActorMsg;
 
-    fn receive(&mut self,
-                ctx: &Context<Self::Msg>,
-                msg: u32,
-                sender: BasicActorRef) {
+    async fn receive(&mut self,
+                _ctx: &Context<Self::Msg>,
+                _msg: u32,
+                _sender: Sender) {
         println!("u32");
     }
 }
 
+#[async_trait]
 impl Receive<String> for NewActor {
     type Msg = NewActorMsg;
 
-    fn receive(&mut self,
-                ctx: &Context<Self::Msg>,
-                msg: String,
-                sender: BasicActorRef) {
+    async fn receive(&mut self,
+                _ctx: &Context<Self::Msg>,
+                _msg: String,
+                _sender: Sender) {
         println!("String");
     }
 }
-struct BasicActorRef;
-type Context<T> = Option<T>;
 
+// ------------------------------------------------------------------------------------------------
+
+struct BasicActorRef;
+type Sender = Option<BasicActorRef>;
+
+struct Context<Msg: Message> { x: PhantomData<Msg> }
+unsafe impl<Msg: Message> Sync for Context<Msg> {}
+
+#[async_trait]
 trait Actor: Send + 'static {
     type Msg: Message;
 
@@ -75,52 +69,45 @@ trait Actor: Send + 'static {
     ///
     /// Any initialization inherent to the actor's role should be
     /// performed here.
-    /// 
+    ///
     /// Panics in `pre_start` do not invoke the
     /// supervision strategy and the actor will be terminated.
-    fn pre_start(&mut self) {
-
-    }
+    async fn pre_start(&mut self, _ctx: &Context<Self::Msg>) {}
 
     /// Invoked after an actor has started.
     ///
     /// Any post initialization can be performed here, such as writing
-    /// to a log file, emmitting metrics.
-    /// 
+    /// to a log file, emitting metrics.
+    ///
     /// Panics in `post_start` follow the supervision strategy.
-    fn post_start(&mut self) {
-
-    }
+    async fn post_start(&mut self, _ctx: &Context<Self::Msg>) {}
 
     /// Invoked after an actor has been stopped.
-    fn post_stop(&mut self) {
+    fn post_stop(&mut self) {}
 
-    }
-
-    fn sys_receive(&mut self,
-                    msg: Self::Msg) {
-        
-    }
-
-    fn handle(&mut self,
-                ctx: &Context<Self::Msg>,
-                msg: Self::Msg,
-                sender: BasicActorRef);
+    /// Invoked when an actor receives a message
+    ///
+    /// It is guaranteed that only one message in the actor's mailbox is processed
+    /// at any one time, including `recv` and `sys_recv`.
+    async fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender);
 }
 
+#[async_trait]
 trait Receive<Msg: Message> {
     type Msg: Message;
 
-    fn receive(&mut self,
-                ctx: &Context<Self::Msg>,
-                msg: Msg,
-                sender: BasicActorRef);
+    /// Invoked when an actor receives a message
+    ///
+    /// It is guaranteed that only one message in the actor's mailbox is processed
+    /// at any one time, including `receive`, `other_receive` and `system_receive`.
+    async fn receive(&mut self, ctx: &Context<Self::Msg>, msg: Msg, sender: Sender);
 }
 
 type BoxedTell<T> = Box<dyn Tell<T> + Send + 'static>;
 
-trait Tell<T> : Send + 'static {
-    fn tell(&self, msg: T, sender: Option<BasicActorRef>);
+#[async_trait]
+trait Tell<T>:  Send + 'static {
+    async fn tell(&self, msg: T, sender: Option<BasicActorRef>);
     fn box_clone(&self) -> BoxedTell<T>;
 }
 
@@ -151,8 +138,7 @@ struct ActorRef<T: Message> {
 }
 
 impl<T: Message> ActorRef<T> {
-    fn send_msg(&self, msg: T, sender: Option<BasicActorRef>) {
+    async fn send_msg(&self, msg: T, sender: Option<BasicActorRef>) {
         let a = NewActor::actor();
-        // a.receive(msg);
     }
 } 

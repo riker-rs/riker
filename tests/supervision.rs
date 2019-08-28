@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate riker_testkit;
 
+use async_trait::async_trait;
 use futures::executor::block_on;
 
 use riker::actors::*;
@@ -22,10 +23,11 @@ impl DumbActor {
     }
 }
 
+#[async_trait]
 impl Actor for DumbActor {
     type Msg = ();
 
-    fn recv(&mut self, _: &Context<Self::Msg>, _: Self::Msg, _: Sender) {}
+    async fn recv(&mut self, _: &Context<Self::Msg>, _: Self::Msg, _: Sender) {}
 }
 
 #[actor(TestProbe, Panic)]
@@ -37,40 +39,43 @@ impl PanicActor {
     }
 }
 
+#[async_trait]
 impl Actor for PanicActor {
     type Msg = PanicActorMsg;
 
-    fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
+    async fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
         let props = Props::new(DumbActor::new);
-        ctx.actor_of(props, "child_a").unwrap();
+        block_on(ctx.actor_of(props, "child_a")).unwrap();
 
         let props = Props::new(DumbActor::new);
-        ctx.actor_of(props, "child_b").unwrap();
+        block_on(ctx.actor_of(props, "child_b")).unwrap();
 
         let props = Props::new(DumbActor::new);
-        ctx.actor_of(props, "child_c").unwrap();
+        block_on(ctx.actor_of(props, "child_c")).unwrap();
 
         let props = Props::new(DumbActor::new);
-        ctx.actor_of(props, "child_d").unwrap();
+        block_on(ctx.actor_of(props, "child_d")).unwrap();
     }
 
-    fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender) {
-        self.receive(ctx, msg, sender);
+    async fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender) {
+        self.receive(ctx, msg, sender).await;
     }
 }
 
+#[async_trait]
 impl Receive<TestProbe> for PanicActor {
     type Msg = PanicActorMsg;
 
-    fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: TestProbe, _sender: Sender) {
+    async fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: TestProbe, _sender: Sender) {
         msg.0.event(());
     }
 }
 
+#[async_trait]
 impl Receive<Panic> for PanicActor {
     type Msg = PanicActorMsg;
 
-    fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: Panic, _sender: Sender) {
+    async fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: Panic, _sender: Sender) {
         panic!("// TEST PANIC // TEST PANIC // TEST PANIC //");
     }
 }
@@ -89,16 +94,17 @@ impl RestartSup {
     }
 }
 
+#[async_trait]
 impl Actor for RestartSup {
     type Msg = RestartSupMsg;
 
-    fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
+    async fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
         let props = Props::new(PanicActor::new);
-        self.actor_to_fail = ctx.actor_of(props, "actor-to-fail").ok();
+        self.actor_to_fail = ctx.actor_of(props, "actor-to-fail").await.ok();
     }
 
-    fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender) {
-        self.receive(ctx, msg, sender)
+    async fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender) {
+        self.receive(ctx, msg, sender).await
     }
 
     fn supervisor_strategy(&self) -> Strategy {
@@ -106,19 +112,21 @@ impl Actor for RestartSup {
     }
 }
 
+#[async_trait]
 impl Receive<TestProbe> for RestartSup {
     type Msg = RestartSupMsg;
 
-    fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: TestProbe, sender: Sender) {
+    async fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: TestProbe, sender: Sender) {
         self.actor_to_fail.as_ref().unwrap().tell(msg, sender);
     }
 }
 
+#[async_trait]
 impl Receive<Panic> for RestartSup {
     type Msg = RestartSupMsg;
 
-    fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: Panic, _sender: Sender) {
-        self.actor_to_fail.as_ref().unwrap().tell(Panic, None);
+    async fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: Panic, _sender: Sender) {
+        self.actor_to_fail.as_ref().unwrap().tell(Panic, None).await;
     }
 }
 
@@ -128,13 +136,13 @@ fn supervision_restart_failed_actor() {
 
     for i in 0..100 {
         let props = Props::new(RestartSup::new);
-        let sup = sys.actor_of(props, &format!("supervisor_{}", i)).unwrap();
+        let sup = block_on(sys.actor_of(props, &format!("supervisor_{}", i))).unwrap();
 
         // Make the test actor panic
-        sup.tell(Panic, None);
+        block_on(sup.tell(Panic, None));
 
         let (probe, listen) = probe::<()>();
-        sup.tell(TestProbe(probe), None);
+        block_on(sup.tell(TestProbe(probe), None));
         p_assert_eq!(listen, ());
     }
 }
@@ -153,16 +161,17 @@ impl EscalateSup {
     }
 }
 
+#[async_trait]
 impl Actor for EscalateSup {
     type Msg = EscalateSupMsg;
 
-    fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
+    async fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
         let props = Props::new(PanicActor::new);
-        self.actor_to_fail = ctx.actor_of(props, "actor-to-fail").ok();
+        self.actor_to_fail = ctx.actor_of(props, "actor-to-fail").await.ok();
     }
 
-    fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender) {
-        self.receive(ctx, msg, sender);
+    async fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender) {
+        self.receive(ctx, msg, sender).await;
         // match msg {
         //     // We just resend the messages to the actor that we're concerned about testing
         //     TestMsg::Panic => self.actor_to_fail.try_tell(msg, None).unwrap(),
@@ -175,19 +184,21 @@ impl Actor for EscalateSup {
     }
 }
 
+#[async_trait]
 impl Receive<TestProbe> for EscalateSup {
     type Msg = EscalateSupMsg;
 
-    fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: TestProbe, sender: Sender) {
-        self.actor_to_fail.as_ref().unwrap().tell(msg, sender);
+    async fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: TestProbe, sender: Sender) {
+        self.actor_to_fail.as_ref().unwrap().tell(msg, sender).await;
     }
 }
 
+#[async_trait]
 impl Receive<Panic> for EscalateSup {
     type Msg = EscalateSupMsg;
 
-    fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: Panic, _sender: Sender) {
-        self.actor_to_fail.as_ref().unwrap().tell(Panic, None);
+    async fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: Panic, _sender: Sender) {
+        self.actor_to_fail.as_ref().unwrap().tell(Panic, None).await;
     }
 }
 
@@ -202,16 +213,17 @@ impl EscRestartSup {
     }
 }
 
+#[async_trait]
 impl Actor for EscRestartSup {
     type Msg = EscRestartSupMsg;
 
-    fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
+    async fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
         let props = Props::new(EscalateSup::new);
-        self.escalator = ctx.actor_of(props, "escalate-supervisor").ok();
+        self.escalator = ctx.actor_of(props, "escalate-supervisor").await.ok();
     }
 
-    fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender) {
-        self.receive(ctx, msg, sender);
+    async fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender) {
+        self.receive(ctx, msg, sender).await;
         // match msg {
         //     // We resend the messages to the parent of the actor that is/has panicked
         //     TestMsg::Panic => self.escalator.try_tell(msg, None).unwrap(),
@@ -224,19 +236,21 @@ impl Actor for EscRestartSup {
     }
 }
 
+#[async_trait]
 impl Receive<TestProbe> for EscRestartSup {
     type Msg = EscRestartSupMsg;
 
-    fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: TestProbe, sender: Sender) {
-        self.escalator.as_ref().unwrap().tell(msg, sender);
+    async fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: TestProbe, sender: Sender) {
+        self.escalator.as_ref().unwrap().tell(msg, sender).await;
     }
 }
 
+#[async_trait]
 impl Receive<Panic> for EscRestartSup {
     type Msg = EscRestartSupMsg;
 
-    fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: Panic, _sender: Sender) {
-        self.escalator.as_ref().unwrap().tell(Panic, None);
+    async fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: Panic, _sender: Sender) {
+        self.escalator.as_ref().unwrap().tell(Panic, None).await;
     }
 }
 
