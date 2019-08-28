@@ -60,8 +60,8 @@ impl Actor for Subscriber {
 impl Receive<TestProbe> for Subscriber {
     type Msg = SubscriberMsg;
 
-    async fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: TestProbe, _sender: Sender) {
-        msg.0.event(());
+    async fn receive(&mut self, _ctx: &Context<Self::Msg>, mut msg: TestProbe, _sender: Sender) {
+        msg.0.event(()).await;
         self.probe = Some(msg);
     }
 }
@@ -71,93 +71,99 @@ impl Receive<SomeMessage> for Subscriber {
     type Msg = SubscriberMsg;
 
     async fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: SomeMessage, _sender: Sender) {
-        self.probe.as_ref().unwrap().0.event(());
+        self.probe.as_mut().unwrap().0.event(()).await;
     }
 }
 
 #[test]
 fn channel_publish() {
-    let sys = block_on(ActorSystem::new()).unwrap();
+    block_on(async {
+        let sys = ActorSystem::new().await.unwrap();
 
-    // Create the channel we'll be using
-    let chan: ChannelRef<SomeMessage> = block_on(channel("my-chan", &sys)).unwrap();
+        // Create the channel we'll be using
+        let chan: ChannelRef<SomeMessage> = channel("my-chan", &sys).await.unwrap();
 
-    // The topic we'll be publishing to. Endow our subscriber test actor with this.
-    // On Subscriber's pre_start it will subscribe to this channel+topic
-    let topic = Topic::from("my-topic");
-    let sub = block_on(sys
-        .actor_of(Subscriber::props(chan.clone(), topic.clone()), "sub-actor"))
-        .unwrap();
+        // The topic we'll be publishing to. Endow our subscriber test actor with this.
+        // On Subscriber's pre_start it will subscribe to this channel+topic
+        let topic = Topic::from("my-topic");
+        let sub = sys
+            .actor_of(Subscriber::props(chan.clone(), topic.clone()), "sub-actor")
+            .await
+            .unwrap();
 
-    let (probe, listen) = probe();
-    block_on(sub.tell(TestProbe(probe), None));
+        let (probe, mut listen) = probe();
+        sub.tell(TestProbe(probe), None).await;
 
-    // wait for the probe to arrive at the actor before publishing message
-    listen.recv();
+        // wait for the probe to arrive at the actor before publishing message
+        listen.recv().await;
 
-    // Publish a test message
-    block_on(chan.tell(
-        Publish {
-            msg: SomeMessage,
-            topic: topic,
-        },
-        None,
-    ));
+        // Publish a test message
+        chan.tell(
+            Publish {
+                msg: SomeMessage,
+                topic: topic,
+            },
+            None,
+        ).await;
 
-    p_assert_eq!(listen, ());
+        p_assert_eq!(listen, ());
+    });
 }
 
 #[test]
 fn channel_publish_subscribe_all() {
-    let sys = block_on(ActorSystem::new()).unwrap();
+    block_on(async {
+        let sys = ActorSystem::new().await.unwrap();
 
-    // Create the channel we'll be using
-    let chan: ChannelRef<SomeMessage> = block_on(channel("my-chan", &sys)).unwrap();
+        // Create the channel we'll be using
+        let chan: ChannelRef<SomeMessage> = channel("my-chan", &sys).await.unwrap();
 
-    // The '*' All topic. Endow our subscriber test actor with this.
-    // On Subscriber's pre_start it will subscribe to all topics on this channel.
-    let topic = Topic::from("*");
-    let sub = block_on(sys
-        .actor_of(Subscriber::props(chan.clone(), topic.clone()), "sub-actor"))
-        .unwrap();
+        // The '*' All topic. Endow our subscriber test actor with this.
+        // On Subscriber's pre_start it will subscribe to all topics on this channel.
+        let topic = Topic::from("*");
+        let sub = sys
+            .actor_of(Subscriber::props(chan.clone(), topic.clone()), "sub-actor")
+            .await
+            .unwrap();
 
-    let (probe, listen) = probe();
-    block_on(sub.tell(TestProbe(probe), None));
+        let (probe, mut listen) = probe();
+        sub.tell(TestProbe(probe), None).await;
 
-    // wait for the probe to arrive at the actor before publishing message
-    listen.recv();
+        // wait for the probe to arrive at the actor before publishing message
+        listen.recv().await;
 
-    // Publish a test message to topic "topic-1"
-    block_on(chan.tell(
-        Publish {
-            msg: SomeMessage,
-            topic: "topic-1".into(),
-        },
-        None,
-    ));
+        // Publish a test message to topic "topic-1"
+        chan.tell(
+            Publish {
+                msg: SomeMessage,
+                topic: "topic-1".into(),
+            },
+            None,
+        ).await;
 
-    // Publish a test message to topic "topic-2"
-    block_on(chan.tell(
-        Publish {
-            msg: SomeMessage,
-            topic: "topic-2".into(),
-        },
-        None,
-    ));
+        // Publish a test message to topic "topic-2"
+        chan.tell(
+            Publish {
+                msg: SomeMessage,
+                topic: "topic-2".into(),
+            },
+            None,
+        ).await;
 
-    // Publish a test message to topic "topic-3"
-    block_on(chan.tell(
-        Publish {
-            msg: SomeMessage,
-            topic: "topic-3".into(),
-        },
-        None,
-    ));
+        // Publish a test message to topic "topic-3"
+        chan.tell(
+            Publish {
+                msg: SomeMessage,
+                topic: "topic-3".into(),
+            },
+            None,
+        ).await;
 
-    // Expecting three probe events
-    p_assert_eq!(listen, ());
-    p_assert_eq!(listen, ());
-    p_assert_eq!(listen, ());
+        // Expecting three probe events
+        p_assert_eq!(listen, ());
+        p_assert_eq!(listen, ());
+        p_assert_eq!(listen, ());
+    });
 }
 
 #[derive(Clone, Debug)]
@@ -252,8 +258,8 @@ impl Actor for EventSubscriber {
 impl Receive<TestProbe> for EventSubscriber {
     type Msg = EventSubscriberMsg;
 
-    async fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: TestProbe, _sender: Sender) {
-        msg.0.event(());
+    async fn receive(&mut self, _ctx: &Context<Self::Msg>, mut msg: TestProbe, _sender: Sender) {
+        msg.0.event(()).await;
         self.probe = Some(msg);
     }
 }
@@ -266,17 +272,17 @@ impl Receive<SystemEvent> for EventSubscriber {
         match msg {
             SystemEvent::ActorCreated(created) => {
                 if created.actor.path() == "/user/dumb-actor" {
-                    self.probe.as_ref().unwrap().0.event(())
+                    self.probe.as_mut().unwrap().0.event(()).await
                 }
             }
             SystemEvent::ActorRestarted(restarted) => {
                 if restarted.actor.path() == "/user/dumb-actor" {
-                    self.probe.as_ref().unwrap().0.event(())
+                    self.probe.as_mut().unwrap().0.event(()).await
                 }
             }
             SystemEvent::ActorTerminated(terminated) => {
                 if terminated.actor.path() == "/user/dumb-actor" {
-                    self.probe.as_ref().unwrap().0.event(())
+                    self.probe.as_mut().unwrap().0.event(()).await
                 }
             }
         }
@@ -285,32 +291,34 @@ impl Receive<SystemEvent> for EventSubscriber {
 
 #[test]
 fn channel_system_events() {
-    let sys = block_on(ActorSystem::new()).unwrap();
+    block_on(async {
+        let sys = ActorSystem::new().await.unwrap();
 
-    let actor = block_on(sys.actor_of(EventSubscriber::props(), "event-sub")).unwrap();
+        let actor = sys.actor_of(EventSubscriber::props(), "event-sub").await.unwrap();
 
-    let (probe, listen) = probe();
-    actor.tell(TestProbe(probe), None);
+        let (probe, mut listen) = probe();
+        actor.tell(TestProbe(probe), None).await;
 
-    // wait for the probe to arrive at the actor before attempting
-    // create, restart and stop
-    listen.recv();
+        // wait for the probe to arrive at the actor before attempting
+        // create, restart and stop
+        listen.recv().await;
 
-    // Create an actor
-    let props = Props::new(DumbActor::new);
-    let dumb = block_on(sys.actor_of(props, "dumb-actor")).unwrap();
-    // ActorCreated event was received
-    p_assert_eq!(listen, ());
+        // Create an actor
+        let props = Props::new(DumbActor::new);
+        let dumb = sys.actor_of(props, "dumb-actor").await.unwrap();
+        // ActorCreated event was received
+        p_assert_eq!(listen, ());
 
-    // Force restart of actor
-    block_on(dumb.tell(Panic, None));
-    // ActorRestarted event was received
-    p_assert_eq!(listen, ());
+        // Force restart of actor
+        dumb.tell(Panic, None).await;
+        // ActorRestarted event was received
+        p_assert_eq!(listen, ());
 
-    // Terminate actor
-    block_on(sys.stop(&dumb));
-    // ActorTerminated event was receive
-    p_assert_eq!(listen, ());
+        // Terminate actor
+        sys.stop(&dumb).await;
+        // ActorTerminated event was receive
+        p_assert_eq!(listen, ());
+    });
 }
 
 // *** Dead letters test ***
@@ -354,8 +362,8 @@ impl Actor for DeadLetterSub {
 impl Receive<TestProbe> for DeadLetterSub {
     type Msg = DeadLetterSubMsg;
 
-    async fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: TestProbe, _sender: Sender) {
-        msg.0.event(());
+    async fn receive(&mut self, _ctx: &Context<Self::Msg>, mut msg: TestProbe, _sender: Sender) {
+        msg.0.event(()).await;
         self.probe = Some(msg);
     }
 }
@@ -365,30 +373,33 @@ impl Receive<DeadLetter> for DeadLetterSub {
     type Msg = DeadLetterSubMsg;
 
     async fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: DeadLetter, _sender: Sender) {
-        self.probe.as_ref().unwrap().0.event(());
+        self.probe.as_mut().unwrap().0.event(()).await;
     }
 }
 
 #[test]
 fn channel_dead_letters() {
-    let sys = block_on(ActorSystem::new()).unwrap();
-    let actor = block_on(sys
-        .actor_of(DeadLetterSub::props(), "dl-subscriber"))
-        .unwrap();
+    block_on(async {
+        let sys = ActorSystem::new().await.unwrap();
+        let actor = sys
+            .actor_of(DeadLetterSub::props(), "dl-subscriber")
+            .await
+            .unwrap();
 
-    let (probe, listen) = probe();
-    actor.tell(TestProbe(probe), None);
+        let (probe, mut listen) = probe();
+        actor.tell(TestProbe(probe), None).await;
 
-    // wait for the probe to arrive at the actor before attempting to stop the actor
-    listen.recv();
+        // wait for the probe to arrive at the actor before attempting to stop the actor
+        listen.recv().await;
 
-    let props = Props::new(DumbActor::new);
-    let dumb = block_on(sys.actor_of(props, "dumb-actor")).unwrap();
+        let props = Props::new(DumbActor::new);
+        let dumb = sys.actor_of(props, "dumb-actor").await.unwrap();
 
-    // immediately stop the actor and attempt to send a message
-    block_on(sys.stop(&dumb));
-    std::thread::sleep(std::time::Duration::from_secs(1));
-    block_on(dumb.tell(SomeMessage, None));
+        // immediately stop the actor and attempt to send a message
+        sys.stop(&dumb).await;
+        futures_timer::Delay::new(std::time::Duration::from_secs(1)).await.unwrap();
+        dumb.tell(SomeMessage, None).await;
 
-    p_assert_eq!(listen, ());
+        p_assert_eq!(listen, ());
+    });
 }

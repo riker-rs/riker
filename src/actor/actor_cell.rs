@@ -476,7 +476,7 @@ fn post_stop<A: Actor>(actor: &mut Option<A>) {
 /// Operations performed are in most cases done so from the
 /// actor's perspective. For example, creating a child actor
 /// using `ctx.actor_of` will create the child under the current
-/// actor within the heirarchy. In a similar manner, persistence
+/// actor within the hierarchy. In a similar manner, persistence
 /// operations such as `persist_event` use the current actor's
 /// persistence configuration.
 ///
@@ -515,8 +515,11 @@ impl<Msg: Message> ActorRefFactory for Context<Msg> {
             .create_actor(props, name, &parent, &self.system).await
     }
 
-    fn stop(&self, actor: impl ActorReference) {
-        actor.sys_tell(SystemCmd::Stop.into());
+    async fn stop<A>(&self, actor: A)
+        where
+            A: ActorReference
+    {
+        actor.sys_tell(SystemCmd::Stop.into()).await;
     }
 }
 

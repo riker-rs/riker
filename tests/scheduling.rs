@@ -55,37 +55,41 @@ impl Receive<SomeMessage> for ScheduleOnce {
     type Msg = ScheduleOnceMsg;
 
     async fn receive(&mut self, _ctx: &Context<ScheduleOnceMsg>, _msg: SomeMessage, _sender: Sender) {
-        self.probe.as_ref().unwrap().0.event(());
+        self.probe.as_mut().unwrap().0.event(()).await;
     }
 }
 
 #[test]
 fn schedule_once() {
-    let sys = block_on(ActorSystem::new()).unwrap();
+    block_on(async {
+        let sys = ActorSystem::new().await.unwrap();
 
-    let props = Props::new(ScheduleOnce::new);
-    let actor = block_on(sys.actor_of(props, "schedule-once")).unwrap();
+        let props = Props::new(ScheduleOnce::new);
+        let actor = sys.actor_of(props, "schedule-once").await.unwrap();
 
-    let (probe, listen) = probe();
+        let (probe, mut listen) = probe();
 
-    // use scheduler to set up probe
-    sys.schedule_once(Duration::from_millis(200), actor, None, TestProbe(probe));
-    p_assert_eq!(listen, ());
+        // use scheduler to set up probe
+        sys.schedule_once(Duration::from_millis(200), actor, None, TestProbe(probe));
+        p_assert_eq!(listen, ());
+    });
 }
 
 #[test]
 fn schedule_at_time() {
-    let sys = block_on(ActorSystem::new()).unwrap();
+    block_on(async {
+        let sys = ActorSystem::new().await.unwrap();
 
-    let props = Props::new(ScheduleOnce::new);
-    let actor = block_on(sys.actor_of(props, "schedule-once")).unwrap();
+        let props = Props::new(ScheduleOnce::new);
+        let actor = sys.actor_of(props, "schedule-once").await.unwrap();
 
-    let (probe, listen) = probe();
+        let (probe, mut listen) = probe();
 
-    // use scheduler to set up probe at a specific time
-    let schedule_at = Utc::now() + CDuration::milliseconds(200);
-    sys.schedule_at_time(schedule_at, actor, None, TestProbe(probe));
-    p_assert_eq!(listen, ());
+        // use scheduler to set up probe at a specific time
+        let schedule_at = Utc::now() + CDuration::milliseconds(200);
+        sys.schedule_at_time(schedule_at, actor, None, TestProbe(probe));
+        p_assert_eq!(listen, ());
+    });
 }
 
 // *** Schedule repeat test ***
@@ -141,7 +145,7 @@ impl Receive<SomeMessage> for ScheduleRepeat {
     async fn receive(&mut self, ctx: &Context<Self::Msg>, _msg: SomeMessage, _sender: Sender) {
         if self.counter == 5 {
             ctx.cancel_schedule(self.schedule_id.unwrap());
-            self.probe.as_ref().unwrap().0.event(());
+            self.probe.as_mut().unwrap().0.event(()).await;
         } else {
             self.counter += 1;
         }
@@ -150,14 +154,16 @@ impl Receive<SomeMessage> for ScheduleRepeat {
 
 #[test]
 fn schedule_repeat() {
-    let sys = block_on(ActorSystem::new()).unwrap();
+    block_on(async {
+        let sys = ActorSystem::new().await.unwrap();
 
-    let props = Props::new(ScheduleRepeat::new);
-    let actor = block_on(sys.actor_of(props, "schedule-repeat")).unwrap();
+        let props = Props::new(ScheduleRepeat::new);
+        let actor = sys.actor_of(props, "schedule-repeat").await.unwrap();
 
-    let (probe, listen) = probe();
+        let (probe, mut listen) = probe();
 
-    actor.tell(TestProbe(probe), None);
+        actor.tell(TestProbe(probe), None).await;
 
-    p_assert_eq!(listen, ());
+        p_assert_eq!(listen, ());
+    });
 }

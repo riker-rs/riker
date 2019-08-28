@@ -4,15 +4,17 @@ use riker::actors::*;
 
 #[test]
 fn system_create() {
-    assert!(block_on(ActorSystem::new()).is_ok());
-    assert!(block_on(ActorSystem::with_name("valid-name")).is_ok());
+    block_on(async {
+        assert!(ActorSystem::new().await.is_ok());
+        assert!(ActorSystem::with_name("valid-name").await.is_ok());
 
-    assert!(block_on(ActorSystem::with_name("/")).is_err());
-    assert!(block_on(ActorSystem::with_name("*")).is_err());
-    assert!(block_on(ActorSystem::with_name("/a/b/c")).is_err());
-    assert!(block_on(ActorSystem::with_name("@")).is_err());
-    assert!(block_on(ActorSystem::with_name("#")).is_err());
-    assert!(block_on(ActorSystem::with_name("abc*")).is_err());
+        assert!(ActorSystem::with_name("/").await.is_err());
+        assert!(ActorSystem::with_name("*").await.is_err());
+        assert!(ActorSystem::with_name("/a/b/c").await.is_err());
+        assert!(ActorSystem::with_name("@").await.is_err());
+        assert!(ActorSystem::with_name("#").await.is_err());
+        assert!(ActorSystem::with_name("abc*").await.is_err());
+    });
 }
 
 struct ShutdownTest {
@@ -43,54 +45,64 @@ impl Actor for ShutdownTest {
 #[test]
 #[allow(dead_code)]
 fn system_shutdown() {
-    let sys = block_on(ActorSystem::new()).unwrap();
+    block_on(async {
+        let sys = ActorSystem::new().await.unwrap();
 
-    let props = Props::new_args(ShutdownTest::actor, 1);
-    let _ = block_on(sys.actor_of(props, "test-actor-1")).unwrap();
-
-    let _ = block_on(sys.shutdown());
+        let props = Props::new_args(ShutdownTest::actor, 1);
+        sys.actor_of(props, "test-actor-1").await.unwrap();
+        sys.shutdown().await;
+    });
 }
 
 #[test]
 fn system_futures_exec() {
-    let sys = block_on(ActorSystem::new()).unwrap();
+    block_on(async {
+        let sys = ActorSystem::new().await.unwrap();
 
-    for i in 0..100 {
-        let f = sys.run(async move { format!("some_val_{}", i) }).unwrap();
+        for i in 0..100 {
+            let f = sys.run(async move { format!("some_val_{}", i) }).unwrap();
 
-        assert_eq!(block_on(f), format!("some_val_{}", i));
-    }
+            assert_eq!(f.await, format!("some_val_{}", i));
+        }
+    });
 }
 
 #[test]
 fn system_futures_panic() {
-    let sys = block_on(ActorSystem::new()).unwrap();
+    block_on(async {
+        let sys = ActorSystem::new().await.unwrap();
 
-    for _ in 0..100 {
-        let _ = sys
-            .run(async move {
-                panic!("// TEST PANIC // TEST PANIC // TEST PANIC //");
-            })
-            .unwrap();
-    }
+        for _ in 0..100 {
+            let _ = sys
+                .run(async move {
+                    panic!("// TEST PANIC // TEST PANIC // TEST PANIC //");
+                })
+                .unwrap()
+                .await;
+        }
 
-    for i in 0..100 {
-        let f = sys.run(async move { format!("some_val_{}", i) }).unwrap();
+        for i in 0..100 {
+            let f = sys.run(async move { format!("some_val_{}", i) }).unwrap();
 
-        assert_eq!(block_on(f), format!("some_val_{}", i));
-    }
+            assert_eq!(f.await, format!("some_val_{}", i));
+        }
+    });
 }
 
 #[test]
 fn system_load_app_config() {
-    let sys = block_on(ActorSystem::new()).unwrap();
+    block_on(async {
+        let sys = ActorSystem::new().await.unwrap();
 
-    assert_eq!(sys.config().get_int("app.some_setting").unwrap() as i64, 1);
+        assert_eq!(sys.config().get_int("app.some_setting").unwrap() as i64, 1);
+    });
 }
 
 #[test]
 fn system_builder() {
-    let sys = block_on(SystemBuilder::new().name("my-sys").create()).unwrap();
+    block_on(async {
+        let sys = SystemBuilder::new().name("my-sys").create().await.unwrap();
 
-    let _ = block_on(sys.shutdown());
+        sys.shutdown().await;
+    });
 }

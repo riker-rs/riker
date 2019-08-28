@@ -56,63 +56,69 @@ impl Receive<Add> for Counter {
     async fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: Add, _sender: Sender) {
         self.count += 1;
         if self.count == 1_000_000 {
-            self.probe.as_ref().unwrap().0.event(())
+            self.probe.as_mut().unwrap().0.event(()).await;
         }
     }
 }
 
 #[test]
 fn actor_create() {
-    let sys = block_on(ActorSystem::new()).unwrap();
+    block_on(async {
+        let sys = ActorSystem::new().await.unwrap();
 
-    let props = Props::new(Counter::actor);
-    assert!(block_on(sys.actor_of(props.clone(), "valid-name")).is_ok());
+        let props = Props::new(Counter::actor);
+        assert!(sys.actor_of(props.clone(), "valid-name").await.is_ok());
 
-    assert!(block_on(sys.actor_of(props.clone(), "/")).is_err());
-    assert!(block_on(sys.actor_of(props.clone(), "*")).is_err());
-    assert!(block_on(sys.actor_of(props.clone(), "/a/b/c")).is_err());
-    assert!(block_on(sys.actor_of(props.clone(), "@")).is_err());
-    assert!(block_on(sys.actor_of(props.clone(), "#")).is_err());
-    assert!(block_on(sys.actor_of(props.clone(), "abc*")).is_err());
-    assert!(block_on(sys.actor_of(props, "!")).is_err());
+        assert!(sys.actor_of(props.clone(), "/").await.is_err());
+        assert!(sys.actor_of(props.clone(), "*").await.is_err());
+        assert!(sys.actor_of(props.clone(), "/a/b/c").await.is_err());
+        assert!(sys.actor_of(props.clone(), "@").await.is_err());
+        assert!(sys.actor_of(props.clone(), "#").await.is_err());
+        assert!(sys.actor_of(props.clone(), "abc*").await.is_err());
+        assert!(sys.actor_of(props, "!").await.is_err());
+    })
 }
 
 #[test]
 fn actor_tell() {
-    let sys = block_on(ActorSystem::new()).unwrap();
+    block_on(async {
+        let sys = ActorSystem::new().await.unwrap();
 
-    let props = Props::new(Counter::actor);
-    let actor = block_on(sys.actor_of(props, "me")).unwrap();
+        let props = Props::new(Counter::actor);
+        let actor = sys.actor_of(props, "me").await.unwrap();
 
-    let (probe, listen) = probe();
-    block_on(actor.tell(TestProbe(probe), None));
+        let (probe, mut listen) = probe();
+        actor.tell(TestProbe(probe), None).await;
 
-    for _ in 0..1_000_000 {
-        block_on(actor.tell(Add, None));
-    }
+        for _ in 0..1_000_000 {
+            actor.tell(Add, None).await;
+        }
 
-    p_assert_eq!(listen, ());
+        p_assert_eq!(listen, ());
+    });
 }
 
 #[test]
 fn actor_try_tell() {
-    let sys = block_on(ActorSystem::new()).unwrap();
+    block_on(async {
+        let sys = ActorSystem::new().await.unwrap();
 
-    let props = Props::new(Counter::actor);
-    let actor = block_on(sys.actor_of(props, "me")).unwrap();
-    let actor: BasicActorRef = actor.into();
+        let props = Props::new(Counter::actor);
+        let actor = sys.actor_of(props, "me").await.unwrap();
+        let actor: BasicActorRef = actor.into();
 
-    let (probe, listen) = probe();
-    block_on(actor.try_tell(CounterMsg::TestProbe(TestProbe(probe)), None)).unwrap();
+        let (probe, mut listen) = probe();
+        actor.try_tell(CounterMsg::TestProbe(TestProbe(probe)), None).await.unwrap();
 
-    assert!(block_on(actor.try_tell(CounterMsg::Add(Add), None)).is_ok());
-    assert!(block_on(actor.try_tell("invalid-type".to_string(), None)).is_err());
+        assert!(actor.try_tell(CounterMsg::Add(Add), None).await.is_ok());
+        assert!(actor.try_tell("invalid-type".to_string(), None).await.is_err());
 
-    for _ in 0..1_000_000 {
-        block_on(actor.try_tell(CounterMsg::Add(Add), None)).unwrap();
-    }
+        for _ in 0..1_000_000 {
+            actor.try_tell(CounterMsg::Add(Add), None).await.unwrap();
+        }
 
-    p_assert_eq!(listen, ());
+        p_assert_eq!(listen, ());
+    });
 }
 
 struct Parent {
@@ -143,15 +149,15 @@ impl Actor for Parent {
         ctx.actor_of(props, "child_d").await.unwrap();
     }
 
-    fn post_stop(&mut self) {
+    async fn post_stop(&mut self) {
         // All children have been terminated at this point
         // and we can signal back that the parent has stopped
-        self.probe.as_ref().unwrap().0.event(());
+        self.probe.as_mut().unwrap().0.event(()).await;
     }
 
     async fn recv(&mut self, _ctx: &Context<Self::Msg>, msg: Self::Msg, _sender: Sender) {
         self.probe = Some(msg);
-        self.probe.as_ref().unwrap().0.event(());
+        self.probe.as_mut().unwrap().0.event(()).await;
     }
 }
 
@@ -173,18 +179,20 @@ impl Actor for Child {
 #[test]
 #[allow(dead_code)]
 fn actor_stop() {
-    let system = block_on(ActorSystem::new()).unwrap();
+    block_on(async {
+        let system = ActorSystem::new().await.unwrap();
 
-    let props = Props::new(Parent::actor);
-    let parent = block_on(system.actor_of(props, "parent")).unwrap();
+        let props = Props::new(Parent::actor);
+        let parent = system.actor_of(props, "parent").await.unwrap();
 
-    let (probe, listen) = probe();
-    block_on(parent.tell(TestProbe(probe), None));
-    system.print_tree();
+        let (probe, mut listen) = probe();
+        parent.tell(TestProbe(probe), None).await;
+        system.print_tree();
 
-    // wait for the probe to arrive at the actor before attempting to stop the actor
-    listen.recv();
+        // wait for the probe to arrive at the actor before attempting to stop the actor
+        listen.recv().await;
 
-    block_on(system.stop(&parent));
-    p_assert_eq!(listen, ());
+        system.stop(&parent).await;
+        p_assert_eq!(listen, ());
+    });
 }

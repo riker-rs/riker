@@ -1,6 +1,6 @@
 [package]
 name = "riker"
-version = "0.3.2"
+version = "0.4.0"
 authors = ["Lee Smith <lee@riker.rs>"]
 edition = "2018"
 description = "Easily build fast, highly concurrent and resilient applications. An Actor Framework for Rust."
@@ -28,4 +28,5 @@ pin-utils = "0.1.0-alpha.4"
 
 
 [dev-dependencies]
-riker-testkit = "0.1.0"
+riker-testkit = { git = "https://github.com/mrjoe7/riker-testkit.git" }
+futures-timer = "0.3.0"

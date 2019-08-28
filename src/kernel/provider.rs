@@ -3,6 +3,7 @@ use std::{
     collections::HashSet,
     sync::{Arc, Mutex},
 };
+use async_trait::async_trait;
 
 use crate::{
     actor::actor_cell::{ActorCell, ExtendedCell},
@@ -77,7 +78,7 @@ impl Provider {
         let actor = ActorRef::new(cell);
         let child = BasicActorRef::from(actor.clone());
         parent.cell.add_child(child);
-        actor.sys_tell(SystemMsg::ActorInit);
+        actor.sys_tell(SystemMsg::ActorInit).await;
 
         Ok(actor)
     }
@@ -218,12 +219,13 @@ impl Guardian {
     }
 }
 
+#[async_trait]
 impl Actor for Guardian {
     type Msg = SystemMsg;
 
-    fn recv(&mut self, _: &Context<Self::Msg>, _: Self::Msg, _: Option<BasicActorRef>) {}
+    async fn recv(&mut self, _: &Context<Self::Msg>, _: Self::Msg, _: Option<BasicActorRef>) {}
 
-    fn post_stop(&mut self) {
+    async fn post_stop(&mut self) {
         trace!("{} guardian stopped", self.name);
     }
 }

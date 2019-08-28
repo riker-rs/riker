@@ -1,5 +1,5 @@
 #![allow(unused_variables)]
-
+use async_trait::async_trait;
 use crate::{
     actor::{
         actor_cell::Context,
@@ -9,6 +9,7 @@ use crate::{
     Message,
 };
 
+#[async_trait]
 pub trait Actor: Send + 'static {
     type Msg: Message;
 
@@ -19,7 +20,7 @@ pub trait Actor: Send + 'static {
     ///
     /// Panics in `pre_start` do not invoke the
     /// supervision strategy and the actor will be terminated.
-    fn pre_start(&mut self, ctx: &Context<Self::Msg>) {}
+    async fn pre_start(&mut self, ctx: &Context<Self::Msg>) {}
 
     /// Invoked after an actor has started.
     ///
@@ -27,10 +28,10 @@ pub trait Actor: Send + 'static {
     /// to a log file, emmitting metrics.
     ///
     /// Panics in `post_start` follow the supervision strategy.
-    fn post_start(&mut self, ctx: &Context<Self::Msg>) {}
+    async fn post_start(&mut self, ctx: &Context<Self::Msg>) {}
 
     /// Invoked after an actor has been stopped.
-    fn post_stop(&mut self) {}
+    async fn post_stop(&mut self) {}
 
     /// Return a supervisor strategy that will be used when handling failed child actors.
     fn supervisor_strategy(&self) -> Strategy {
@@ -41,45 +42,46 @@ pub trait Actor: Send + 'static {
     ///
     /// It is guaranteed that only one message in the actor's mailbox is processed
     /// at any one time, including `recv` and `sys_recv`.
-    fn sys_recv(&mut self, ctx: &Context<Self::Msg>, msg: SystemMsg, sender: Sender) {}
+    async fn sys_recv(&mut self, ctx: &Context<Self::Msg>, msg: SystemMsg, sender: Sender) {}
 
     /// Invoked when an actor receives a message
     ///
     /// It is guaranteed that only one message in the actor's mailbox is processed
     /// at any one time, including `recv` and `sys_recv`.
-    fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender);
+    async fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender);
 }
 
+#[async_trait]
 impl<A: Actor + ?Sized> Actor for Box<A> {
     type Msg = A::Msg;
 
-    fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
-        (**self).pre_start(ctx);
+    async fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
+        (**self).pre_start(ctx).await;
     }
 
-    fn post_start(&mut self, ctx: &Context<Self::Msg>) {
-        (**self).post_start(ctx)
+    async fn post_start(&mut self, ctx: &Context<Self::Msg>) {
+        (**self).post_start(ctx).await
     }
 
-    fn post_stop(&mut self) {
-        (**self).post_stop()
+    async fn post_stop(&mut self) {
+        (**self).post_stop().await
     }
 
-    fn sys_recv(
+    async fn sys_recv(
         &mut self,
         ctx: &Context<Self::Msg>,
         msg: SystemMsg,
         sender: Option<BasicActorRef>,
     ) {
-        (**self).sys_recv(ctx, msg, sender)
+        (**self).sys_recv(ctx, msg, sender).await
     }
 
     fn supervisor_strategy(&self) -> Strategy {
         (**self).supervisor_strategy()
     }
 
-    fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Option<BasicActorRef>) {
-        (**self).recv(ctx, msg, sender)
+    async fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Option<BasicActorRef>) {
+        (**self).recv(ctx, msg, sender).await
     }
 }
 
@@ -91,7 +93,8 @@ impl<A: Actor + ?Sized> Actor for Box<A> {
 /// # Examples
 ///
 /// ```
-/// # use riker::actors::*;
+/// use riker::actors::*;
+/// use async_trait::async_trait;
 ///
 /// #[derive(Clone, Debug)]
 /// struct Foo;
@@ -100,14 +103,15 @@ impl<A: Actor + ?Sized> Actor for Box<A> {
 /// #[actor(Foo, Bar)] // <-- set our actor to receive Foo and Bar types
 /// struct MyActor;
 ///
+/// #[async_trait]
 /// impl Actor for MyActor {
 ///     type Msg = MyActorMsg; // <-- MyActorMsg is provided for us
 ///
-///     fn recv(&mut self,
+///     async fn recv(&mut self,
 ///                 ctx: &Context<Self::Msg>,
 ///                 msg: Self::Msg,
 ///                 sender: Sender) {
-///         self.receive(ctx, msg, sender); // <-- call the respective implementation
+///         self.receive(ctx, msg, sender).await; // <-- call the respective implementation
 ///     }
 /// }
 ///
@@ -121,10 +125,11 @@ impl<A: Actor + ?Sized> Actor for Box<A> {
 ///     }
 /// }
 ///
+/// #[async_trait]
 /// impl Receive<Foo> for MyActor {
 ///     type Msg = MyActorMsg;
 ///
-///     fn receive(&mut self,
+///     async fn receive(&mut self,
 ///                 ctx: &Context<Self::Msg>,
 ///                 msg: Foo, // <-- receive Foo
 ///                 sender: Sender) {
@@ -132,10 +137,11 @@ impl<A: Actor + ?Sized> Actor for Box<A> {
 ///     }
 /// }
 ///
+/// #[async_trait]
 /// impl Receive<Bar> for MyActor {
 ///     type Msg = MyActorMsg;
 ///
-///     fn receive(&mut self,
+///     async fn receive(&mut self,
 ///                 ctx: &Context<Self::Msg>,
 ///                 msg: Bar, // <-- receive Bar
 ///                 sender: Sender) {
@@ -150,6 +156,7 @@ impl<A: Actor + ?Sized> Actor for Box<A> {
 /// actor.tell(Foo, None);
 /// actor.tell(Bar, None);
 /// ```
+#[async_trait]
 pub trait Receive<Msg: Message> {
     type Msg: Message;
 
@@ -157,7 +164,7 @@ pub trait Receive<Msg: Message> {
     ///
     /// It is guaranteed that only one message in the actor's mailbox is processed
     /// at any one time, including `receive`, `other_receive` and `system_receive`.
-    fn receive(&mut self, ctx: &Context<Self::Msg>, msg: Msg, sender: Option<BasicActorRef>);
+    async fn receive(&mut self, ctx: &Context<Self::Msg>, msg: Msg, sender: Sender);
 }
 
 /// The actor trait object

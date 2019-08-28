@@ -26,8 +26,8 @@ impl Child {
 impl Actor for Child {
     type Msg = TestProbe;
 
-    async fn recv(&mut self, _ctx: &Context<Self::Msg>, msg: Self::Msg, _sender: Sender) {
-        msg.0.event(());
+    async fn recv(&mut self, _ctx: &Context<Self::Msg>, mut msg: Self::Msg, _sender: Sender) {
+        msg.0.event(()).await;
     }
 }
 
@@ -53,77 +53,85 @@ impl Actor for SelectTest {
         let _ = ctx.actor_of(props, "child_b").await.unwrap();
     }
 
-    async fn recv(&mut self, _ctx: &Context<Self::Msg>, msg: Self::Msg, _sender: Sender) {
-        msg.0.event(());
+    async fn recv(&mut self, _ctx: &Context<Self::Msg>, mut msg: Self::Msg, _sender: Sender) {
+        msg.0.event(()).await;
     }
 }
 
 #[test]
 fn select_child() {
-    let sys = block_on(ActorSystem::new()).unwrap();
+    block_on(async {
+        let sys = ActorSystem::new().await.unwrap();
 
-    let props = Props::new(SelectTest::new);
-    block_on(sys.actor_of(props, "select-actor")).unwrap();
+        let props = Props::new(SelectTest::new);
+        sys.actor_of(props, "select-actor").await.unwrap();
 
-    let (probe, listen) = probe();
+        let (probe, mut listen) = probe();
 
-    // select test actors through actor selection: /root/user/select-actor/*
-    let sel = sys.select("select-actor").unwrap();
+        // select test actors through actor selection: /root/user/select-actor/*
+        let sel = sys.select("select-actor").unwrap();
 
-    sel.try_tell(TestProbe(probe), None);
+        sel.try_tell(TestProbe(probe), None);
 
-    p_assert_eq!(listen, ());
+        p_assert_eq!(listen, ());
+    });
 }
 
 #[test]
 fn select_child_of_child() {
-    let sys = block_on(ActorSystem::new()).unwrap();
+    block_on(async {
+        let sys = ActorSystem::new().await.unwrap();
 
-    let props = Props::new(SelectTest::new);
-    block_on(sys.actor_of(props, "select-actor")).unwrap();
+        let props = Props::new(SelectTest::new);
+        sys.actor_of(props, "select-actor").await.unwrap();
 
-    // delay to allow 'select-actor' pre_start to create 'child_a' and 'child_b'
-    // Direct messaging on the actor_ref doesn't have this same issue
-    std::thread::sleep(std::time::Duration::from_millis(500));
+        // delay to allow 'select-actor' pre_start to create 'child_a' and 'child_b'
+        // Direct messaging on the actor_ref doesn't have this same issue
+        futures_timer::Delay::new(std::time::Duration::from_millis(500))
+            .await
+            .unwrap();
 
-    let (probe, listen) = probe();
+        let (probe, mut listen) = probe();
 
-    // select test actors through actor selection: /root/user/select-actor/*
-    let sel = sys.select("select-actor/child_a").unwrap();
-    sel.try_tell(TestProbe(probe), None);
+        // select test actors through actor selection: /root/user/select-actor/*
+        let sel = sys.select("select-actor/child_a").unwrap();
+        sel.try_tell(TestProbe(probe), None);
 
-    // actors 'child_a' should fire a probe event
-    p_assert_eq!(listen, ());
+        // actors 'child_a' should fire a probe event
+        p_assert_eq!(listen, ());
+    });
 }
 
 #[test]
 fn select_all_children_of_child() {
-    let sys = block_on(ActorSystem::new()).unwrap();
+    block_on(async {
+        let sys = ActorSystem::new().await.unwrap();
 
-    let props = Props::new(SelectTest::new);
-    block_on(sys.actor_of(props, "select-actor")).unwrap();
+        let props = Props::new(SelectTest::new);
+        sys.actor_of(props, "select-actor").await.unwrap();
 
-    // delay to allow 'select-actor' pre_start to create 'child_a' and 'child_b'
-    // Direct messaging on the actor_ref doesn't have this same issue
-    std::thread::sleep(std::time::Duration::from_millis(500));
+        // delay to allow 'select-actor' pre_start to create 'child_a' and 'child_b'
+        // Direct messaging on the actor_ref doesn't have this same issue
+        futures_timer::Delay::new(std::time::Duration::from_millis(500)).await.unwrap();
 
-    let (probe, listen) = probe();
+        let (probe, mut listen) = probe();
 
-    // select relative test actors through actor selection: /root/user/select-actor/*
-    let sel = sys.select("select-actor/*").unwrap();
-    sel.try_tell(TestProbe(probe.clone()), None);
+        // select relative test actors through actor selection: /root/user/select-actor/*
+        let sel = sys.select("select-actor/*").unwrap();
+        sel.try_tell(TestProbe(probe.clone()), None);
 
-    // actors 'child_a' and 'child_b' should both fire a probe event
-    p_assert_eq!(listen, ());
-    p_assert_eq!(listen, ());
+        // actors 'child_a' and 'child_b' should both fire a probe event
+        p_assert_eq!(listen, ());
+        p_assert_eq!(listen, ());
 
-    // select absolute test actors through actor selection: /root/user/select-actor/*
-    let sel = sys.select("/user/select-actor/*").unwrap();
-    sel.try_tell(TestProbe(probe), None);
+        // select absolute test actors through actor selection: /root/user/select-actor/*
+        let sel = sys.select("/user/select-actor/*").unwrap();
+        sel.try_tell(TestProbe(probe), None);
 
-    // actors 'child_a' and 'child_b' should both fire a probe event
-    p_assert_eq!(listen, ());
-    p_assert_eq!(listen, ());
+        // actors 'child_a' and 'child_b' should both fire a probe event
+        p_assert_eq!(listen, ());
+        p_assert_eq!(listen, ());
+    });
 }
 
 #[derive(Clone)]
@@ -174,41 +182,46 @@ impl Actor for SelectTest2 {
 
 #[test]
 fn select_from_context() {
-    let sys = block_on(ActorSystem::new()).unwrap();
+    block_on(async {
+        let sys = ActorSystem::new().await.unwrap();
 
-    let props = Props::new(SelectTest2::new);
-    let actor = block_on(sys.actor_of(props, "select-actor")).unwrap();
+        let props = Props::new(SelectTest2::new);
+        let actor = sys.actor_of(props, "select-actor").await.unwrap();
 
-    let (probe, listen) = probe();
-    block_on(actor.tell(TestProbe(probe), None));
+        let (probe, mut listen) = probe();
+        actor.tell(TestProbe(probe), None).await;
 
-    // seven events back expected:
-    p_assert_eq!(listen, ());
-    p_assert_eq!(listen, ());
-    p_assert_eq!(listen, ());
-    p_assert_eq!(listen, ());
-    p_assert_eq!(listen, ());
-    p_assert_eq!(listen, ());
-    p_assert_eq!(listen, ());
+        // seven events back expected:
+        p_assert_eq!(listen, ());
+        p_assert_eq!(listen, ());
+        p_assert_eq!(listen, ());
+        p_assert_eq!(listen, ());
+        p_assert_eq!(listen, ());
+        p_assert_eq!(listen, ());
+        p_assert_eq!(listen, ());
+    });
 }
 
 #[test]
 fn select_paths() {
-    let sys = block_on(ActorSystem::new()).unwrap();
+    block_on(async {
+        let sys = ActorSystem::new().await.unwrap();
 
-    assert!(sys.select("foo/").is_ok());
-    assert!(sys.select("/foo/").is_ok());
-    assert!(sys.select("/foo").is_ok());
-    assert!(sys.select("/foo/..").is_ok());
-    assert!(sys.select("../foo/").is_ok());
-    assert!(sys.select("/foo/*").is_ok());
-    assert!(sys.select("*").is_ok());
+        assert!(sys.select("foo/").is_ok());
+        assert!(sys.select("/foo/").is_ok());
+        assert!(sys.select("/foo").is_ok());
+        assert!(sys.select("/foo/..").is_ok());
+        assert!(sys.select("../foo/").is_ok());
+        assert!(sys.select("/foo/*").is_ok());
+        assert!(sys.select("*").is_ok());
 
-    assert!(sys.select("foo/`").is_err());
-    assert!(sys.select("foo/@").is_err());
-    assert!(sys.select("!").is_err());
-    assert!(sys.select("foo/$").is_err());
-    assert!(sys.select("&").is_err());
+        assert!(sys.select("foo/`").is_err());
+        assert!(sys.select("foo/@").is_err());
+        assert!(sys.select("!").is_err());
+        assert!(sys.select("foo/$").is_err());
+        assert!(sys.select("&").is_err());
+
+    });
 }
 
 // // *** Dead letters test ***

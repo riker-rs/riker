@@ -10,7 +10,8 @@ use crate::{
     AnyMessage, Envelope, Message,
 };
 
-pub trait ActorReference {
+#[async_trait]
+pub trait ActorReference: Send + Sync {
     /// Actor name.
     ///
     /// Unique among siblings.
@@ -51,23 +52,25 @@ pub trait ActorReference {
     fn children<'a>(&'a self) -> Box<dyn Iterator<Item = BasicActorRef> + 'a>;
 
     /// Send a system message to this actor
-    fn sys_tell(&self, msg: SystemMsg);
+    async fn sys_tell(&self, msg: SystemMsg);
 }
 
 pub type BoxedTell<T> = Box<dyn Tell<T> + Send + 'static>;
 
+#[async_trait]
 pub trait Tell<T>: ActorReference + Send + 'static {
-    fn tell(&self, msg: T, sender: Option<BasicActorRef>);
+    async fn tell(&self, msg: T, sender: Sender);
     fn box_clone(&self) -> BoxedTell<T>;
 }
 
+#[async_trait]
 impl<T, M> Tell<T> for ActorRef<M>
 where
     T: Message + Into<M>,
     M: Message,
 {
-    fn tell(&self, msg: T, sender: Sender) {
-        self.send_msg(msg.into(), sender);
+    async fn tell(&self, msg: T, sender: Sender) {
+        self.send_msg(msg.into(), sender).await;
     }
 
     fn box_clone(&self) -> BoxedTell<T> {
@@ -75,6 +78,7 @@ where
     }
 }
 
+#[async_trait]
 impl<T> ActorReference for BoxedTell<T>
 where
     T: Message,
@@ -115,8 +119,8 @@ where
         (**self).children()
     }
 
-    fn sys_tell(&self, msg: SystemMsg) {
-        (**self).sys_tell(msg)
+    async fn sys_tell(&self, msg: SystemMsg) {
+        (**self).sys_tell(msg).await
     }
 }
 
@@ -201,6 +205,7 @@ impl BasicActorRef {
     }
 }
 
+#[async_trait]
 impl ActorReference for BasicActorRef {
     fn name(&self) -> &str {
         self.cell.uri().name.as_str()
@@ -238,12 +243,13 @@ impl ActorReference for BasicActorRef {
         self.cell.children()
     }
 
-    fn sys_tell(&self, msg: SystemMsg) {
+    async fn sys_tell(&self, msg: SystemMsg) {
         let envelope = Envelope { msg, sender: None };
-        let _ = self.cell.send_sys_msg(envelope);
+        let _ = self.cell.send_sys_msg(envelope).await;
     }
 }
 
+#[async_trait]
 impl ActorReference for &BasicActorRef {
     fn name(&self) -> &str {
         self.cell.uri().name.as_str()
@@ -281,9 +287,9 @@ impl ActorReference for &BasicActorRef {
         self.cell.children()
     }
 
-    fn sys_tell(&self, msg: SystemMsg) {
+    async fn sys_tell(&self, msg: SystemMsg) {
         let envelope = Envelope { msg, sender: None };
-        let _ = self.cell.send_sys_msg(envelope);
+        let _ = self.cell.send_sys_msg(envelope).await;
     }
 }
 
@@ -354,16 +360,17 @@ impl<Msg: Message> ActorRef<Msg> {
         ActorRef { cell }
     }
 
-    pub fn send_msg(&self, msg: Msg, sender: impl Into<Option<BasicActorRef>>) {
+    pub async fn send_msg(&self, msg: Msg, sender: impl Into<Option<BasicActorRef>>) {
         let envelope = Envelope {
             msg,
             sender: sender.into(),
         };
         // consume the result (we don't return it to user)
-        let _ = self.cell.send_msg(envelope);
+        let _ = self.cell.send_msg(envelope).await;
     }
 }
 
+#[async_trait]
 impl<Msg: Message> ActorReference for ActorRef<Msg> {
     fn name(&self) -> &str {
         self.cell.uri().name.as_str()
@@ -401,12 +408,13 @@ impl<Msg: Message> ActorReference for ActorRef<Msg> {
         self.cell.children()
     }
 
-    fn sys_tell(&self, msg: SystemMsg) {
+    async fn sys_tell(&self, msg: SystemMsg) {
         let envelope = Envelope { msg, sender: None };
-        let _ = self.cell.send_sys_msg(envelope);
+        let _ = self.cell.send_sys_msg(envelope).await;
     }
 }
 
+#[async_trait]
 impl<Msg: Message> ActorReference for &ActorRef<Msg> {
     fn name(&self) -> &str {
         self.cell.uri().name.as_str()
@@ -444,9 +452,9 @@ impl<Msg: Message> ActorReference for &ActorRef<Msg> {
         self.cell.children()
     }
 
-    fn sys_tell(&self, msg: SystemMsg) {
+    async fn sys_tell(&self, msg: SystemMsg) {
         let envelope = Envelope { msg, sender: None };
-        let _ = self.cell.send_sys_msg(envelope);
+        let _ = self.cell.send_sys_msg(envelope).await;
     }
 }
 
@@ -484,7 +492,9 @@ pub trait ActorRefFactory {
     where
         A: Actor;
 
-    fn stop(&self, actor: impl ActorReference);
+    async fn stop<A>(&self, actor: A)
+    where
+        A: ActorReference;
 }
 
 /// Produces `ActorRef`s under the `temp` guardian actor.

@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use config::Config;
 use log;
 use log::{info, Level};
@@ -72,10 +73,11 @@ impl SimpleLogger {
     }
 }
 
+#[async_trait]
 impl Actor for SimpleLogger {
     type Msg = LogEntry;
 
-    fn recv(&mut self, _: &Context<LogEntry>, entry: LogEntry, _: Option<BasicActorRef>) {
+    async fn recv(&mut self, _: &Context<LogEntry>, entry: LogEntry, _: Option<BasicActorRef>) {
         let now = chrono::Utc::now();
         let f_match: Vec<&String> = self
             .cfg
@@ -148,10 +150,11 @@ impl DeadLetterLogger {
     }
 }
 
+#[async_trait]
 impl Actor for DeadLetterLogger {
     type Msg = DeadLetter;
 
-    fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
+    async fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
         let sub = Box::new(ctx.myself());
         self.dl_chan.tell(
             Subscribe {
@@ -162,7 +165,7 @@ impl Actor for DeadLetterLogger {
         );
     }
 
-    fn recv(&mut self, _: &Context<Self::Msg>, msg: Self::Msg, _: Option<BasicActorRef>) {
+    async fn recv(&mut self, _: &Context<Self::Msg>, msg: Self::Msg, _: Option<BasicActorRef>) {
         info!(
             "DeadLetter: {:?} => {:?} ({:?})",
             msg.sender, msg.recipient, msg.msg

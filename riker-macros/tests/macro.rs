@@ -83,7 +83,7 @@ trait Actor: Send + 'static {
     async fn post_start(&mut self, _ctx: &Context<Self::Msg>) {}
 
     /// Invoked after an actor has been stopped.
-    fn post_stop(&mut self) {}
+    async fn post_stop(&mut self) {}
 
     /// Invoked when an actor receives a message
     ///

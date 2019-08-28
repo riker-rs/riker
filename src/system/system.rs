@@ -355,8 +355,11 @@ impl ActorRefFactory for ActorSystem {
             .await
     }
 
-    fn stop(&self, actor: impl ActorReference) {
-        actor.sys_tell(SystemCmd::Stop.into());
+    async fn stop<A>(&self, actor: A)
+    where
+        A: ActorReference
+    {
+        actor.sys_tell(SystemCmd::Stop.into()).await;
     }
 }
 
@@ -473,7 +476,7 @@ impl Timer for ActorSystem {
             id: id.clone(),
             send_at: SystemTime::now() + delay,
             receiver: receiver.into(),
-            sender: sender,
+            sender,
             msg: AnyMessage::new(msg, true),
         };
 
@@ -630,10 +633,11 @@ impl ShutdownActor {
     }
 }
 
+#[async_trait]
 impl Actor for ShutdownActor {
     type Msg = SystemEvent;
 
-    fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
+    async fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
         let sub = Subscribe {
             topic: SysTopic::ActorTerminated.into(),
             actor: Box::new(ctx.myself.clone()),
@@ -651,7 +655,7 @@ impl Actor for ShutdownActor {
         ctx.system.stop(ctx.system.user_root());
     }
 
-    fn sys_recv(
+    async fn sys_recv(
         &mut self,
         ctx: &Context<Self::Msg>,
         msg: SystemMsg,
@@ -664,13 +668,14 @@ impl Actor for ShutdownActor {
         }
     }
 
-    fn recv(&mut self, _: &Context<Self::Msg>, _: Self::Msg, _: Option<BasicActorRef>) {}
+    async fn recv(&mut self, _: &Context<Self::Msg>, _: Self::Msg, _: Option<BasicActorRef>) {}
 }
 
+#[async_trait]
 impl Receive<ActorTerminated> for ShutdownActor {
     type Msg = SystemEvent;
 
-    fn receive(
+    async fn receive(
         &mut self,
         ctx: &Context<Self::Msg>,
         msg: ActorTerminated,

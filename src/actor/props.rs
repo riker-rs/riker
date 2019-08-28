@@ -23,6 +23,8 @@ impl Props {
     ///
     /// ```
     /// # use riker::actors::*;
+    /// # use async_trait::async_trait;
+    /// use futures::executor::block_on;
     ///
     /// struct User;
     ///
@@ -31,10 +33,10 @@ impl Props {
     ///         User
     ///     }
     /// }
-    ///
+    /// # #[async_trait]
     /// # impl Actor for User {
     /// #    type Msg = String;
-    /// #    fn recv(&mut self, _ctx: &Context<String>, _msg: String, _sender: Sender) {}
+    /// #    async fn recv(&mut self, _ctx: &Context<String>, _msg: String, _sender: Sender) {}
     /// # }
     /// // main
     /// let sys = ActorSystem::new().unwrap();
@@ -42,7 +44,7 @@ impl Props {
     /// let props = Props::new(User::actor);
     ///
     /// // start the actor and get an `ActorRef`
-    /// let actor = sys.actor_of(props, "user").unwrap();
+    /// let actor = block_on(sys.actor_of(props, "user")).unwrap();
     /// ```
     pub fn new<A, F>(creator: F) -> Arc<Mutex<impl ActorProducer<Actor = A>>>
     where
@@ -58,6 +60,8 @@ impl Props {
     /// An actor requiring a single parameter.
     /// ```
     /// # use riker::actors::*;
+    /// # use async_trait::async_trait;
+    /// use futures::executor::block_on;
     ///
     /// struct User {
     ///     name: String,
@@ -71,20 +75,23 @@ impl Props {
     ///     }
     /// }
     ///
+    /// # #[async_trait]
     /// # impl Actor for User {
     /// #    type Msg = String;
-    /// #    fn recv(&mut self, _ctx: &Context<String>, _msg: String, _sender: Sender) {}
+    /// #    async fn recv(&mut self, _ctx: &Context<String>, _msg: String, _sender: Sender) {}
     /// # }
     /// // main
     /// let sys = ActorSystem::new().unwrap();
     ///
     /// let props = Props::new_args(User::actor, "Naomi Nagata".into());
     ///
-    /// let actor = sys.actor_of(props, "user").unwrap();
+    /// let actor = block_on(sys.actor_of(props, "user")).unwrap();
     /// ```
     /// An actor requiring multiple parameters.
     /// ```
     /// # use riker::actors::*;
+    /// # use async_trait::async_trait;
+    /// use futures::executor::block_on;
     ///
     /// struct BankAccount {
     ///     name: String,
@@ -100,9 +107,10 @@ impl Props {
     ///     }
     /// }
     ///
+    /// # #[async_trait]
     /// # impl Actor for BankAccount {
     /// #    type Msg = String;
-    /// #    fn recv(&mut self, _ctx: &Context<String>, _msg: String, _sender: Sender) {}
+    /// #    async fn recv(&mut self, _ctx: &Context<String>, _msg: String, _sender: Sender) {}
     /// # }
     /// // main
     /// let sys = ActorSystem::new().unwrap();
@@ -111,7 +119,7 @@ impl Props {
     ///                             ("James Holden".into(), "12345678".into()));
     ///
     /// // start the actor and get an `ActorRef`
-    /// let actor = sys.actor_of(props, "bank_account").unwrap();
+    /// let actor = block_on(sys.actor_of(props, "bank_account")).unwrap();
     /// ```
     pub fn new_args<A, Args, F>(creator: F, args: Args) -> Arc<Mutex<impl ActorProducer<Actor = A>>>
     where

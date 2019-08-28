@@ -45,16 +45,16 @@ impl Actor for PanicActor {
 
     async fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
         let props = Props::new(DumbActor::new);
-        block_on(ctx.actor_of(props, "child_a")).unwrap();
+        ctx.actor_of(props, "child_a").await.unwrap();
 
         let props = Props::new(DumbActor::new);
-        block_on(ctx.actor_of(props, "child_b")).unwrap();
+        ctx.actor_of(props, "child_b").await.unwrap();
 
         let props = Props::new(DumbActor::new);
-        block_on(ctx.actor_of(props, "child_c")).unwrap();
+        ctx.actor_of(props, "child_c").await.unwrap();
 
         let props = Props::new(DumbActor::new);
-        block_on(ctx.actor_of(props, "child_d")).unwrap();
+        ctx.actor_of(props, "child_d").await.unwrap();
     }
 
     async fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender) {
@@ -66,8 +66,8 @@ impl Actor for PanicActor {
 impl Receive<TestProbe> for PanicActor {
     type Msg = PanicActorMsg;
 
-    async fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: TestProbe, _sender: Sender) {
-        msg.0.event(());
+    async fn receive(&mut self, _ctx: &Context<Self::Msg>, mut msg: TestProbe, _sender: Sender) {
+        msg.0.event(()).await;
     }
 }
 
@@ -132,19 +132,22 @@ impl Receive<Panic> for RestartSup {
 
 #[test]
 fn supervision_restart_failed_actor() {
-    let sys = block_on(ActorSystem::new()).unwrap();
+    block_on(async {
+        let sys = ActorSystem::new().await.unwrap();
 
-    for i in 0..100 {
-        let props = Props::new(RestartSup::new);
-        let sup = block_on(sys.actor_of(props, &format!("supervisor_{}", i))).unwrap();
+        for i in 0..100 {
+            let props = Props::new(RestartSup::new);
+            let name = format!("supervisor_{}", i);
+            let sup = sys.actor_of(props, &name).await.unwrap();
 
-        // Make the test actor panic
-        block_on(sup.tell(Panic, None));
+            // Make the test actor panic
+            sup.tell(Panic, None).await;
 
-        let (probe, listen) = probe::<()>();
-        block_on(sup.tell(TestProbe(probe), None));
-        p_assert_eq!(listen, ());
-    }
+            let (probe, mut listen) = probe::<()>();
+            sup.tell(TestProbe(probe), None).await;
+            p_assert_eq!(listen, ());
+        }
+    });
 }
 
 // Test Escalate Strategy
@@ -256,17 +259,19 @@ impl Receive<Panic> for EscRestartSup {
 
 #[test]
 fn supervision_escalate_failed_actor() {
-    let sys = block_on(ActorSystem::new()).unwrap();
+    block_on(async {
+        let sys = ActorSystem::new().await.unwrap();
 
-    let props = Props::new(EscRestartSup::new);
-    let sup = block_on(sys.actor_of(props, "supervisor")).unwrap();
+        let props = Props::new(EscRestartSup::new);
+        let sup = sys.actor_of(props, "supervisor").await.unwrap();
 
-    // Make the test actor panic
-    sup.tell(Panic, None);
+        // Make the test actor panic
+        sup.tell(Panic, None).await;
 
-    let (probe, listen) = probe::<()>();
-    std::thread::sleep(std::time::Duration::from_millis(2000));
-    sup.tell(TestProbe(probe), None);
-    p_assert_eq!(listen, ());
-    sys.print_tree();
+        let (probe, mut listen) = probe::<()>();
+        std::thread::sleep(std::time::Duration::from_millis(2000));
+        sup.tell(TestProbe(probe), None);
+        p_assert_eq!(listen, ());
+        sys.print_tree();
+    });
 }
