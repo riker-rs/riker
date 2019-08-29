@@ -1,3 +1,9 @@
+/*
+ *
+ *  THIS FILE IS NOT USED AT THE MOMENT
+ *
+ */
+
 use std::sync::{Arc, Mutex};
 use std::marker::PhantomData;
 
@@ -31,7 +37,7 @@ impl<Evs: EventStore> EsManager<Evs> {
 impl<Evs: EventStore> Actor for EsManager<Evs> {
     type Msg = Evs::Msg;
 
-    fn other_receive(&mut self,
+    async fn other_receive(&mut self,
                     _: &Context<Self::Msg>,
                     msg: ActorMsg<Self::Msg>,
                     sender: Option<ActorRef<Self::Msg>>) {
@@ -40,11 +46,11 @@ impl<Evs: EventStore> Actor for EsManager<Evs> {
             match msg {
                 ESMsg::Persist(evt, id, keyspace, og_sender) => {
                     self.es.insert(&id, &keyspace, evt.clone());
-                    sender.unwrap().sys_tell(SystemMsg::Persisted(evt.msg, og_sender), None);
+                    sender.unwrap().sys_tell(SystemMsg::Persisted(evt.msg, og_sender), None).await;
                 }
                 ESMsg::Load(id, keyspace) => {
                     let result = self.es.load(&id, &keyspace);
-                    sender.unwrap().tell(ESMsg::LoadResult(result), None);
+                    sender.unwrap().tell(ESMsg::LoadResult(result), None).await;
                 }
                 _ => {}
             }
@@ -116,8 +122,8 @@ impl<Msg: Message> EsQueryActor<Msg> {
         Box::new(actor)
     }
 
-    fn fulfill_query(&self, evts: Vec<Msg>) {
-        self.rec.sys_tell(SystemMsg::Replay(evts), None);
+    async fn fulfill_query(&self, evts: Vec<Msg>) {
+        self.rec.sys_tell(SystemMsg::Replay(evts), None).await;
     }
 }
 

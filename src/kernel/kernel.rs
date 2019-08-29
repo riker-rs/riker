@@ -102,8 +102,8 @@ async fn restart_actor<A>(
     match start_actor(props) {
         Ok(actor) => {
             *a = Some(actor);
-            actor_ref.sys_tell(SystemMsg::ActorInit);
-            sys.publish_event(ActorRestarted { actor: actor_ref }.into());
+            actor_ref.sys_tell(SystemMsg::ActorInit).await;
+            sys.publish_event(ActorRestarted { actor: actor_ref }.into()).await;
         }
         Err(_) => {
             warn!("Actor failed to restart: {:?}", actor_ref);
@@ -122,11 +122,11 @@ where
             actor: actor_ref.clone(),
         }
         .into(),
-    );
+    ).await;
 
     let parent = actor_ref.parent();
     if !parent.is_root() {
-        parent.sys_tell(ActorTerminated { actor: actor_ref }.into());
+        parent.sys_tell(ActorTerminated { actor: actor_ref }.into()).await;
     }
 }
 

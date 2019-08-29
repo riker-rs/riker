@@ -177,8 +177,8 @@ impl BasicActorRef {
         ActorRef { cell }
     }
 
-    pub(crate) fn sys_init(&self, sys: &ActorSystem) {
-        self.cell.kernel().sys_init(sys);
+    pub(crate) async fn sys_init(&self, sys: &ActorSystem) {
+        self.cell.kernel().sys_init(sys).await;
     }
 
     /// Send a message to this actor

@@ -10,16 +10,14 @@ use crate::{
     AnyMessage, Message,
 };
 use futures::executor::ThreadPool;
-use std::sync::Arc;
-use futures::lock::Mutex;
 
 
 #[derive(Clone)]
-pub struct TimerRef(Arc<Mutex<UnboundedSender<Job>>>);
+pub struct TimerRef(UnboundedSender<Job>);
 
 impl TimerRef {
     pub async fn send(&self, job: Job) ->  Result<(), SendError> {
-        let tx = &mut self.0.lock().await;
+        let mut tx = self.0.clone();
         tx.send(job).await
     }
 }
@@ -135,7 +133,7 @@ impl BasicTimer {
             }
         });
 
-        TimerRef(Arc::new(Mutex::new(tx)))
+        TimerRef(tx)
     }
 
     pub async fn execute_once_jobs(&mut self) {

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use futures::{channel::mpsc::Sender, task::SpawnExt, SinkExt};
+use futures::{channel::mpsc::Sender, SinkExt};
 
 use crate::{
     actor::{MsgError, MsgResult},
@@ -18,29 +18,25 @@ pub struct KernelRef {
 }
 
 impl KernelRef {
-    pub(crate) fn schedule(&self, sys: &ActorSystem) {
-        self.send(KernelMsg::RunActor, sys);
+    pub(crate) async fn schedule(&self) {
+        self.send(KernelMsg::RunActor).await;
     }
 
-    pub(crate) fn restart(&self, sys: &ActorSystem) {
-        self.send(KernelMsg::RestartActor, sys);
+    pub(crate) async fn restart(&self) {
+        self.send(KernelMsg::RestartActor).await;
     }
 
-    pub(crate) fn terminate(&self, sys: &ActorSystem) {
-        self.send(KernelMsg::TerminateActor, sys);
+    pub(crate) async fn terminate(&self) {
+        self.send(KernelMsg::TerminateActor).await;
     }
 
-    pub(crate) fn sys_init(&self, sys: &ActorSystem) {
-        self.send(KernelMsg::Sys(sys.clone()), sys);
+    pub(crate) async fn sys_init(&self, sys: &ActorSystem) {
+        self.send(KernelMsg::Sys(sys.clone())).await;
     }
 
-    fn send(&self, msg: KernelMsg, sys: &ActorSystem) {
+    async fn send(&self, msg: KernelMsg) {
         let mut tx = self.tx.clone();
-        let mut exec = sys.exec.clone();
-        exec.spawn(async move {
-            drop(tx.send(msg).await);
-        })
-        .unwrap();
+        tx.send(msg).await.unwrap();
     }
 }
 
@@ -48,7 +44,6 @@ pub async fn dispatch<Msg>(
     msg: Envelope<Msg>,
     mbox: &MailboxSender<Msg>,
     kernel: &KernelRef,
-    sys: &ActorSystem,
 ) -> MsgResult<Envelope<Msg>>
 where
     Msg: Message,
@@ -57,7 +52,7 @@ where
         Ok(_) => {
             if !mbox.is_scheduled() {
                 mbox.set_scheduled(true);
-                kernel.schedule(sys);
+                kernel.schedule().await;
             }
 
             Ok(())
@@ -71,13 +66,12 @@ pub async fn dispatch_any(
     sender: crate::actor::Sender,
     mbox: &Arc<dyn AnySender>,
     kernel: &KernelRef,
-    sys: &ActorSystem,
 ) -> Result<(), ()> {
     match mbox.try_any_enqueue(msg, sender).await {
         Ok(_) => {
             if !mbox.is_sched() {
                 mbox.set_sched(true);
-                kernel.schedule(sys);
+                kernel.schedule().await;
             }
 
             Ok(())

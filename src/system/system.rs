@@ -2,14 +2,14 @@ use std::{
     fmt,
     ops::Deref,
     str::FromStr,
-    sync::{Arc, Mutex},
+    sync::Arc,
     time::{Duration, SystemTime},
 };
 
 use async_trait::async_trait;
 use chrono::prelude::*;
 use config::Config;
-use futures::{channel::oneshot, executor::{ThreadPool, ThreadPoolBuilder}, future::RemoteHandle, task::{SpawnError, SpawnExt}, Future};
+use futures::{channel::oneshot, executor::{ThreadPool, ThreadPoolBuilder}, future::RemoteHandle, task::{SpawnError, SpawnExt}, prelude::*, lock::Mutex};
 use log::{debug, Level};
 use rand;
 use uuid::Uuid;
@@ -190,15 +190,15 @@ impl ActorSystem {
         let props = DeadLetterLogger::props(sys.dead_letters());
         let _dl_logger = sys_actor_of(&prov, &sys, props, "dl_logger").await?;
 
-        sys.complete_start();
+        sys.complete_start().await;
 
         debug!("Actor system [{}] [{}] started", sys.id(), name);
 
         Ok(sys)
     }
 
-    fn complete_start(&self) {
-        self.sys_actors.as_ref().unwrap().user.sys_init(self);
+    async fn complete_start(&self) {
+        self.sys_actors.as_ref().unwrap().user.sys_init(self).await;
     }
 
     /// Returns the system start date
@@ -285,9 +285,9 @@ impl ActorSystem {
         &self.sys_channels.as_ref().unwrap().dead_letters
     }
 
-    pub fn publish_event(&self, evt: SystemEvent) {
+    pub async fn publish_event(&self, evt: SystemEvent) {
         let topic = Topic::from(&evt);
-        self.sys_events().tell(Publish { topic, msg: evt }, None);
+        self.sys_events().tell(Publish { topic, msg: evt }, None).await;
     }
 
     /// Returns the `Config` used by the system
@@ -637,7 +637,7 @@ impl Actor for ShutdownActor {
             topic: SysTopic::ActorTerminated.into(),
             actor: Box::new(ctx.myself.clone()),
         };
-        ctx.system.sys_events().tell(sub, None);
+        ctx.system.sys_events().tell(sub, None).await;
 
         // todo this is prone to failing since there is no
         // confirmation that ShutdownActor has subscribed to
@@ -647,7 +647,7 @@ impl Actor for ShutdownActor {
 
         // std::thread::sleep_ms(1000);
         // send stop to all /user children
-        ctx.system.stop(ctx.system.user_root());
+        ctx.system.stop(ctx.system.user_root()).await;
     }
 
     async fn sys_recv(
@@ -658,12 +658,12 @@ impl Actor for ShutdownActor {
     ) {
         if let SystemMsg::Event(evt) = msg {
             if let SystemEvent::ActorTerminated(terminated) = evt {
-                self.receive(ctx, terminated, sender);
+                self.receive(ctx, terminated, sender).await;
             }
         }
     }
 
-    async fn recv(&mut self, _: &Context<Self::Msg>, _: Self::Msg, _: Option<BasicActorRef>) {}
+    async fn recv(&mut self, _: &Context<Self::Msg>, _: Self::Msg, _: Option<BasicActorRef>) { /* empty */ }
 }
 
 #[async_trait]
@@ -677,10 +677,9 @@ impl Receive<ActorTerminated> for ShutdownActor {
         _sender: Option<BasicActorRef>,
     ) {
         if &msg.actor == ctx.system.user_root() {
-            if let Ok(ref mut tx) = self.tx.lock() {
-                if let Some(tx) = tx.take() {
-                    tx.send(()).unwrap();
-                }
+            let mut tx = self.tx.lock().await;
+            if let Some(tx) = tx.take() {
+                tx.send(()).unwrap();
             }
         }
     }

@@ -97,6 +97,10 @@ impl ActorCell {
         }
     }
 
+    pub(crate) fn system(&self) -> &ActorSystem {
+        &self.inner.system
+    }
+
     pub(crate) fn kernel(&self) -> &KernelRef {
         self.inner.kernel.as_ref().unwrap()
     }
@@ -141,22 +145,22 @@ impl ActorCell {
         let mb = &self.inner.mailbox;
         let k = self.kernel();
 
-        dispatch_any(msg, sender, mb, k, &self.inner.system).await
+        dispatch_any(msg, sender, mb, k).await
     }
 
     pub(crate) async fn send_sys_msg(&self, msg: Envelope<SystemMsg>) -> MsgResult<Envelope<SystemMsg>> {
         let mb = &self.inner.sys_mailbox;
 
         let k = self.kernel();
-        dispatch(msg, mb, k, &self.inner.system).await
+        dispatch(msg, mb, k).await
     }
 
     pub(crate) fn is_child(&self, actor: &BasicActorRef) -> bool {
         self.inner.children.iter().any(|child| child == *actor)
     }
 
-    pub(crate) fn stop(&self, actor: BasicActorRef) {
-        actor.sys_tell(SystemCmd::Stop.into());
+    pub(crate) async fn stop(&self, actor: BasicActorRef) {
+        actor.sys_tell(SystemCmd::Stop.into()).await;
     }
 
     // pub(crate) fn persistence_conf(&self) -> Option<PersistenceConf> {
@@ -179,14 +183,14 @@ impl ActorCell {
         self.inner.children.remove(actor)
     }
 
-    pub fn receive_cmd<A: Actor>(&self, cmd: SystemCmd, actor: &mut Option<A>) {
+    pub async fn receive_cmd<A: Actor>(&self, cmd: SystemCmd, actor: &mut Option<A>) {
         match cmd {
-            SystemCmd::Stop => self.terminate(actor),
-            SystemCmd::Restart => self.restart(),
+            SystemCmd::Stop => self.terminate(actor).await,
+            SystemCmd::Restart => self.restart().await,
         }
     }
 
-    pub fn terminate<A: Actor>(&self, actor: &mut Option<A>) {
+    pub async fn terminate<A: Actor>(&self, actor: &mut Option<A>) {
         // *1. Suspend non-system mailbox messages
         // *2. Iterate all children and send Stop to each
         // *3. Wait for ActorTerminated from each child
@@ -194,64 +198,64 @@ impl ActorCell {
         self.inner.is_terminating.store(true, Ordering::Relaxed);
 
         if !self.has_children() {
-            self.kernel().terminate(&self.inner.system);
+            self.kernel().terminate().await;
             post_stop(actor);
         } else {
             for child in Box::new(self.inner.children.iter().clone()) {
-                self.stop(child.clone());
+                self.stop(child.clone()).await;
             }
         }
     }
 
-    pub fn restart(&self) {
+    pub async fn restart(&self) {
         if !self.has_children() {
-            self.kernel().restart(&self.inner.system);
+            self.kernel().restart().await;
         } else {
             self.inner.is_restarting.store(true, Ordering::Relaxed);
             for child in Box::new(self.inner.children.iter().clone()) {
-                self.stop(child.clone());
+                self.stop(child.clone()).await;
             }
         }
     }
 
-    pub fn death_watch<A: Actor>(&self, terminated: &BasicActorRef, actor: &mut Option<A>) {
+    pub async fn death_watch<A: Actor>(&self, terminated: &BasicActorRef, actor: &mut Option<A>) {
         if self.is_child(&terminated) {
             self.remove_child(terminated);
 
             if !self.has_children() {
                 // No children exist. Stop this actor's kernel.
                 if self.inner.is_terminating.load(Ordering::Relaxed) {
-                    self.kernel().terminate(&self.inner.system);
+                    self.kernel().terminate().await;
                     post_stop(actor);
                 }
 
                 // No children exist. Restart the actor.
                 if self.inner.is_restarting.load(Ordering::Relaxed) {
                     self.inner.is_restarting.store(false, Ordering::Relaxed);
-                    self.kernel().restart(&self.inner.system);
+                    self.kernel().restart().await;
                 }
             }
         }
     }
 
-    pub fn handle_failure(&self, failed: BasicActorRef, strategy: Strategy) {
+    pub async fn handle_failure(&self, failed: BasicActorRef, strategy: Strategy) {
         match strategy {
-            Strategy::Stop => self.stop(failed),
-            Strategy::Restart => self.restart_child(failed),
-            Strategy::Escalate => self.escalate_failure(),
+            Strategy::Stop => self.stop(failed).await,
+            Strategy::Restart => self.restart_child(failed).await,
+            Strategy::Escalate => self.escalate_failure().await,
         }
     }
 
-    pub fn restart_child(&self, actor: BasicActorRef) {
-        actor.sys_tell(SystemCmd::Restart.into());
+    pub async fn restart_child(&self, actor: BasicActorRef) {
+        actor.sys_tell(SystemCmd::Restart.into()).await;
     }
 
-    pub fn escalate_failure(&self) {
+    pub async fn escalate_failure(&self) {
         self.inner
             .parent
             .as_ref()
             .unwrap()
-            .sys_tell(SystemMsg::Failed(self.myself()));
+            .sys_tell(SystemMsg::Failed(self.myself())).await;
     }
 
     // pub fn load_events<A: Actor>(&self, actor: &mut Option<A>) -> bool {
@@ -412,24 +416,27 @@ where
         let mb = &self.mailbox;
         let k = self.cell.kernel();
 
-        dispatch(msg, mb, k, &self.system()).await.map_err(|e| {
-            let dl = e.clone(); // clone the failed message and send to dead letters
-            let dl = DeadLetter {
-                msg: format!("{:?}", dl.msg.msg),
-                sender: dl.msg.sender,
-                recipient: self.cell.myself(),
-            };
+        match dispatch(msg, mb, k).await {
+            Ok(msg) => Ok(msg),
+            Err(e) => {
+                let dl = e.clone(); // clone the failed message and send to dead letters
+                let dl = DeadLetter {
+                    msg: format!("{:?}", dl.msg.msg),
+                    sender: dl.msg.sender,
+                    recipient: self.cell.myself(),
+                };
 
-            self.cell.inner.system.dead_letters().tell(
-                Publish {
-                    topic: "dead_letter".into(),
-                    msg: dl,
-                },
-                None,
-            );
+                self.cell.inner.system.dead_letters().tell(
+                    Publish {
+                        topic: "dead_letter".into(),
+                        msg: dl,
+                    },
+                    None,
+                ).await;
 
-            e
-        })
+                Err(e)
+            }
+        }
     }
 
     pub(crate) async fn send_sys_msg(&self, msg: Envelope<SystemMsg>) -> MsgResult<Envelope<SystemMsg>> {
@@ -440,16 +447,16 @@ where
         &self.cell.inner.system
     }
 
-    pub(crate) fn handle_failure(&self, failed: BasicActorRef, strategy: Strategy) {
-        self.cell.handle_failure(failed, strategy)
+    pub(crate) async fn handle_failure(&self, failed: BasicActorRef, strategy: Strategy) {
+        self.cell.handle_failure(failed, strategy).await
     }
 
-    pub(crate) fn receive_cmd<A: Actor>(&self, cmd: SystemCmd, actor: &mut Option<A>) {
-        self.cell.receive_cmd(cmd, actor)
+    pub(crate) async fn receive_cmd<A: Actor>(&self, cmd: SystemCmd, actor: &mut Option<A>) {
+        self.cell.receive_cmd(cmd, actor).await
     }
 
-    pub(crate) fn death_watch<A: Actor>(&self, terminated: &BasicActorRef, actor: &mut Option<A>) {
-        self.cell.death_watch(terminated, actor)
+    pub(crate) async fn death_watch<A: Actor>(&self, terminated: &BasicActorRef, actor: &mut Option<A>) {
+        self.cell.death_watch(terminated, actor).await
     }
 }
 

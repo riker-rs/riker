@@ -6,6 +6,8 @@ use crate::{
     validate::{validate_path, InvalidPath},
     Message,
 };
+use futures::FutureExt;
+use futures::future::BoxFuture;
 
 /// A selection represents part of the actor heirarchy, allowing
 /// messages to be sent to all actors in the selection.
@@ -66,7 +68,7 @@ impl ActorSelection {
         })
     }
 
-    pub fn try_tell<Msg>(&self, msg: Msg, sender: impl Into<Option<BasicActorRef>>)
+    pub async fn try_tell<Msg>(&self, msg: Msg, sender: impl Into<Option<BasicActorRef>>)
     where
         Msg: Message,
     {
@@ -77,58 +79,71 @@ impl ActorSelection {
             msg: Msg,
             sender: &Sender,
             path: &String,
-        ) where
+        ) -> Vec<BoxFuture<'a, Result<(), ()>>>
+        where
             I: Iterator<Item = &'a Selection>,
             Msg: Message,
         {
+            let mut to_tell = vec![];
             let seg = path_vec.next();
 
             match seg {
                 Some(&Selection::SelectParent) => {
                     if path_vec.peek().is_none() {
                         let parent = anchor.parent();
-                        let _ = parent.try_tell(msg, sender.clone());
+                        let sender = sender.clone();
+                        to_tell.push(async move {
+                            parent.try_tell(msg, sender).await
+                        }.boxed());
                     } else {
-                        walk(&anchor.parent(), path_vec, msg, sender, path);
+                        to_tell.append(&mut walk(&anchor.parent(), path_vec, msg, sender, path));
                     }
                 }
                 Some(&Selection::SelectAllChildren) => {
                     for child in anchor.children() {
-                        let _ = child.try_tell(msg.clone(), sender.clone());
+                        let msg = msg.clone();
+                        let sender = sender.clone();
+                        to_tell.push(async move {
+                            child.try_tell(msg, sender).await
+                        }.boxed());
                     }
                 }
                 Some(&Selection::SelectChildName(ref name)) => {
                     let child = anchor.children().filter({ |c| c.name() == name }).last();
                     if path_vec.peek().is_none() && child.is_some() {
-                        let _ = child.unwrap().try_tell(msg, sender.clone());
+                        let child = child.unwrap();
+                        let sender = sender.clone();
+                        to_tell.push(async move {
+                            child.try_tell(msg, sender).await
+                        }.boxed());
                     } else if path_vec.peek().is_some() && child.is_some() {
-                        walk(
-                            &child.as_ref().unwrap(),
-                            // dl,
-                            path_vec,
-                            msg,
-                            sender,
-                            path,
-                        );
+                        to_tell.append(&mut walk(&child.as_ref().unwrap(), path_vec, msg, sender, path));
                     } else {
                         // todo send to deadletters?
                     }
                 }
                 None => {}
             }
+
+            to_tell
         }
 
-        walk(
+        let sender = sender.into();
+        let mut to_tell = walk(
             &self.anchor,
-            // &self.dl,
             self.path_vec.iter().peekable(),
             msg,
-            &sender.into(),
+            &sender,
             &self.path,
         );
+
+        // resolve all futures
+        while let Some(fut) = to_tell.pop() {
+            fut.await.unwrap();
+        }
     }
 
-    pub fn sys_tell(&self, msg: SystemMsg, sender: impl Into<Option<BasicActorRef>>) {
+    pub async fn sys_tell(&self, msg: SystemMsg, sender: impl Into<Option<BasicActorRef>>) {
         fn walk<'a, I>(
             anchor: &BasicActorRef,
             // dl: &BasicActorRef,
@@ -136,54 +151,64 @@ impl ActorSelection {
             msg: SystemMsg,
             sender: &Sender,
             path: &String,
-        ) where
+        ) -> Vec<BoxFuture<'a, ()>>
+        where
             I: Iterator<Item = &'a Selection>,
         {
+            let mut to_tell = vec![];
             let seg = path_vec.next();
 
             match seg {
                 Some(&Selection::SelectParent) => {
                     if path_vec.peek().is_none() {
                         let parent = anchor.parent();
-                        parent.sys_tell(msg);
+                        to_tell.push(async move {
+                            parent.sys_tell(msg).await
+                        }.boxed());
                     } else {
-                        walk(&anchor.parent(), path_vec, msg, sender, path);
+                        to_tell.append(&mut walk(&anchor.parent(), path_vec, msg, sender, path));
                     }
                 }
                 Some(&Selection::SelectAllChildren) => {
                     for child in anchor.children() {
-                        child.sys_tell(msg.clone());
+                        let msg = msg.clone();
+                        to_tell.push(async move {
+                            child.sys_tell(msg).await
+                        }.boxed());
                     }
                 }
                 Some(&Selection::SelectChildName(ref name)) => {
                     let child = anchor.children().filter({ |c| c.name() == name }).last();
                     if path_vec.peek().is_none() && child.is_some() {
-                        child.unwrap().sys_tell(msg);
+                        let child = child.unwrap();
+                        to_tell.push(async move {
+                            child.sys_tell(msg).await
+                        }.boxed());
                     } else if path_vec.peek().is_some() && child.is_some() {
-                        walk(
-                            &child.as_ref().unwrap(),
-                            // dl,
-                            path_vec,
-                            msg,
-                            sender,
-                            path,
-                        );
+                        to_tell.append(&mut walk(child.as_ref().unwrap(), path_vec, msg, sender, path));
                     } else {
                         // todo send to deadletters?
                     }
                 }
                 None => {}
             }
+
+            to_tell
         }
 
-        walk(
+        let sender = sender.into();
+        let mut to_tell = walk(
             &self.anchor,
-            // &self.dl,
             self.path_vec.iter().peekable(),
             msg,
-            &sender.into(),
+            &sender,
             &self.path,
         );
+
+        // resolve all futures
+        while let Some(fut) = to_tell.pop() {
+            fut.await;
+        }
     }
 }
 
@@ -197,3 +222,4 @@ enum Selection {
 pub trait ActorSelectionFactory {
     fn select(&self, path: &str) -> Result<ActorSelection, InvalidPath>;
 }
+

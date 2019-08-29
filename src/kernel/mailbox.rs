@@ -211,7 +211,7 @@ where
 
     let has_msgs = mbox.has_msgs().await || mbox.has_sys_msgs().await;
     if has_msgs && !mbox.is_scheduled() {
-        ctx.kernel.schedule(&ctx.system);
+        ctx.kernel.schedule().await;
     }
 }
 
@@ -231,7 +231,7 @@ async fn process_msgs<A>(
                 Ok(msg) => {
                     match (msg.msg, msg.sender) {
                         (msg, sender) => {
-                            actor.as_mut().unwrap().recv(ctx, msg, sender);
+                            actor.as_mut().unwrap().recv(ctx, msg, sender).await;
                             process_sys_msgs(&mbox, &ctx, cell, actor).await;
                         }
                         // (ActorMsg::Identify, sender) => handle_identify(sender, cell),
@@ -273,15 +273,15 @@ async fn process_sys_msgs<A>(
 
     for msg in sys_msgs.into_iter() {
         match msg.msg {
-            SystemMsg::ActorInit => handle_init(mbox, ctx, cell, actor),
-            SystemMsg::Command(cmd) => cell.receive_cmd(cmd, actor),
-            SystemMsg::Event(evt) => handle_evt(evt, ctx, cell, actor),
-            SystemMsg::Failed(failed) => handle_failed(failed, cell, actor),
+            SystemMsg::ActorInit => handle_init(mbox, ctx, cell, actor).await,
+            SystemMsg::Command(cmd) => cell.receive_cmd(cmd, actor).await,
+            SystemMsg::Event(evt) => handle_evt(evt, ctx, cell, actor).await,
+            SystemMsg::Failed(failed) => handle_failed(failed, cell, actor).await,
         }
     }
 }
 
-fn handle_init<A>(
+async fn handle_init<A>(
     mbox: &Mailbox<A::Msg>,
     ctx: &Context<A::Msg>,
     cell: &ExtendedCell<A::Msg>,
@@ -290,7 +290,7 @@ fn handle_init<A>(
     A: Actor,
 {
     trace!("ACTOR INIT");
-    actor.as_mut().unwrap().pre_start(ctx);
+    actor.as_mut().unwrap().pre_start(ctx).await;
     mbox.set_suspended(false);
 
     if cell.is_user() {
@@ -299,7 +299,7 @@ fn handle_init<A>(
                 actor: cell.myself().into(),
             }
             .into(),
-        );
+        ).await;
     }
 
     // if persistence is not configured then set as not suspended
@@ -309,14 +309,14 @@ fn handle_init<A>(
     // }
 }
 
-fn handle_failed<A>(failed: BasicActorRef, cell: &ExtendedCell<A::Msg>, actor: &mut Option<A>)
+async fn handle_failed<A>(failed: BasicActorRef, cell: &ExtendedCell<A::Msg>, actor: &mut Option<A>)
 where
     A: Actor,
 {
-    cell.handle_failure(failed, actor.as_mut().unwrap().supervisor_strategy())
+    cell.handle_failure(failed, actor.as_mut().unwrap().supervisor_strategy()).await
 }
 
-fn handle_evt<A>(
+async fn handle_evt<A>(
     evt: SystemEvent,
     ctx: &Context<A::Msg>,
     cell: &ExtendedCell<A::Msg>,
@@ -328,11 +328,11 @@ fn handle_evt<A>(
         actor
             .as_mut()
             .unwrap()
-            .sys_recv(ctx, SystemMsg::Event(evt.clone()), None);
+            .sys_recv(ctx, SystemMsg::Event(evt.clone()), None).await;
     }
 
     if let SystemEvent::ActorTerminated(terminated) = evt {
-        cell.death_watch(&terminated.actor, actor);
+        cell.death_watch(&terminated.actor, actor).await;
     }
 }
 
@@ -356,7 +356,12 @@ where
             self.mbox.set_scheduled(false);
 
             // Message the parent (this failed actor's supervisor) to decide how to handle the failure
-            self.parent.sys_tell(SystemMsg::Failed(self.actor.clone()));
+            let executor = &self.parent.cell.system().exec;
+            let parent = self.parent.clone();
+            let actor = self.actor.clone();
+            executor.spawn_ok(async move {
+                parent.sys_tell(SystemMsg::Failed(actor.clone())).await
+            });
         }
     }
 }
@@ -371,7 +376,7 @@ where
                 (msg, sender) => {
                     let dl = DeadLetter {
                         msg: format!("{:?}", msg),
-                        sender: sender,
+                        sender,
                         recipient: actor.clone(),
                     };
 
@@ -381,7 +386,7 @@ where
                             msg: dl,
                         },
                         None,
-                    );
+                    ).await;
                 }
             },
             Err(_) => {
