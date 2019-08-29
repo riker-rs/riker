@@ -558,11 +558,12 @@ where
     }
 }
 
+#[async_trait]
 impl<Msg> Timer for Context<Msg>
 where
     Msg: Message,
 {
-    fn schedule<T, M>(
+    async fn schedule<T, M>(
         &self,
         initial_delay: Duration,
         interval: Duration,
@@ -580,17 +581,17 @@ where
         let job = RepeatJob {
             id: id.clone(),
             send_at: SystemTime::now() + initial_delay,
-            interval: interval,
+            interval,
             receiver: receiver.into(),
-            sender: sender,
+            sender,
             msg: AnyMessage::new(msg, false),
         };
 
-        let _ = self.system.timer.send(Job::Repeat(job)).unwrap();
+        self.system.timer.send(Job::Repeat(job)).await.unwrap();
         id
     }
 
-    fn schedule_once<T, M>(
+    async fn schedule_once<T, M>(
         &self,
         delay: Duration,
         receiver: ActorRef<M>,
@@ -608,15 +609,15 @@ where
             id: id.clone(),
             send_at: SystemTime::now() + delay,
             receiver: receiver.into(),
-            sender: sender,
+            sender,
             msg: AnyMessage::new(msg, true),
         };
 
-        let _ = self.system.timer.send(Job::Once(job)).unwrap();
+        self.system.timer.send(Job::Once(job)).await.unwrap();
         id
     }
 
-    fn schedule_at_time<T, M>(
+    async fn schedule_at_time<T, M>(
         &self,
         time: DateTime<Utc>,
         receiver: ActorRef<M>,
@@ -636,16 +637,16 @@ where
             id: id.clone(),
             send_at: time,
             receiver: receiver.into(),
-            sender: sender,
+            sender,
             msg: AnyMessage::new(msg, true),
         };
 
-        let _ = self.system.timer.send(Job::Once(job)).unwrap();
+        self.system.timer.send(Job::Once(job)).await.unwrap();
         id
     }
 
-    fn cancel_schedule(&self, id: Uuid) {
-        let _ = self.system.timer.send(Job::Cancel(id));
+    async fn cancel_schedule(&self, id: Uuid) {
+        let _ = self.system.timer.send(Job::Cancel(id)).await.unwrap();
     }
 }
 

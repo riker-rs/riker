@@ -9,13 +9,7 @@ use std::{
 use async_trait::async_trait;
 use chrono::prelude::*;
 use config::Config;
-use futures::{
-    channel::oneshot,
-    executor::{ThreadPool, ThreadPoolBuilder},
-    future::RemoteHandle,
-    task::{SpawnError, SpawnExt},
-    Future,
-};
+use futures::{channel::oneshot, executor::{ThreadPool, ThreadPoolBuilder}, future::RemoteHandle, task::{SpawnError, SpawnExt}, Future};
 use log::{debug, Level};
 use rand;
 use uuid::Uuid;
@@ -143,7 +137,7 @@ impl ActorSystem {
 
     async fn create(
         name: &str,
-        exec: ThreadPool,
+        mut exec: ThreadPool,
         log: BoxActorProd<LogActor>,
         cfg: Config,
     ) -> Result<ActorSystem, SystemError> {
@@ -157,7 +151,7 @@ impl ActorSystem {
         }
 
         let prov = Provider::new();
-        let timer = BasicTimer::start(&cfg);
+        let timer = BasicTimer::start(&mut exec, &cfg);
 
         // 1. create proto system
         let proto = ProtoSystem {
@@ -429,8 +423,9 @@ impl fmt::Debug for ActorSystem {
     }
 }
 
+#[async_trait]
 impl Timer for ActorSystem {
-    fn schedule<T, M>(
+    async fn schedule<T, M>(
         &self,
         initial_delay: Duration,
         interval: Duration,
@@ -448,17 +443,17 @@ impl Timer for ActorSystem {
         let job = RepeatJob {
             id: id.clone(),
             send_at: SystemTime::now() + initial_delay,
-            interval: interval,
+            interval,
             receiver: receiver.into(),
-            sender: sender,
+            sender,
             msg: AnyMessage::new(msg, false),
         };
 
-        let _ = self.timer.send(Job::Repeat(job));
+        self.timer.send(Job::Repeat(job)).await.unwrap();
         id
     }
 
-    fn schedule_once<T, M>(
+    async fn schedule_once<T, M>(
         &self,
         delay: Duration,
         receiver: ActorRef<M>,
@@ -480,11 +475,11 @@ impl Timer for ActorSystem {
             msg: AnyMessage::new(msg, true),
         };
 
-        let _ = self.timer.send(Job::Once(job));
+        self.timer.send(Job::Once(job)).await.unwrap();
         id
     }
 
-    fn schedule_at_time<T, M>(
+    async fn schedule_at_time<T, M>(
         &self,
         time: DateTime<Utc>,
         receiver: ActorRef<M>,
@@ -504,16 +499,16 @@ impl Timer for ActorSystem {
             id: id.clone(),
             send_at: time,
             receiver: receiver.into(),
-            sender: sender,
+            sender,
             msg: AnyMessage::new(msg, true),
         };
 
-        let _ = self.timer.send(Job::Once(job));
+        self.timer.send(Job::Once(job)).await.unwrap();
         id
     }
 
-    fn cancel_schedule(&self, id: Uuid) {
-        let _ = self.timer.send(Job::Cancel(id));
+    async fn cancel_schedule(&self, id: Uuid) {
+        self.timer.send(Job::Cancel(id)).await.unwrap();
     }
 }
 

@@ -50,7 +50,7 @@ fn system_shutdown() {
 
         let props = Props::new_args(ShutdownTest::actor, 1);
         sys.actor_of(props, "test-actor-1").await.unwrap();
-        sys.shutdown().await;
+        let _ = sys.shutdown().await;
     });
 }
 
@@ -103,6 +103,6 @@ fn system_builder() {
     block_on(async {
         let sys = SystemBuilder::new().name("my-sys").create().await.unwrap();
 
-        sys.shutdown().await;
+        let _ = sys.shutdown().await;
     });
 }

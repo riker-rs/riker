@@ -20,6 +20,7 @@ bytes = "0.4"
 chrono = "0.4"
 config = "0.9"
 futures-preview = "0.3.0-alpha.18"
+futures-timer = "0.3.0"
 log = { version = "0.4", features = ["std"] }
 rand = "0.7"
 regex = "1.2"
@@ -29,4 +30,3 @@ pin-utils = "0.1.0-alpha.4"
 
 [dev-dependencies]
 riker-testkit = { git = "https://github.com/mrjoe7/riker-testkit.git" }
-futures-timer = "0.3.0"

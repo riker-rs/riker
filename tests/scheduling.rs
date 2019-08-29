@@ -46,7 +46,7 @@ impl Receive<TestProbe> for ScheduleOnce {
     async fn receive(&mut self, ctx: &Context<ScheduleOnceMsg>, msg: TestProbe, _sender: Sender) {
         self.probe = Some(msg);
         // reschedule an Empty to be sent to myself()
-        ctx.schedule_once(Duration::from_millis(200), ctx.myself(), None, SomeMessage);
+        ctx.schedule_once(Duration::from_millis(200), ctx.myself(), None, SomeMessage).await;
     }
 }
 
@@ -70,7 +70,7 @@ fn schedule_once() {
         let (probe, mut listen) = probe();
 
         // use scheduler to set up probe
-        sys.schedule_once(Duration::from_millis(200), actor, None, TestProbe(probe));
+        sys.schedule_once(Duration::from_millis(200), actor, None, TestProbe(probe)).await;
         p_assert_eq!(listen, ());
     });
 }
@@ -87,7 +87,7 @@ fn schedule_at_time() {
 
         // use scheduler to set up probe at a specific time
         let schedule_at = Utc::now() + CDuration::milliseconds(200);
-        sys.schedule_at_time(schedule_at, actor, None, TestProbe(probe));
+        sys.schedule_at_time(schedule_at, actor, None, TestProbe(probe)).await;
         p_assert_eq!(listen, ());
     });
 }
@@ -133,7 +133,7 @@ impl Receive<TestProbe> for ScheduleRepeat {
             ctx.myself(),
             None,
             SomeMessage,
-        );
+        ).await;
         self.schedule_id = Some(id);
     }
 }
@@ -144,7 +144,7 @@ impl Receive<SomeMessage> for ScheduleRepeat {
 
     async fn receive(&mut self, ctx: &Context<Self::Msg>, _msg: SomeMessage, _sender: Sender) {
         if self.counter == 5 {
-            ctx.cancel_schedule(self.schedule_id.unwrap());
+            ctx.cancel_schedule(self.schedule_id.unwrap()).await;
             self.probe.as_mut().unwrap().0.event(()).await;
         } else {
             self.counter += 1;
