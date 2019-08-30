@@ -3,7 +3,6 @@ use std::sync::{
     Arc,
 };
 use std::thread;
-use async_trait::async_trait;
 
 use config::Config;
 use log::trace;
