@@ -33,7 +33,12 @@ impl log::Log for Logger {
     }
 
     fn log(&self, record: &log::Record) {
-        self.actor.tell(LogEntry::from(record), None); // TODO: handle async
+        let executor = &self.actor.cell.system().exec;
+        let actor = self.actor.clone();
+        let log_entry = LogEntry::from(record);
+        executor.spawn_ok(async move {
+            actor.tell(log_entry, None);
+        });
     }
 
     fn flush(&self) {}
