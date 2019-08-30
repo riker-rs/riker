@@ -37,7 +37,7 @@ impl log::Log for Logger {
         let actor = self.actor.clone();
         let log_entry = LogEntry::from(record);
         executor.spawn_ok(async move {
-            actor.tell(log_entry, None);
+            actor.tell(log_entry, None).await;
         });
     }
 

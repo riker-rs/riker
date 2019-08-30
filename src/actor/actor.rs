@@ -98,11 +98,11 @@ impl<A: Actor + ?Sized> Actor for Box<A> {
 /// use futures::executor::block_on;
 ///
 /// #[derive(Clone, Debug)]
-/// struct Foo;
+/// pub struct Foo;
 /// #[derive(Clone, Debug)]
-/// struct Bar;
+/// pub struct Bar;
 /// #[actor(Foo, Bar)] // <-- set our actor to receive Foo and Bar types
-/// struct MyActor;
+/// pub struct MyActor;
 ///
 /// #[async_trait]
 /// impl Actor for MyActor {
