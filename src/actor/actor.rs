@@ -150,11 +150,11 @@ impl<A: Actor + ?Sized> Actor for Box<A> {
 /// }
 ///
 /// // main
-/// let sys = ActorSystem::new().unwrap();
-/// let actor = sys.actor_of(MyActor::props(), "my-actor").unwrap();
+/// let sys = ActorSystem::new().await.unwrap();
+/// let actor = sys.actor_of(MyActor::props(), "my-actor").await.unwrap();
 ///
-/// actor.tell(Foo, None);
-/// actor.tell(Bar, None);
+/// actor.tell(Foo, None).await;
+/// actor.tell(Bar, None).await;
 /// ```
 #[async_trait]
 pub trait Receive<Msg: Message> {

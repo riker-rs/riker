@@ -199,7 +199,7 @@ impl ActorCell {
 
         if !self.has_children() {
             self.kernel().terminate().await;
-            post_stop(actor);
+            post_stop(actor).await;
         } else {
             for child in Box::new(self.inner.children.iter().clone()) {
                 self.stop(child.clone()).await;
@@ -226,7 +226,7 @@ impl ActorCell {
                 // No children exist. Stop this actor's kernel.
                 if self.inner.is_terminating.load(Ordering::Relaxed) {
                     self.kernel().terminate().await;
-                    post_stop(actor);
+                    post_stop(actor).await;
                 }
 
                 // No children exist. Restart the actor.
@@ -466,12 +466,12 @@ impl<Msg: Message> fmt::Debug for ExtendedCell<Msg> {
     }
 }
 
-fn post_stop<A: Actor>(actor: &mut Option<A>) {
+async fn post_stop<A: Actor>(actor: &mut Option<A>) {
     // If the actor instance exists we can execute post_stop.
     // The instance will be None if this is an actor that has failed
     // and is being terminated by an escalated supervisor.
     if let Some(act) = actor.as_mut() {
-        act.post_stop();
+        act.post_stop().await;
     }
 }
 

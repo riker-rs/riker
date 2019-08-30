@@ -1,13 +1,11 @@
-use std::sync::Arc;
-
-use futures::{channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender}, lock::Mutex, prelude::*};
+use futures::{channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender}, lock::Mutex, prelude::*, TryStreamExt};
 
 use crate::{Envelope, Message};
 
 pub fn queue<Msg: Message>() -> (QueueWriter<Msg>, QueueReader<Msg>) {
     let (tx, rx) = unbounded::<Envelope<Msg>>();
 
-    let qw = QueueWriter { tx: Arc::new(Mutex::new(tx)) };
+    let qw = QueueWriter { tx };
 
     let qr = QueueReaderInner {
         rx,
@@ -23,12 +21,12 @@ pub fn queue<Msg: Message>() -> (QueueWriter<Msg>, QueueReader<Msg>) {
 
 #[derive(Clone)]
 pub struct QueueWriter<Msg: Message> {
-    tx: Arc<Mutex<UnboundedSender<Envelope<Msg>>>>,
+    tx: UnboundedSender<Envelope<Msg>>,
 }
 
 impl<Msg: Message> QueueWriter<Msg> {
     pub async fn try_enqueue(&self, msg: Envelope<Msg>) -> EnqueueResult<Msg> {
-        let mut tx = self.tx.lock().await;
+        let mut tx = self.tx.clone();
         tx.send(msg.clone())
             .await
             .map_err(|_| EnqueueError { msg })
@@ -60,10 +58,12 @@ impl<Msg: Message> QueueReader<Msg> {
         if let Some(item) = inner.next_item.take() {
             Ok(item)
         } else {
-            inner.rx
-                .try_next()
-                .map(|v| v.unwrap())
-                .map_err(|_| QueueEmpty)
+            let item = inner.rx.try_next();
+            match item {
+                Ok(Some(item)) => Ok(item),
+                Ok(None)
+                | Err(_) => Err(QueueEmpty)
+            }
         }
     }
 

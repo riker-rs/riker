@@ -117,7 +117,7 @@ impl Receive<TestProbe> for RestartSup {
     type Msg = RestartSupMsg;
 
     async fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: TestProbe, sender: Sender) {
-        self.actor_to_fail.as_ref().unwrap().tell(msg, sender);
+        self.actor_to_fail.as_ref().unwrap().tell(msg, sender).await;
     }
 }
 
@@ -270,7 +270,7 @@ fn supervision_escalate_failed_actor() {
 
         let (probe, mut listen) = probe::<()>();
         std::thread::sleep(std::time::Duration::from_millis(2000));
-        sup.tell(TestProbe(probe), None);
+        sup.tell(TestProbe(probe), None).await;
         p_assert_eq!(listen, ());
         sys.print_tree();
     });

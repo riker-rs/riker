@@ -1,15 +1,18 @@
-use log::trace;
 use std::{
     collections::HashSet,
-    sync::{Arc, Mutex},
+    sync::Arc,
 };
+
+use futures::lock::Mutex;
+use log::trace;
+
 use async_trait::async_trait;
 
 use crate::{
-    actor::actor_cell::{ActorCell, ExtendedCell},
     actor::*,
+    actor::actor_cell::{ActorCell, ExtendedCell},
     kernel::{kernel::kernel, mailbox::mailbox},
-    system::{system::SysActors, ActorSystem, SystemMsg},
+    system::{ActorSystem, system::SysActors, SystemMsg},
     validate::validate_name,
 };
 
@@ -50,7 +53,7 @@ impl Provider {
         let path = ActorPath::new(&format!("{}/{}", parent.path(), name));
         trace!("Attempting to create actor at: {}", path);
 
-        let uid = self.register(&path)?;
+        let uid = self.register(&path).await?;
 
         let uri = ActorUri {
             uid,
@@ -83,25 +86,21 @@ impl Provider {
         Ok(actor)
     }
 
-    fn register(&self, path: &ActorPath) -> Result<ActorId, CreateError> {
-        match self.inner.lock() {
-            Ok(mut inner) => {
-                if inner.paths.contains(path) {
-                    return Err(CreateError::AlreadyExists(path.clone()));
-                }
-
-                inner.paths.insert(path.clone());
-                let id = inner.counter;
-                inner.counter += 1;
-
-                Ok(id)
-            }
-            Err(_) => Err(CreateError::System),
+    async fn register(&self, path: &ActorPath) -> Result<ActorId, CreateError> {
+        let mut inner = self.inner.lock().await;
+        if inner.paths.contains(path) {
+            return Err(CreateError::AlreadyExists(path.clone()));
         }
+
+        inner.paths.insert(path.clone());
+        let id = inner.counter;
+        inner.counter += 1;
+
+        Ok(id)
     }
 
-    pub fn unregister(&self, path: &ActorPath) {
-        let mut inner = self.inner.lock().unwrap();
+    pub async fn unregister(&self, path: &ActorPath) {
+        let mut inner = self.inner.lock().await;
         inner.paths.remove(path);
     }
 }

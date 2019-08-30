@@ -33,7 +33,7 @@ impl log::Log for Logger {
     }
 
     fn log(&self, record: &log::Record) {
-        self.actor.tell(LogEntry::from(record), None);
+        self.actor.tell(LogEntry::from(record), None); // TODO: handle async
     }
 
     fn flush(&self) {}
@@ -162,7 +162,7 @@ impl Actor for DeadLetterLogger {
                 actor: sub,
             },
             None,
-        );
+        ).await;
     }
 
     async fn recv(&mut self, _: &Context<Self::Msg>, msg: Self::Msg, _: Option<BasicActorRef>) {

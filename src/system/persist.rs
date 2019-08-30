@@ -149,7 +149,7 @@ impl<Msg: Message> Actor for EsQueryActor<Msg> {
 
 // type QueryFuture<Msg> = Pin<Box<dyn Future<Output=Result<Vec<Msg>, Canceled>> + Send>>;
 
-pub fn query<Msg, Ctx>(id: &String,
+pub async fn query<Msg, Ctx>(id: &String,
                         keyspace: &String,
                         es: &ActorRef<Msg>,
                         ctx: &Ctx,
@@ -157,6 +157,6 @@ pub fn query<Msg, Ctx>(id: &String,
     where Msg: Message, Ctx: TmpActorRefFactory<Msg=Msg>
 {
     let props = Props::new_args(EsQueryActor::actor, rec);
-    let actor = ctx.tmp_actor_of(props).unwrap();
-    es.tell(ESMsg::Load(id.clone(), keyspace.clone()), Some(actor));
+    let actor = ctx.tmp_actor_of(props).await.unwrap();
+    es.tell(ESMsg::Load(id.clone(), keyspace.clone()), Some(actor)).await;
 }

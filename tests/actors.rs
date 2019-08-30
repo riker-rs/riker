@@ -1,13 +1,12 @@
 #[macro_use]
 extern crate riker_testkit;
 
-use async_trait::async_trait;
 use futures::executor::block_on;
-
-use riker::actors::*;
-
-use riker_testkit::probe::channel::{probe, ChannelProbe};
 use riker_testkit::probe::{Probe, ProbeReceive};
+use riker_testkit::probe::channel::{ChannelProbe, probe};
+
+use async_trait::async_trait;
+use riker::actors::*;
 
 #[derive(Clone, Debug)]
 pub struct Add;
@@ -56,6 +55,7 @@ impl Receive<Add> for Counter {
     async fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: Add, _sender: Sender) {
         self.count += 1;
         if self.count == 1_000_000 {
+            println!("1_000_000 reached!");
             self.probe.as_mut().unwrap().0.event(()).await;
         }
     }
@@ -187,6 +187,7 @@ fn actor_stop() {
 
         let (probe, mut listen) = probe();
         parent.tell(TestProbe(probe), None).await;
+
         system.print_tree();
 
         // wait for the probe to arrive at the actor before attempting to stop the actor

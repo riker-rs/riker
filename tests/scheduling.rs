@@ -35,7 +35,7 @@ impl Actor for ScheduleOnce {
     type Msg = ScheduleOnceMsg;
 
     async fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender) {
-        self.receive(ctx, msg, sender);
+        self.receive(ctx, msg, sender).await;
     }
 }
 

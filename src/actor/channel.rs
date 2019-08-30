@@ -60,7 +60,7 @@ where
         // };
 
         // let msg = ChannelMsg::Subscribe(sub);
-        // ctx.myself.tell(msg, None);
+        // ctx.myself.tell(msg, None).await;
     }
 
     async fn recv(&mut self, ctx: &ChannelCtx<Msg>, msg: ChannelMsg<Msg>, sender: Sender) {

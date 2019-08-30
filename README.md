@@ -37,15 +37,17 @@ riker = "0.3.1"
 
 ```rust
 use std::time::Duration;
+use async_trait::async_trait;
 use riker::actors::*;
 
 struct MyActor;
 
 // implement the Actor trait
+#[async_trait]
 impl Actor for MyActor {
     type Msg = String;
 
-    fn recv(&mut self,
+    async fn recv(&mut self,
                 _ctx: &Context<String>,
                 msg: String,
                 _sender: Sender) {
@@ -66,15 +68,13 @@ impl MyActor {
 }
 
 // start the system and create an actor
-fn main() {
-    let sys = ActorSystem::new().unwrap();
+async fn app_foo() {
+    let sys = ActorSystem::new().await.unwrap();
 
     let props = MyActor::props();
-    let my_actor = sys.actor_of(props, "my-actor").unwrap();
+    let my_actor = sys.actor_of(props, "my-actor").await.unwrap();
 
-    my_actor.tell("Hello my actor!".to_string(), None);
-
-    std::thread::sleep(Duration::from_millis(500));
+    my_actor.tell("Hello my actor!".to_string(), None).await;
 }
 ```
 

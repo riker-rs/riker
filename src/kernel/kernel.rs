@@ -115,7 +115,7 @@ async fn terminate_actor<Msg>(mbox: &Mailbox<Msg>, actor_ref: BasicActorRef, sys
 where
     Msg: Message,
 {
-    sys.provider.unregister(actor_ref.path());
+    sys.provider.unregister(actor_ref.path()).await;
     flush_to_deadletters(mbox, &actor_ref, sys).await;
     sys.publish_event(
         ActorTerminated {

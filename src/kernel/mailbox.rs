@@ -304,7 +304,7 @@ async fn handle_init<A>(
 
     // if persistence is not configured then set as not suspended
     // if cell.load_events(actor) {
-    //     actor.as_mut().unwrap().post_start(ctx);
+    //     actor.as_mut().unwrap().post_start(ctx).await;
     //     mbox.set_suspended(false);
     // }
 }
