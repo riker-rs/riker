@@ -1,6 +1,8 @@
+use std::panic::AssertUnwindSafe;
 use async_trait::async_trait;
 use futures::executor::block_on;
 use riker::actors::*;
+use futures::FutureExt;
 
 #[test]
 fn system_create() {
@@ -73,12 +75,12 @@ fn system_futures_panic() {
         let sys = ActorSystem::new().await.unwrap();
 
         for _ in 0..100 {
-            let _ = sys
+            let f = sys
                 .run(async move {
                     panic!("// TEST PANIC // TEST PANIC // TEST PANIC //");
                 })
-                .unwrap()
-                .await;
+                .unwrap();
+            assert!(AssertUnwindSafe(f).catch_unwind().await.is_err());
         }
 
         for i in 0..100 {

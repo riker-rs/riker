@@ -138,6 +138,7 @@ impl ActorSelection {
         );
 
         // resolve all futures
+        to_tell.reverse();
         while let Some(fut) = to_tell.pop() {
             fut.await.unwrap();
         }
@@ -206,6 +207,7 @@ impl ActorSelection {
         );
 
         // resolve all futures
+        to_tell.reverse();
         while let Some(fut) = to_tell.pop() {
             fut.await;
         }

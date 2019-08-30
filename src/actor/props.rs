@@ -39,7 +39,7 @@ impl Props {
     /// #    async fn recv(&mut self, _ctx: &Context<String>, _msg: String, _sender: Sender) {}
     /// # }
     /// // main
-    /// let sys = ActorSystem::new().unwrap();
+    /// let sys = block_on(ActorSystem::new()).unwrap();
     ///
     /// let props = Props::new(User::actor);
     ///
@@ -81,7 +81,7 @@ impl Props {
     /// #    async fn recv(&mut self, _ctx: &Context<String>, _msg: String, _sender: Sender) {}
     /// # }
     /// // main
-    /// let sys = ActorSystem::new().unwrap();
+    /// let sys = block_on(ActorSystem::new()).unwrap();
     ///
     /// let props = Props::new_args(User::actor, "Naomi Nagata".into());
     ///
@@ -113,7 +113,7 @@ impl Props {
     /// #    async fn recv(&mut self, _ctx: &Context<String>, _msg: String, _sender: Sender) {}
     /// # }
     /// // main
-    /// let sys = ActorSystem::new().unwrap();
+    /// let sys = block_on(ActorSystem::new()).unwrap();
     ///
     /// let props = Props::new_args(BankAccount::actor,
     ///                             ("James Holden".into(), "12345678".into()));

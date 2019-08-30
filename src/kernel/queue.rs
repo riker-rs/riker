@@ -1,4 +1,4 @@
-use futures::{channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender}, lock::Mutex, prelude::*, TryStreamExt};
+use futures::{channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender}, lock::Mutex, prelude::*};
 
 use crate::{Envelope, Message};
 
@@ -38,7 +38,10 @@ pub struct QueueReader<Msg: Message> {
 }
 
 struct QueueReaderInner<Msg: Message> {
+    /// Receiving channel
     rx: UnboundedReceiver<Envelope<Msg>>,
+    /// Here will be value stored in case `self.rx` contained Some value
+    /// when the method `Self::has_msgs()` was called.
     next_item: Option<Envelope<Msg>>,
 }
 
@@ -49,20 +52,21 @@ impl<Msg: Message> QueueReader<Msg> {
         if let Some(item) = inner.next_item.take() {
             item
         } else {
-            inner.rx.next().await.unwrap()
+            inner.rx.next().await.expect("Cannot dequeue empty queue")
         }
     }
 
     pub async fn try_dequeue(&self) -> DequeueResult<Envelope<Msg>> {
         let mut inner = self.inner.lock().await;
+        // try to take (take == item will be None on next call) item from "next_item"
         if let Some(item) = inner.next_item.take() {
+            // item was Some so return it's value
             Ok(item)
         } else {
-            let item = inner.rx.try_next();
-            match item {
-                Ok(Some(item)) => Ok(item),
-                Ok(None)
-                | Err(_) => Err(QueueEmpty)
+            // try to receive value from "rx"
+            match inner.rx.try_next() {
+                Ok(Some(item)) => Ok(item),             // found some value
+                Err(_) | Ok(None) => Err(QueueEmpty)    // found no value or channel was closed
             }
         }
     }
@@ -72,11 +76,11 @@ impl<Msg: Message> QueueReader<Msg> {
         inner.next_item.is_some() || {
             match inner.rx.try_next() {
                 Ok(Some(item)) => {
+                    // store received value for later use
                     inner.next_item = Some(item);
                     true
                 }
-                Ok(None)
-                | Err(_) => false,
+                Err(_) | Ok(None) => false,
             }
         }
     }

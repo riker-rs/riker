@@ -121,7 +121,7 @@ impl BasicTimer {
                 process.execute_once_jobs().await;
                 process.execute_repeat_jobs().await;
 
-                while let Some(job) = rx.next().await {
+                while let Ok(Some(job)) = rx.try_next() {
                     match job {
                         Job::Cancel(id) => process.cancel(&id),
                         Job::Once(job) => process.schedule_once(job).await,

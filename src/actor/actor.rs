@@ -95,6 +95,7 @@ impl<A: Actor + ?Sized> Actor for Box<A> {
 /// ```
 /// use riker::actors::*;
 /// use async_trait::async_trait;
+/// use futures::executor::block_on;
 ///
 /// #[derive(Clone, Debug)]
 /// struct Foo;
@@ -150,11 +151,11 @@ impl<A: Actor + ?Sized> Actor for Box<A> {
 /// }
 ///
 /// // main
-/// let sys = ActorSystem::new().await.unwrap();
-/// let actor = sys.actor_of(MyActor::props(), "my-actor").await.unwrap();
+/// let sys = block_on(ActorSystem::new()).unwrap();
+/// let actor = block_on(sys.actor_of(MyActor::props(), "my-actor")).unwrap();
 ///
-/// actor.tell(Foo, None).await;
-/// actor.tell(Bar, None).await;
+/// block_on(actor.tell(Foo, None));
+/// block_on(actor.tell(Bar, None));
 /// ```
 #[async_trait]
 pub trait Receive<Msg: Message> {
