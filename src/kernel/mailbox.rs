@@ -26,9 +26,8 @@ pub trait MailboxSchedule {
     fn is_scheduled(&self) -> bool;
 }
 
-#[async_trait]
 pub trait AnySender: Send + Sync {
-    async fn try_any_enqueue(&self, msg: &mut AnyMessage, sender: Sender) -> Result<(), ()>;
+    fn try_any_enqueue(&self, msg: &mut AnyMessage, sender: Sender) -> Result<(), ()>;
 
     fn set_sched(&self, b: bool);
 
@@ -45,8 +44,8 @@ impl<Msg> MailboxSender<Msg>
 where
     Msg: Message,
 {
-    pub async fn try_enqueue(&self, msg: Envelope<Msg>) -> EnqueueResult<Msg> {
-        self.queue.try_enqueue(msg).await
+    pub fn try_enqueue(&self, msg: Envelope<Msg>) -> EnqueueResult<Msg> {
+        self.queue.try_enqueue(msg)
     }
 }
 
@@ -63,18 +62,17 @@ where
     }
 }
 
-#[async_trait]
 impl<Msg> AnySender for MailboxSender<Msg>
 where
     Msg: Message,
 {
-    async fn try_any_enqueue(&self, msg: &mut AnyMessage, sender: Sender) -> Result<(), ()> {
+    fn try_any_enqueue(&self, msg: &mut AnyMessage, sender: Sender) -> Result<(), ()> {
         let actual = msg.take()?;
         let msg = Envelope {
             msg: actual,
             sender,
         };
-        self.try_enqueue(msg).await.map_err(|_| ())
+        self.try_enqueue(msg).map_err(|_| ())
     }
 
     fn set_sched(&self, b: bool) {
@@ -104,24 +102,24 @@ pub struct MailboxInner<Msg: Message> {
 
 impl<Msg: Message> Mailbox<Msg> {
     #[allow(dead_code)]
-    pub async fn dequeue(&self) -> Envelope<Msg> {
-        self.inner.queue.dequeue().await
+    pub fn dequeue(&self) -> Envelope<Msg> {
+        self.inner.queue.dequeue()
     }
 
-    pub async fn try_dequeue(&self) -> Result<Envelope<Msg>, QueueEmpty> {
-        self.inner.queue.try_dequeue().await
+    pub fn try_dequeue(&self) -> Result<Envelope<Msg>, QueueEmpty> {
+        self.inner.queue.try_dequeue()
     }
 
-    pub async fn sys_try_dequeue(&self) -> Result<Envelope<SystemMsg>, QueueEmpty> {
-        self.inner.sys_queue.try_dequeue().await
+    pub fn sys_try_dequeue(&self) -> Result<Envelope<SystemMsg>, QueueEmpty> {
+        self.inner.sys_queue.try_dequeue()
     }
 
-    pub async fn has_msgs(&self) -> bool {
-        self.inner.queue.has_msgs().await
+    pub fn has_msgs(&self) -> bool {
+        self.inner.queue.has_msgs()
     }
 
-    pub async fn has_sys_msgs(&self) -> bool {
-        self.inner.sys_queue.has_msgs().await
+    pub fn has_sys_msgs(&self) -> bool {
+        self.inner.sys_queue.has_msgs()
     }
 
     pub fn set_suspended(&self, b: bool) {
@@ -209,7 +207,7 @@ where
 
     mbox.set_scheduled(false);
 
-    let has_msgs = mbox.has_msgs().await || mbox.has_sys_msgs().await;
+    let has_msgs = mbox.has_msgs() || mbox.has_sys_msgs();
     if has_msgs && !mbox.is_scheduled() {
         ctx.kernel.schedule().await;
     }
@@ -227,7 +225,7 @@ async fn process_msgs<A>(
 
     loop {
         if count < mbox.msg_process_limit() {
-            match mbox.try_dequeue().await {
+            match mbox.try_dequeue() {
                 Ok(msg) => {
                     match (msg.msg, msg.sender) {
                         (msg, sender) => {
@@ -263,7 +261,7 @@ async fn process_sys_msgs<A>(
     // This prevents during actor restart.
     let mut sys_msgs: Vec<Envelope<SystemMsg>> = Vec::new();
     loop {
-        match mbox.sys_try_dequeue().await {
+        match mbox.sys_try_dequeue() {
             Ok(sys_msg) => {
                 sys_msgs.push(sys_msg);
             }
@@ -371,7 +369,7 @@ where
     Msg: Message,
 {
     loop {
-        match mbox.try_dequeue().await {
+        match mbox.try_dequeue() {
             Ok(msg) => match (msg.msg, msg.sender) {
                 (msg, sender) => {
                     let dl = DeadLetter {

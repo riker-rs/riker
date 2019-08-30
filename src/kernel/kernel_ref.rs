@@ -48,7 +48,7 @@ pub async fn dispatch<Msg>(
 where
     Msg: Message,
 {
-    match mbox.try_enqueue(msg).await {
+    match mbox.try_enqueue(msg) {
         Ok(_) => {
             if !mbox.is_scheduled() {
                 mbox.set_scheduled(true);
@@ -67,7 +67,7 @@ pub async fn dispatch_any(
     mbox: &Arc<dyn AnySender>,
     kernel: &KernelRef,
 ) -> Result<(), ()> {
-    match mbox.try_any_enqueue(msg, sender).await {
+    match mbox.try_any_enqueue(msg, sender) {
         Ok(_) => {
             if !mbox.is_sched() {
                 mbox.set_sched(true);
