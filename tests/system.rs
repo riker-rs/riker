@@ -40,6 +40,21 @@ impl Actor for ShutdownTest {
 
 #[test]
 #[allow(dead_code)]
+fn system_when_shutdown() {
+    let sys = ActorSystem::new().unwrap();
+
+    let t = sys.when_terminated();
+
+    std::thread::spawn(move || {
+        let s = sys.shutdown();
+        block_on(s).unwrap();
+    });
+
+    block_on(t).unwrap();
+}
+
+#[test]
+#[allow(dead_code)]
 fn system_shutdown() {
     let sys = ActorSystem::new().unwrap();
 
