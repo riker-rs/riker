@@ -159,7 +159,7 @@ impl ActorSystem {
 
         // Until the logger has started, use println
         if debug {
-            println!("Starting actor system: System[{}]", name);
+            debug!(log, "Starting actor system: System[{}]", name);
         }
 
         let prov = Provider::new(log.clone());
