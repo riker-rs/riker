@@ -1,7 +1,7 @@
 use std::{
     sync::mpsc,
     thread,
-    time::{Duration, SystemTime},
+    time::{Duration, Instant},
 };
 
 use chrono::{DateTime, Utc};
@@ -61,7 +61,7 @@ pub enum Job {
 
 pub struct OnceJob {
     pub id: Uuid,
-    pub send_at: SystemTime,
+    pub send_at: Instant,
     pub receiver: BasicActorRef,
     pub sender: Sender,
     pub msg: AnyMessage,
@@ -75,7 +75,7 @@ impl OnceJob {
 
 pub struct RepeatJob {
     pub id: Uuid,
-    pub send_at: SystemTime,
+    pub send_at: Instant,
     pub interval: Duration,
     pub receiver: BasicActorRef,
     pub sender: Sender,
@@ -129,7 +129,7 @@ impl BasicTimer {
         let (send, keep): (Vec<OnceJob>, Vec<OnceJob>) = self
             .once_jobs
             .drain(..)
-            .partition(|j| SystemTime::now() >= j.send_at);
+            .partition(|j| Instant::now() >= j.send_at);
 
         // send those messages where the 'send_at' time has been reached or elapsed
         for job in send.into_iter() {
@@ -144,8 +144,8 @@ impl BasicTimer {
 
     pub fn execute_repeat_jobs(&mut self) {
         for job in self.repeat_jobs.iter_mut() {
-            if SystemTime::now() >= job.send_at {
-                job.send_at = SystemTime::now() + job.interval;
+            if Instant::now() >= job.send_at {
+                job.send_at = Instant::now() + job.interval;
                 job.send();
             }
         }
@@ -165,7 +165,7 @@ impl BasicTimer {
     }
 
     pub fn schedule_once(&mut self, job: OnceJob) {
-        if SystemTime::now() >= job.send_at {
+        if Instant::now() >= job.send_at {
             job.send();
         } else {
             self.once_jobs.push(job);
@@ -173,7 +173,7 @@ impl BasicTimer {
     }
 
     pub fn schedule_repeat(&mut self, mut job: RepeatJob) {
-        if SystemTime::now() >= job.send_at {
+        if Instant::now() >= job.send_at {
             job.send();
         }
         self.repeat_jobs.push(job);
