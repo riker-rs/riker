@@ -239,24 +239,35 @@ impl ActorSystem {
     }
 
     pub fn print_tree(&self) {
-        fn print_node(sys: &ActorSystem, node: BasicActorRef, indent: &str) {
+        println!("{}", self.get_tree());
+    }
+
+    pub fn get_tree(&self) -> String {
+        let mut tree_str: String = String::new();
+        fn get_node(
+            mut tree_str: &mut String,
+            sys: &ActorSystem,
+            node: BasicActorRef,
+            indent: &str,
+        ) -> String {
             if node.is_root() {
-                println!("{}", sys.name());
+                tree_str.push_str(&mut format!("{}\n", sys.name()));
 
                 for actor in node.children() {
-                    print_node(sys, actor, "");
+                    get_node(&mut tree_str, sys, actor, "");
                 }
             } else {
-                println!("{}└─ {}", indent, node.name());
+                tree_str.push_str(&mut format!("{}└─ {}\n", indent, node.name()));
 
                 for actor in node.children() {
-                    print_node(sys, actor, &(indent.to_string() + "   "));
+                    get_node(tree_str, sys, actor, &(indent.to_string() + "   "));
                 }
             }
+            tree_str.to_string()
         }
 
         let root = self.sys_actors.as_ref().unwrap().root.clone();
-        print_node(self, root, "");
+        get_node(&mut tree_str, self, root, "")
     }
 
     /// Returns the system root's actor reference
