@@ -1,8 +1,8 @@
 #[macro_use]
 extern crate riker_testkit;
 
+use riker_testkit::probe::channel::{probe, ChannelProbe};
 use riker_testkit::probe::{Probe, ProbeReceive};
-use riker_testkit::probe::channel::{ChannelProbe, probe};
 
 use riker::actors::*;
 
@@ -21,13 +21,15 @@ struct Subscriber {
 }
 
 impl ActorFactoryArgs<(ChannelRef<SomeMessage>, Topic)> for Subscriber {
-    fn create_args(args: (ChannelRef<SomeMessage>, Topic)) -> BoxActorProd<Self>
-    {
-        Props::new_args(|(chan, topic)| Subscriber {
-            probe: None,
-            chan,
-            topic,
-        }, args)
+    fn create_args(args: (ChannelRef<SomeMessage>, Topic)) -> BoxActorProd<Self> {
+        Props::new_args(
+            |(chan, topic)| Subscriber {
+                probe: None,
+                chan,
+                topic,
+            },
+            args,
+        )
     }
 }
 
@@ -36,13 +38,16 @@ impl Actor for Subscriber {
 
     fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
         let sub = Box::new(ctx.myself());
-        self.chan.tell(Subscribe { actor: sub, topic: self.topic.clone() }, None);
+        self.chan.tell(
+            Subscribe {
+                actor: sub,
+                topic: self.topic.clone(),
+            },
+            None,
+        );
     }
 
-    fn recv(&mut self,
-            ctx: &Context<Self::Msg>,
-            msg: Self::Msg,
-            sender: Sender) {
+    fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender) {
         self.receive(ctx, msg, sender);
     }
 }
@@ -50,10 +55,7 @@ impl Actor for Subscriber {
 impl Receive<TestProbe> for Subscriber {
     type Msg = SubscriberMsg;
 
-    fn receive(&mut self,
-               _ctx: &Context<Self::Msg>,
-               msg: TestProbe,
-               _sender: Sender) {
+    fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: TestProbe, _sender: Sender) {
         msg.0.event(());
         self.probe = Some(msg);
     }
@@ -62,10 +64,7 @@ impl Receive<TestProbe> for Subscriber {
 impl Receive<SomeMessage> for Subscriber {
     type Msg = SubscriberMsg;
 
-    fn receive(&mut self,
-               _ctx: &Context<Self::Msg>,
-               _msg: SomeMessage,
-               _sender: Sender) {
+    fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: SomeMessage, _sender: Sender) {
         self.probe.as_ref().unwrap().0.event(());
     }
 }
@@ -74,22 +73,30 @@ impl Receive<SomeMessage> for Subscriber {
 fn channel_publish() {
     let sys = ActorSystem::new().unwrap();
 
-// Create the channel we'll be using
+    // Create the channel we'll be using
     let chan: ChannelRef<SomeMessage> = channel("my-chan", &sys).unwrap();
 
-// The topic we'll be publishing to. Endow our subscriber test actor with this.
-// On Subscriber's pre_start it will subscribe to this channel+topic
+    // The topic we'll be publishing to. Endow our subscriber test actor with this.
+    // On Subscriber's pre_start it will subscribe to this channel+topic
     let topic = Topic::from("my-topic");
-    let sub = sys.actor_of_args::<Subscriber, _>("sub-actor", (chan.clone(), topic.clone())).unwrap();
+    let sub = sys
+        .actor_of_args::<Subscriber, _>("sub-actor", (chan.clone(), topic.clone()))
+        .unwrap();
 
     let (probe, listen) = probe();
     sub.tell(TestProbe(probe), None);
 
-// wait for the probe to arrive at the actor before publishing message
+    // wait for the probe to arrive at the actor before publishing message
     listen.recv();
 
-// Publish a test message
-    chan.tell(Publish { msg: SomeMessage, topic }, None);
+    // Publish a test message
+    chan.tell(
+        Publish {
+            msg: SomeMessage,
+            topic,
+        },
+        None,
+    );
 
     p_assert_eq!(listen, ());
 }
@@ -98,28 +105,48 @@ fn channel_publish() {
 fn channel_publish_subscribe_all() {
     let sys = ActorSystem::new().unwrap();
 
-// Create the channel we'll be using
+    // Create the channel we'll be using
     let chan: ChannelRef<SomeMessage> = channel("my-chan", &sys).unwrap();
 
-// The '*' All topic. Endow our subscriber test actor with this.
-// On Subscriber's pre_start it will subscribe to all topics on this channel.
+    // The '*' All topic. Endow our subscriber test actor with this.
+    // On Subscriber's pre_start it will subscribe to all topics on this channel.
     let topic = Topic::from("*");
-    let sub = sys.actor_of_args::<Subscriber, _>("sub-actor", (chan.clone(), topic.clone())).unwrap();
+    let sub = sys
+        .actor_of_args::<Subscriber, _>("sub-actor", (chan.clone(), topic.clone()))
+        .unwrap();
 
     let (probe, listen) = probe();
     sub.tell(TestProbe(probe), None);
 
-// wait for the probe to arrive at the actor before publishing message
+    // wait for the probe to arrive at the actor before publishing message
     listen.recv();
 
-// Publish a test message to topic "topic-1"
-    chan.tell(Publish { msg: SomeMessage, topic: "topic-1".into() }, None);
+    // Publish a test message to topic "topic-1"
+    chan.tell(
+        Publish {
+            msg: SomeMessage,
+            topic: "topic-1".into(),
+        },
+        None,
+    );
 
-// Publish a test message to topic "topic-2"
-    chan.tell(Publish { msg: SomeMessage, topic: "topic-2".into() }, None);
+    // Publish a test message to topic "topic-2"
+    chan.tell(
+        Publish {
+            msg: SomeMessage,
+            topic: "topic-2".into(),
+        },
+        None,
+    );
 
-// Publish a test message to topic "topic-3"
-    chan.tell(Publish { msg: SomeMessage, topic: "topic-3".into() }, None);
+    // Publish a test message to topic "topic-3"
+    chan.tell(
+        Publish {
+            msg: SomeMessage,
+            topic: "topic-3".into(),
+        },
+        None,
+    );
 
     // Expecting three probe events
     p_assert_eq!(listen, ());
@@ -137,10 +164,7 @@ struct DumbActor;
 impl Actor for DumbActor {
     type Msg = DumbActorMsg;
 
-    fn recv(&mut self,
-            ctx: &Context<Self::Msg>,
-            msg: Self::Msg,
-            sender: Sender) {
+    fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender) {
         self.receive(ctx, msg, sender);
     }
 }
@@ -148,10 +172,7 @@ impl Actor for DumbActor {
 impl Receive<Panic> for DumbActor {
     type Msg = DumbActorMsg;
 
-    fn receive(&mut self,
-               _ctx: &Context<Self::Msg>,
-               _msg: Panic,
-               _sender: Sender) {
+    fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: Panic, _sender: Sender) {
         panic!("// TEST PANIC // TEST PANIC // TEST PANIC //");
     }
 }
@@ -159,12 +180,9 @@ impl Receive<Panic> for DumbActor {
 impl Receive<SomeMessage> for DumbActor {
     type Msg = DumbActorMsg;
 
-    fn receive(&mut self,
-               _ctx: &Context<Self::Msg>,
-               _msg: SomeMessage,
-               _sender: Sender) {
+    fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: SomeMessage, _sender: Sender) {
 
-// Intentionally left blank
+        // Intentionally left blank
     }
 }
 
@@ -184,26 +202,24 @@ impl Actor for EventSubscriber {
     type Msg = EventSubscriberMsg;
 
     fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
-// subscribe
+        // subscribe
         let sub = Box::new(ctx.myself());
-        ctx.system
-            .sys_events()
-            .tell(Subscribe { actor: sub, topic: "*".into() }, None);
+        ctx.system.sys_events().tell(
+            Subscribe {
+                actor: sub,
+                topic: "*".into(),
+            },
+            None,
+        );
     }
 
-    fn sys_recv(&mut self,
-                ctx: &Context<Self::Msg>,
-                msg: SystemMsg,
-                sender: Sender) {
+    fn sys_recv(&mut self, ctx: &Context<Self::Msg>, msg: SystemMsg, sender: Sender) {
         if let SystemMsg::Event(evt) = msg {
             self.receive(ctx, evt, sender);
         }
     }
 
-    fn recv(&mut self,
-            ctx: &Context<Self::Msg>,
-            msg: Self::Msg,
-            sender: Sender) {
+    fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender) {
         self.receive(ctx, msg, sender);
     }
 }
@@ -211,10 +227,7 @@ impl Actor for EventSubscriber {
 impl Receive<TestProbe> for EventSubscriber {
     type Msg = EventSubscriberMsg;
 
-    fn receive(&mut self,
-               _ctx: &Context<Self::Msg>,
-               msg: TestProbe,
-               _sender: Sender) {
+    fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: TestProbe, _sender: Sender) {
         msg.0.event(());
         self.probe = Some(msg);
     }
@@ -223,10 +236,7 @@ impl Receive<TestProbe> for EventSubscriber {
 impl Receive<SystemEvent> for EventSubscriber {
     type Msg = EventSubscriberMsg;
 
-    fn receive(&mut self,
-               _ctx: &Context<Self::Msg>,
-               msg: SystemEvent,
-               _sender: Sender) {
+    fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: SystemEvent, _sender: Sender) {
         match msg {
             SystemEvent::ActorCreated(created) => {
                 if created.actor.path() == "/user/dumb-actor" {
@@ -256,26 +266,25 @@ fn channel_system_events() {
     let (probe, listen) = probe();
     actor.tell(TestProbe(probe), None);
 
-// wait for the probe to arrive at the actor before attempting
-// create, restart and stop
+    // wait for the probe to arrive at the actor before attempting
+    // create, restart and stop
     listen.recv();
 
-// Create an actor
+    // Create an actor
     let dumb = sys.actor_of::<DumbActor>("dumb-actor").unwrap();
     // ActorCreated event was received
     p_assert_eq!(listen, ());
 
-// Force restart of actor
+    // Force restart of actor
     dumb.tell(Panic, None);
     // ActorRestarted event was received
     p_assert_eq!(listen, ());
 
-// Terminate actor
+    // Terminate actor
     sys.stop(&dumb);
     // ActorTerminated event was receive
     p_assert_eq!(listen, ());
 }
-
 
 // *** Dead letters test ***
 #[actor(TestProbe, DeadLetter)]
@@ -288,17 +297,18 @@ impl Actor for DeadLetterSub {
     type Msg = DeadLetterSubMsg;
 
     fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
-// subscribe to dead_letters
+        // subscribe to dead_letters
         let sub = Box::new(ctx.myself());
-        ctx.system
-            .dead_letters()
-            .tell(Subscribe { actor: sub, topic: "*".into() }, None);
+        ctx.system.dead_letters().tell(
+            Subscribe {
+                actor: sub,
+                topic: "*".into(),
+            },
+            None,
+        );
     }
 
-    fn recv(&mut self,
-            ctx: &Context<Self::Msg>,
-            msg: Self::Msg,
-            sender: Sender) {
+    fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender) {
         self.receive(ctx, msg, sender)
     }
 }
@@ -306,10 +316,7 @@ impl Actor for DeadLetterSub {
 impl Receive<TestProbe> for DeadLetterSub {
     type Msg = DeadLetterSubMsg;
 
-    fn receive(&mut self,
-               _ctx: &Context<Self::Msg>,
-               msg: TestProbe,
-               _sender: Sender) {
+    fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: TestProbe, _sender: Sender) {
         msg.0.event(());
         self.probe = Some(msg);
     }
@@ -318,10 +325,7 @@ impl Receive<TestProbe> for DeadLetterSub {
 impl Receive<DeadLetter> for DeadLetterSub {
     type Msg = DeadLetterSubMsg;
 
-    fn receive(&mut self,
-               _ctx: &Context<Self::Msg>,
-               _msg: DeadLetter,
-               _sender: Sender) {
+    fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: DeadLetter, _sender: Sender) {
         self.probe.as_ref().unwrap().0.event(());
     }
 }
@@ -334,12 +338,12 @@ fn channel_dead_letters() {
     let (probe, listen) = probe();
     actor.tell(TestProbe(probe), None);
 
-// wait for the probe to arrive at the actor before attempting to stop the actor
+    // wait for the probe to arrive at the actor before attempting to stop the actor
     listen.recv();
 
     let dumb = sys.actor_of::<DumbActor>("dumb-actor").unwrap();
 
-// immediately stop the actor and attempt to send a message
+    // immediately stop the actor and attempt to send a message
     sys.stop(&dumb);
     std::thread::sleep(std::time::Duration::from_secs(1));
     dumb.tell(SomeMessage, None);

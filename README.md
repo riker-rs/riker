@@ -30,7 +30,7 @@ Riker provides:
 
 ```toml
 [dependencies]
-riker = "0.3"
+riker = "0.3.1"
 ```
 
 `main.rs`:

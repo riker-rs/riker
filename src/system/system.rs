@@ -11,26 +11,23 @@ use config::Config;
 use futures::{
     channel::oneshot,
     executor::{ThreadPool, ThreadPoolBuilder},
-    Future,
     future::RemoteHandle,
     task::{SpawnError, SpawnExt},
+    Future,
 };
 use log::{debug, Level};
 use rand;
 use uuid::Uuid;
 
 use crate::{
-    actor::{
-        *,
-        props::ActorFactory,
-    }, AnyMessage,
+    actor::{props::ActorFactory, *},
     kernel::provider::{create_root, Provider},
     load_config,
-    Message,
-    system::{ActorTerminated, SystemCmd, SystemError, SystemEvent, SystemMsg},
     system::logger::*,
     system::timer::*,
-    validate::{InvalidPath, validate_name},
+    system::{ActorTerminated, SystemCmd, SystemError, SystemEvent, SystemMsg},
+    validate::{validate_name, InvalidPath},
+    AnyMessage, Message,
 };
 
 // 0. error results on any
@@ -67,23 +64,28 @@ impl SystemBuilder {
         let exec = self.exec.unwrap_or(default_exec(&cfg));
         let log = self.log.unwrap_or(default_log(&cfg));
 
-        ActorSystem::create(
-            self.name.as_ref().unwrap(),
-            exec,
-            log,
-            cfg)
+        ActorSystem::create(self.name.as_ref().unwrap(), exec, log, cfg)
     }
 
     pub fn name(self, name: &str) -> Self {
-        SystemBuilder { name: Some(name.to_string()), ..self }
+        SystemBuilder {
+            name: Some(name.to_string()),
+            ..self
+        }
     }
 
     pub fn cfg(self, cfg: Config) -> Self {
-        SystemBuilder { cfg: Some(cfg), ..self }
+        SystemBuilder {
+            cfg: Some(cfg),
+            ..self
+        }
     }
 
     pub fn exec(self, exec: ThreadPool) -> Self {
-        SystemBuilder { exec: Some(exec), ..self }
+        SystemBuilder {
+            exec: Some(exec),
+            ..self
+        }
     }
 }
 
@@ -138,12 +140,13 @@ impl ActorSystem {
         ActorSystem::create(name, exec, log, cfg)
     }
 
-    fn create(name: &str,
-              exec: ThreadPool,
-              log: BoxActorProd<LogActor>,
-              cfg: Config) -> Result<ActorSystem, SystemError> {
-        validate_name(name)
-            .map_err(|_| SystemError::InvalidName(name.into()))?;
+    fn create(
+        name: &str,
+        exec: ThreadPool,
+        log: BoxActorProd<LogActor>,
+        cfg: Config,
+    ) -> Result<ActorSystem, SystemError> {
+        validate_name(name).map_err(|_| SystemError::InvalidName(name.into()))?;
         // Process Configuration
         let debug = cfg.get_bool("debug").unwrap();
 
@@ -211,9 +214,8 @@ impl ActorSystem {
     /// Returns the number of seconds since the system started
     pub fn uptime(&self) -> u64 {
         let now = Utc::now();
-        now.time().signed_duration_since(self
-            .start_date()
-            .time())
+        now.time()
+            .signed_duration_since(self.start_date().time())
             .num_seconds() as u64
     }
 
@@ -237,9 +239,7 @@ impl ActorSystem {
     }
 
     pub fn print_tree(&self) {
-        fn print_node(sys: &ActorSystem,
-                      node: BasicActorRef,
-                      indent: &str) {
+        fn print_node(sys: &ActorSystem, node: BasicActorRef, indent: &str) {
             if node.is_root() {
                 println!("{}", sys.name());
 
@@ -305,41 +305,36 @@ impl ActorSystem {
     }
 
     /// Create an actor under the system root
-    pub fn sys_actor_of_props<A>(&self,
-                                 props: impl Into<BoxActorProd<A>>,
-                                 name: &str)
-                                 -> Result<ActorRef<A::Msg>, CreateError>
-        where A: Actor
+    pub fn sys_actor_of_props<A>(
+        &self,
+        props: BoxActorProd<A>,
+        name: &str,
+    ) -> Result<ActorRef<A::Msg>, CreateError>
+    where
+        A: Actor,
     {
         self.provider
-            .create_actor(props.into(),
-                          name,
-                          &self.sys_root(),
-                          self)
+            .create_actor(props.into(), name, &self.sys_root(), self)
     }
 
-    pub fn sys_actor_of<A>(&self,
-                           name: &str)
-                           -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-        where A: ActorFactory
+    pub fn sys_actor_of<A>(&self, name: &str) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
+    where
+        A: ActorFactory,
     {
         self.provider
-            .create_actor(A::create(),
-                          name,
-                          &self.sys_root(),
-                          self)
+            .create_actor(A::create(), name, &self.sys_root(), self)
     }
 
-    pub fn sys_actor_of_args<A, Args>(&self,
-                                      name: &str, args: Args)
-                                      -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-        where A: ActorFactoryArgs<Args>
+    pub fn sys_actor_of_args<A, Args>(
+        &self,
+        name: &str,
+        args: Args,
+    ) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
+    where
+        A: ActorFactoryArgs<Args>,
     {
         self.provider
-            .create_actor(A::create_args(args),
-                          name,
-                          &self.sys_root(),
-                          self)
+            .create_actor(A::create_args(args), name, &self.sys_root(), self)
     }
 
     /// Shutdown the actor system
@@ -353,49 +348,46 @@ impl ActorSystem {
         let (tx, rx) = oneshot::channel::<()>();
         let tx = Arc::new(Mutex::new(Some(tx)));
 
-        let props = Props::new_args(ShutdownActor::new, tx);
-        self.tmp_actor_of_props(props).unwrap();
+        self.tmp_actor_of_args::<ShutdownActor, _>(tx).unwrap();
 
         rx
     }
 }
 
 unsafe impl Send for ActorSystem {}
-
 unsafe impl Sync for ActorSystem {}
 
 impl ActorRefFactory for ActorSystem {
-    fn actor_of_props<A>(&self,
-                         props: impl Into<BoxActorProd<A>>,
-                         name: &str) -> Result<ActorRef<A::Msg>, CreateError>
-        where A: Actor
+    fn actor_of_props<A>(
+        &self,
+        props: BoxActorProd<A>,
+        name: &str,
+    ) -> Result<ActorRef<A::Msg>, CreateError>
+    where
+        A: Actor,
     {
         self.provider
-            .create_actor(props.into(),
-                          name,
-                          &self.user_root(),
-                          self)
+            .create_actor(props.into(), name, &self.user_root(), self)
     }
 
-    fn actor_of<A>(&self,
-                   name: &str) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-        where A: ActorFactory
+    fn actor_of<A>(&self, name: &str) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
+    where
+        A: ActorFactory,
     {
         self.provider
-            .create_actor(A::create(),
-                          name,
-                          &self.user_root(),
-                          self)
+            .create_actor(A::create(), name, &self.user_root(), self)
     }
 
-    fn actor_of_args<A, Args>(&self, name: &str, args: Args) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-        where A: ActorFactoryArgs<Args>
+    fn actor_of_args<A, Args>(
+        &self,
+        name: &str,
+        args: Args,
+    ) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
+    where
+        A: ActorFactoryArgs<Args>,
     {
         self.provider
-            .create_actor(A::create_args(args),
-                          name,
-                          &self.user_root(),
-                          self)
+            .create_actor(A::create_args(args), name, &self.user_root(), self)
     }
 
     fn stop(&self, actor: impl ActorReference) {
@@ -404,36 +396,36 @@ impl ActorRefFactory for ActorSystem {
 }
 
 impl ActorRefFactory for &ActorSystem {
-    fn actor_of_props<A>(&self,
-                         props: impl Into<BoxActorProd<A>>,
-                         name: &str) -> Result<ActorRef<A::Msg>, CreateError>
-        where A: Actor
+    fn actor_of_props<A>(
+        &self,
+        props: BoxActorProd<A>,
+        name: &str,
+    ) -> Result<ActorRef<A::Msg>, CreateError>
+    where
+        A: Actor,
     {
         self.provider
-            .create_actor(props.into(),
-                          name,
-                          &self.user_root(),
-                          self)
+            .create_actor(props.into(), name, &self.user_root(), self)
     }
 
     fn actor_of<A>(&self, name: &str) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-        where A: ActorFactory
+    where
+        A: ActorFactory,
     {
         self.provider
-            .create_actor(A::create(),
-                          name,
-                          &self.user_root(),
-                          self)
+            .create_actor(A::create(), name, &self.user_root(), self)
     }
 
-    fn actor_of_args<A, Args>(&self, name: &str, args: Args) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-        where A: ActorFactoryArgs<Args>
+    fn actor_of_args<A, Args>(
+        &self,
+        name: &str,
+        args: Args,
+    ) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
+    where
+        A: ActorFactoryArgs<Args>,
     {
         self.provider
-            .create_actor(A::create_args(args),
-                          name,
-                          &self.user_root(),
-                          self)
+            .create_actor(A::create_args(args), name, &self.user_root(), self)
     }
 
     fn stop(&self, actor: impl ActorReference) {
@@ -442,44 +434,42 @@ impl ActorRefFactory for &ActorSystem {
 }
 
 impl TmpActorRefFactory for ActorSystem {
-    fn tmp_actor_of_props<A>(&self, props: impl Into<BoxActorProd<A>>)
-                             -> Result<ActorRef<A::Msg>, CreateError>
-        where A: Actor
+    fn tmp_actor_of_props<A>(
+        &self,
+        props: BoxActorProd<A>,
+    ) -> Result<ActorRef<A::Msg>, CreateError>
+    where
+        A: Actor,
     {
         let name = format!("{}", rand::random::<u64>());
         self.provider
-            .create_actor(props.into(),
-                          &name,
-                          &self.temp_root(),
-                          self)
+            .create_actor(props.into(), &name, &self.temp_root(), self)
     }
 
     fn tmp_actor_of<A>(&self) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-        where A: ActorFactory
+    where
+        A: ActorFactory,
     {
         let name = format!("{}", rand::random::<u64>());
         self.provider
-            .create_actor(A::create(),
-                          &name,
-                          &self.temp_root(),
-                          self)
+            .create_actor(A::create(), &name, &self.temp_root(), self)
     }
 
-    fn tmp_actor_of_args<A, Args>(&self, args: Args) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-        where A: ActorFactoryArgs<Args>
+    fn tmp_actor_of_args<A, Args>(
+        &self,
+        args: Args,
+    ) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
+    where
+        A: ActorFactoryArgs<Args>,
     {
         let name = format!("{}", rand::random::<u64>());
         self.provider
-            .create_actor(A::create_args(args),
-                          &name,
-                          &self.temp_root(),
-                          self)
+            .create_actor(A::create_args(args), &name, &self.temp_root(), self)
     }
 }
 
 impl ActorSelectionFactory for ActorSystem {
-    fn select(&self, path: &str)
-              -> Result<ActorSelection, InvalidPath> {
+    fn select(&self, path: &str) -> Result<ActorSelection, InvalidPath> {
         let anchor = self.user_root();
         let (anchor, path_str) = if path.starts_with("/") {
             let anchor = self.user_root();
@@ -491,24 +481,28 @@ impl ActorSelectionFactory for ActorSystem {
             (anchor, path.to_string())
         };
 
-        ActorSelection::new(anchor.clone(),
-                            // self.dead_letters(),
-                            path_str)
+        ActorSelection::new(
+            anchor.clone(),
+            // self.dead_letters(),
+            path_str,
+        )
     }
 }
 
 // futures::task::Spawn::spawn requires &mut self so
 // we'll create a wrapper trait that requires only &self.
 pub trait Run {
-    fn run<Fut>(&self, future: Fut)
-                -> Result<RemoteHandle<<Fut as Future>::Output>, SpawnError>
-        where Fut: Future + Send + 'static, <Fut as Future>::Output: Send;
+    fn run<Fut>(&self, future: Fut) -> Result<RemoteHandle<<Fut as Future>::Output>, SpawnError>
+    where
+        Fut: Future + Send + 'static,
+        <Fut as Future>::Output: Send;
 }
 
 impl Run for ActorSystem {
-    fn run<Fut>(&self, future: Fut)
-                -> Result<RemoteHandle<<Fut as Future>::Output>, SpawnError>
-        where Fut: Future + Send + 'static, <Fut as Future>::Output: Send
+    fn run<Fut>(&self, future: Fut) -> Result<RemoteHandle<<Fut as Future>::Output>, SpawnError>
+    where
+        Fut: Future + Send + 'static,
+        <Fut as Future>::Output: Send,
     {
         let mut exec = self.exec.clone();
         exec.spawn_with_handle(future)
@@ -517,22 +511,28 @@ impl Run for ActorSystem {
 
 impl fmt::Debug for ActorSystem {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f,
-               "ActorSystem[Name: {}, Start Time: {}, Uptime: {} seconds]",
-               self.name(),
-               self.start_date(),
-               self.uptime())
+        write!(
+            f,
+            "ActorSystem[Name: {}, Start Time: {}, Uptime: {} seconds]",
+            self.name(),
+            self.start_date(),
+            self.uptime()
+        )
     }
 }
 
 impl Timer for ActorSystem {
-    fn schedule<T, M>(&self,
-                      initial_delay: Duration,
-                      interval: Duration,
-                      receiver: ActorRef<M>,
-                      sender: Sender,
-                      msg: T) -> Uuid
-        where T: Message + Into<M>, M: Message
+    fn schedule<T, M>(
+        &self,
+        initial_delay: Duration,
+        interval: Duration,
+        receiver: ActorRef<M>,
+        sender: Sender,
+        msg: T,
+    ) -> Uuid
+    where
+        T: Message + Into<M>,
+        M: Message,
     {
         let id = Uuid::new_v4();
         let msg: M = msg.into();
@@ -550,12 +550,16 @@ impl Timer for ActorSystem {
         id
     }
 
-    fn schedule_once<T, M>(&self,
-                           delay: Duration,
-                           receiver: ActorRef<M>,
-                           sender: Sender,
-                           msg: T) -> Uuid
-        where T: Message + Into<M>, M: Message
+    fn schedule_once<T, M>(
+        &self,
+        delay: Duration,
+        receiver: ActorRef<M>,
+        sender: Sender,
+        msg: T,
+    ) -> Uuid
+    where
+        T: Message + Into<M>,
+        M: Message,
     {
         let id = Uuid::new_v4();
         let msg: M = msg.into();
@@ -572,15 +576,18 @@ impl Timer for ActorSystem {
         id
     }
 
-    fn schedule_at_time<T, M>(&self,
-                              time: DateTime<Utc>,
-                              receiver: ActorRef<M>,
-                              sender: Sender,
-                              msg: T) -> Uuid
-        where T: Message + Into<M>, M: Message
+    fn schedule_at_time<T, M>(
+        &self,
+        time: DateTime<Utc>,
+        receiver: ActorRef<M>,
+        sender: Sender,
+        msg: T,
+    ) -> Uuid
+    where
+        T: Message + Into<M>,
+        M: Message,
     {
-        let time = SystemTime::UNIX_EPOCH +
-            Duration::from_secs(time.timestamp() as u64);
+        let time = SystemTime::UNIX_EPOCH + Duration::from_secs(time.timestamp() as u64);
 
         let id = Uuid::new_v4();
         let msg: M = msg.into();
@@ -602,65 +609,64 @@ impl Timer for ActorSystem {
     }
 }
 
-
 // helper functions
 
-fn sys_actor_of_props<A>(prov: &Provider,
-                         sys: &ActorSystem,
-                         props: impl Into<BoxActorProd<A>>,
-                         name: &str)
-                         -> Result<ActorRef<A::Msg>, SystemError>
-    where A: Actor
+fn sys_actor_of_props<A>(
+    prov: &Provider,
+    sys: &ActorSystem,
+    props: BoxActorProd<A>,
+    name: &str,
+) -> Result<ActorRef<A::Msg>, SystemError>
+where
+    A: Actor,
 {
-    prov.create_actor(props.into(),
-                      name,
-                      &sys.sys_root(),
-                      sys)
+    prov.create_actor(props.into(), name, &sys.sys_root(), sys)
         .map_err(|_| SystemError::ModuleFailed(name.into()))
 }
 
-fn sys_actor_of<A>(prov: &Provider,
-                   sys: &ActorSystem,
-                   name: &str)
-                   -> Result<ActorRef<<A as Actor>::Msg>, SystemError>
-    where A: ActorFactory
+fn sys_actor_of<A>(
+    prov: &Provider,
+    sys: &ActorSystem,
+    name: &str,
+) -> Result<ActorRef<<A as Actor>::Msg>, SystemError>
+where
+    A: ActorFactory,
 {
-    prov.create_actor(A::create(),
-                      name,
-                      &sys.sys_root(),
-                      sys)
+    prov.create_actor(A::create(), name, &sys.sys_root(), sys)
         .map_err(|_| SystemError::ModuleFailed(name.into()))
 }
 
 #[allow(dead_code)]
-fn sys_actor_of_args<A, Args>(prov: &Provider,
-                              sys: &ActorSystem,
-                              name: &str,
-                              args: Args)
-                              -> Result<ActorRef<<A as Actor>::Msg>, SystemError>
-    where A: ActorFactoryArgs<Args>
+fn sys_actor_of_args<A, Args>(
+    prov: &Provider,
+    sys: &ActorSystem,
+    name: &str,
+    args: Args,
+) -> Result<ActorRef<<A as Actor>::Msg>, SystemError>
+where
+    A: ActorFactoryArgs<Args>,
 {
-    prov.create_actor(A::create_args(args),
-                      name,
-                      &sys.sys_root(),
-                      sys)
+    prov.create_actor(A::create_args(args), name, &sys.sys_root(), sys)
         .map_err(|_| SystemError::ModuleFailed(name.into()))
 }
 
-fn logger(prov: &Provider,
-          sys: &ActorSystem,
-          cfg: &Config,
-          props: BoxActorProd<LogActor>)
-          -> Result<Logger, SystemError> {
+fn logger(
+    prov: &Provider,
+    sys: &ActorSystem,
+    cfg: &Config,
+    props: BoxActorProd<LogActor>,
+) -> Result<Logger, SystemError> {
     let logger = sys_actor_of_props(prov, sys, props, "logger")?;
 
-    let level = cfg.get_str("log.level").map(|l| Level::from_str(&l)).unwrap().unwrap();
+    let level = cfg
+        .get_str("log.level")
+        .map(|l| Level::from_str(&l))
+        .unwrap()
+        .unwrap();
     Ok(Logger::init(level, logger))
 }
 
-fn sys_channels(prov: &Provider,
-                sys: &ActorSystem)
-                -> Result<SysChannels, SystemError> {
+fn sys_channels(prov: &Provider, sys: &ActorSystem) -> Result<SysChannels, SystemError> {
     let sys_events = sys_actor_of::<EventsChannel>(prov, sys, "sys_events")?;
     let dead_letters = sys_actor_of::<Channel<DeadLetter>>(prov, sys, "dead_letters")?;
 
@@ -683,7 +689,7 @@ pub struct SystemSettings {
 impl<'a> From<&'a Config> for SystemSettings {
     fn from(config: &Config) -> Self {
         SystemSettings {
-            msg_process_limit: config.get_int("mailbox.msg_process_limit").unwrap() as u32
+            msg_process_limit: config.get_int("mailbox.msg_process_limit").unwrap() as u32,
         }
     }
 }
@@ -695,7 +701,7 @@ struct ThreadPoolConfig {
 impl<'a> From<&'a Config> for ThreadPoolConfig {
     fn from(config: &Config) -> Self {
         ThreadPoolConfig {
-            pool_size: config.get_int("dispatcher.pool_size").unwrap() as usize
+            pool_size: config.get_int("dispatcher.pool_size").unwrap() as usize,
         }
     }
 }
@@ -735,11 +741,15 @@ struct ShutdownActor {
     tx: Arc<Mutex<Option<oneshot::Sender<()>>>>,
 }
 
+impl ActorFactoryArgs<Arc<Mutex<Option<oneshot::Sender<()>>>>> for ShutdownActor {
+    fn create_args(tx: Arc<Mutex<Option<oneshot::Sender<()>>>>) -> BoxActorProd<Self> {
+        Props::new_args(|tx| ShutdownActor::new(tx), tx)
+    }
+}
+
 impl ShutdownActor {
     fn new(tx: Arc<Mutex<Option<oneshot::Sender<()>>>>) -> Self {
-        ShutdownActor {
-            tx
-        }
+        ShutdownActor { tx }
     }
 }
 
@@ -764,10 +774,12 @@ impl Actor for ShutdownActor {
         ctx.system.stop(ctx.system.user_root());
     }
 
-    fn sys_recv(&mut self,
-                ctx: &Context<Self::Msg>,
-                msg: SystemMsg,
-                sender: Option<BasicActorRef>) {
+    fn sys_recv(
+        &mut self,
+        ctx: &Context<Self::Msg>,
+        msg: SystemMsg,
+        sender: Option<BasicActorRef>,
+    ) {
         if let SystemMsg::Event(evt) = msg {
             if let SystemEvent::ActorTerminated(terminated) = evt {
                 self.receive(ctx, terminated, sender);
@@ -775,19 +787,18 @@ impl Actor for ShutdownActor {
         }
     }
 
-    fn recv(&mut self,
-            _: &Context<Self::Msg>,
-            _: Self::Msg,
-            _: Option<BasicActorRef>) {}
+    fn recv(&mut self, _: &Context<Self::Msg>, _: Self::Msg, _: Option<BasicActorRef>) {}
 }
 
 impl Receive<ActorTerminated> for ShutdownActor {
     type Msg = SystemEvent;
 
-    fn receive(&mut self,
-               ctx: &Context<Self::Msg>,
-               msg: ActorTerminated,
-               _sender: Option<BasicActorRef>) {
+    fn receive(
+        &mut self,
+        ctx: &Context<Self::Msg>,
+        msg: ActorTerminated,
+        _sender: Option<BasicActorRef>,
+    ) {
         if &msg.actor == ctx.system.user_root() {
             if let Ok(ref mut tx) = self.tx.lock() {
                 if let Some(tx) = tx.take() {

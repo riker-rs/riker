@@ -1,8 +1,8 @@
 #[macro_use]
 extern crate riker_testkit;
 
+use riker_testkit::probe::channel::{probe, ChannelProbe};
 use riker_testkit::probe::{Probe, ProbeReceive};
-use riker_testkit::probe::channel::{ChannelProbe, probe};
 
 use riker::actors::*;
 
@@ -17,10 +17,7 @@ struct Child;
 impl Actor for Child {
     type Msg = TestProbe;
 
-    fn recv(&mut self,
-            _ctx: &Context<Self::Msg>,
-            msg: Self::Msg,
-            _sender: Sender) {
+    fn recv(&mut self, _ctx: &Context<Self::Msg>, msg: Self::Msg, _sender: Sender) {
         msg.0.event(());
     }
 }
@@ -39,10 +36,7 @@ impl Actor for SelectTest {
         let _ = ctx.actor_of::<Child>("child_b").unwrap();
     }
 
-    fn recv(&mut self,
-            _ctx: &Context<Self::Msg>,
-            msg: Self::Msg,
-            _sender: Sender) {
+    fn recv(&mut self, _ctx: &Context<Self::Msg>, msg: Self::Msg, _sender: Sender) {
         msg.0.event(());
     }
 }
@@ -126,11 +120,7 @@ impl Actor for SelectTest2 {
         let _ = ctx.actor_of::<Child>("child_b").unwrap();
     }
 
-    fn recv(&mut self,
-            ctx: &Context<Self::Msg>,
-            msg: Self::Msg,
-            _sender: Sender) {
-
+    fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, _sender: Sender) {
         // up and down: ../select-actor/child_a
         let sel = ctx.select("../select-actor/child_a").unwrap();
         sel.try_tell(msg.clone(), None);
@@ -192,18 +182,9 @@ fn select_paths() {
 }
 
 // // *** Dead letters test ***
+// #[derive(Default)]
 // struct DeadLettersActor {
 //     probe: Option<TestProbe>,
-// }
-
-// impl DeadLettersActor {
-//     fn new() -> BoxActor<TestMsg> {
-//         let actor = DeadLettersActor {
-//             probe: None
-//         };
-
-//         Box::new(actor)
-//     }
 // }
 
 // impl Actor for DeadLettersActor {
@@ -232,8 +213,7 @@ fn select_paths() {
 // fn select_no_actors() {
 //     let sys = ActorSystem::new().unwrap();
 
-//     let props = Props::new(Box::new(DeadLettersActor::new));
-//     let act = sys.actor_of(props, "dl-subscriber").unwrap();
+//     let act = sys.actor_of::<DeadLettersActor>("dl-subscriber").unwrap();
 
 //     let (probe, listen) = probe();
 //     act.tell(TestMsg(probe.clone()), None);

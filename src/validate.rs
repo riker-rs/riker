@@ -12,7 +12,7 @@ pub fn validate_name(name: &str) -> Result<(), InvalidName> {
 }
 
 pub struct InvalidName {
-    pub name: String
+    pub name: String,
 }
 
 impl Error for InvalidName {
@@ -43,7 +43,7 @@ pub fn validate_path(path: &str) -> Result<(), InvalidPath> {
 }
 
 pub struct InvalidPath {
-    path: String
+    path: String,
 }
 
 impl Error for InvalidPath {
@@ -63,5 +63,3 @@ impl fmt::Debug for InvalidPath {
         f.write_str(&format!("\"{}\". {}", self.path, self.description()))
     }
 }
-
-

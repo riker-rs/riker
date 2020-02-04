@@ -1,12 +1,6 @@
-#![feature(
-async_await,
-await_macro,
-arbitrary_self_types
-)]
+#![feature(async_await, arbitrary_self_types)]
 
-use futures::{
-    executor::block_on
-};
+use futures::executor::block_on;
 
 use riker::actors::*;
 
@@ -29,9 +23,7 @@ struct ShutdownTest {
 
 impl ActorFactoryArgs<u32> for ShutdownTest {
     fn create_args(level: u32) -> BoxActorProd<Self> {
-        Props::new_args(|level| ShutdownTest {
-            level
-        }, level)
+        Props::new_args(|level| ShutdownTest { level }, level)
     }
 }
 
@@ -41,10 +33,10 @@ impl Actor for ShutdownTest {
     fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
         if self.level < 10 {
             ctx.actor_of_args::<ShutdownTest, _>(
-                format!("test-actor-{}", self.level + 1)
-                    .as_str(),
+                format!("test-actor-{}", self.level + 1).as_str(),
                 self.level + 1,
-            ).unwrap();
+            )
+            .unwrap();
         }
     }
 
@@ -56,7 +48,9 @@ impl Actor for ShutdownTest {
 fn system_shutdown() {
     let sys = ActorSystem::new().unwrap();
 
-    let _ = sys.actor_of_args::<ShutdownTest, _>("test-actor-1", 1).unwrap();
+    let _ = sys
+        .actor_of_args::<ShutdownTest, _>("test-actor-1", 1)
+        .unwrap();
 
     block_on(sys.shutdown()).unwrap();
 }
@@ -66,9 +60,7 @@ fn system_futures_exec() {
     let sys = ActorSystem::new().unwrap();
 
     for i in 0..100 {
-        let f = sys.run(async move {
-            format!("some_val_{}", i)
-        }).unwrap();
+        let f = sys.run(async move { format!("some_val_{}", i) }).unwrap();
 
         assert_eq!(block_on(f), format!("some_val_{}", i));
     }
@@ -79,15 +71,15 @@ fn system_futures_panic() {
     let sys = ActorSystem::new().unwrap();
 
     for _ in 0..100 {
-        let _ = sys.run(async move {
-            panic!("// TEST PANIC // TEST PANIC // TEST PANIC //");
-        }).unwrap();
+        let _ = sys
+            .run(async move {
+                panic!("// TEST PANIC // TEST PANIC // TEST PANIC //");
+            })
+            .unwrap();
     }
 
     for i in 0..100 {
-        let f = sys.run(async move {
-            format!("some_val_{}", i)
-        }).unwrap();
+        let f = sys.run(async move { format!("some_val_{}", i) }).unwrap();
 
         assert_eq!(block_on(f), format!("some_val_{}", i));
     }
@@ -97,17 +89,12 @@ fn system_futures_panic() {
 fn system_load_app_config() {
     let sys = ActorSystem::new().unwrap();
 
-    assert_eq!(sys.config()
-                   .get_int("app.some_setting")
-                   .unwrap() as i64, 1);
+    assert_eq!(sys.config().get_int("app.some_setting").unwrap() as i64, 1);
 }
 
 #[test]
 fn system_builder() {
-    let sys = SystemBuilder::new()
-        .name("my-sys")
-        .create()
-        .unwrap();
+    let sys = SystemBuilder::new().name("my-sys").create().unwrap();
 
     block_on(sys.shutdown()).unwrap();
 }

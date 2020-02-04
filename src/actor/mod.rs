@@ -1,9 +1,13 @@
-use std::{
-    error::Error,
-    fmt,
-};
+pub(crate) mod actor;
+pub(crate) mod actor_cell;
+pub(crate) mod actor_ref;
+pub(crate) mod channel;
+pub(crate) mod macros;
+pub(crate) mod props;
+pub(crate) mod selection;
+pub(crate) mod uri;
 
-pub use riker_macros::actor;
+use std::{error::Error, fmt};
 
 use crate::validate::InvalidName;
 
@@ -12,26 +16,18 @@ pub use self::{
     actor::{Actor, BoxActor, Receive, Strategy},
     actor_cell::Context,
     actor_ref::{
-        ActorRef, ActorReference, ActorRefFactory,
-        BasicActorRef, BoxedTell, Sender, Tell, TmpActorRefFactory,
+        ActorRef, ActorRefFactory, ActorReference, BasicActorRef, BoxedTell, Sender, Tell,
+        TmpActorRefFactory,
     },
     channel::{
-        All, Channel, channel, ChannelMsg, ChannelRef,
-        DeadLetter, DLChannelMsg, EventsChannel, Publish,
-        Subscribe, SysTopic, Topic, Unsubscribe, UnsubscribeAll,
+        channel, All, Channel, ChannelMsg, ChannelRef, DLChannelMsg, DeadLetter, EventsChannel,
+        Publish, Subscribe, SysTopic, Topic, Unsubscribe, UnsubscribeAll,
     },
+    macros::actor,
     props::{ActorArgs, ActorFactory, ActorFactoryArgs, ActorProducer, BoxActorProd, Props},
     selection::{ActorSelection, ActorSelectionFactory},
     uri::{ActorId, ActorPath, ActorUri},
 };
-
-pub(crate) mod actor;
-pub(crate) mod actor_cell;
-pub(crate) mod actor_ref;
-pub(crate) mod channel;
-pub(crate) mod props;
-pub(crate) mod selection;
-pub(crate) mod uri;
 
 #[allow(unused)]
 pub type MsgResult<T> = Result<(), MsgError<T>>;
@@ -45,9 +41,7 @@ pub struct MsgError<T> {
 
 impl<T> MsgError<T> {
     pub fn new(msg: T) -> Self {
-        MsgError {
-            msg
-        }
+        MsgError { msg }
     }
 }
 
@@ -76,9 +70,7 @@ pub struct TryMsgError<T> {
 
 impl<T> TryMsgError<T> {
     pub fn new(msg: T) -> Self {
-        TryMsgError {
-            msg
-        }
+        TryMsgError { msg }
     }
 }
 
@@ -114,7 +106,9 @@ impl Error for CreateError {
             CreateError::Panicked => "Failed to create actor. Cause: Actor panicked while starting",
             CreateError::System => "Failed to create actor. Cause: System failure",
             CreateError::InvalidName(_) => "Failed to create actor. Cause: Invalid actor name",
-            CreateError::AlreadyExists(_) => "Failed to create actor. Cause: An actor at the same path already exists"
+            CreateError::AlreadyExists(_) => {
+                "Failed to create actor. Cause: An actor at the same path already exists"
+            }
         }
     }
 }
@@ -124,8 +118,12 @@ impl fmt::Display for CreateError {
         match *self {
             CreateError::Panicked => f.write_str(self.description()),
             CreateError::System => f.write_str(self.description()),
-            CreateError::InvalidName(ref name) => f.write_str(&format!("{} ({})", self.description(), name)),
-            CreateError::AlreadyExists(ref path) => f.write_str(&format!("{} ({})", self.description(), path))
+            CreateError::InvalidName(ref name) => {
+                f.write_str(&format!("{} ({})", self.description(), name))
+            }
+            CreateError::AlreadyExists(ref path) => {
+                f.write_str(&format!("{} ({})", self.description(), path))
+            }
         }
     }
 }
@@ -162,4 +160,3 @@ impl fmt::Debug for RestartError {
         f.write_str(self.description())
     }
 }
-

@@ -8,9 +8,7 @@ use crate::{Envelope, Message};
 pub fn queue<Msg: Message>() -> (QueueWriter<Msg>, QueueReader<Msg>) {
     let (tx, rx) = channel::<Envelope<Msg>>();
 
-    let qw = QueueWriter {
-        tx,
-    };
+    let qw = QueueWriter { tx };
 
     let qr = QueueReaderInner {
         rx,
@@ -18,7 +16,7 @@ pub fn queue<Msg: Message>() -> (QueueWriter<Msg>, QueueReader<Msg>) {
     };
 
     let qr = QueueReader {
-        inner: Mutex::new(qr)
+        inner: Mutex::new(qr),
     };
 
     (qw, qr)
@@ -31,7 +29,8 @@ pub struct QueueWriter<Msg: Message> {
 
 impl<Msg: Message> QueueWriter<Msg> {
     pub fn try_enqueue(&self, msg: Envelope<Msg>) -> EnqueueResult<Msg> {
-        self.tx.send(msg)
+        self.tx
+            .send(msg)
             .map(|_| ())
             .map_err(|e| EnqueueError { msg: e.0 })
     }
@@ -74,7 +73,7 @@ impl<Msg: Message> QueueReader<Msg> {
                     inner.next_item = Some(item);
                     true
                 }
-                Err(_) => false
+                Err(_) => false,
             }
         }
     }
@@ -82,11 +81,10 @@ impl<Msg: Message> QueueReader<Msg> {
 
 #[derive(Clone, Debug)]
 pub struct EnqueueError<T> {
-    pub msg: T
+    pub msg: T,
 }
 
 pub type EnqueueResult<Msg> = Result<(), EnqueueError<Envelope<Msg>>>;
 
 pub struct QueueEmpty;
-
 pub type DequeueResult<Msg> = Result<Msg, QueueEmpty>;

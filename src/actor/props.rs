@@ -7,36 +7,100 @@ use std::{
 use crate::actor::Actor;
 
 /// Provides instances of `ActorProducer` for use when creating Actors (`actor_of`).
-/// 
+///
 /// Actors are not created directly. Instead you provide an `ActorProducer`
 /// that allows the `ActorSystem` to start an actor when `actor_of` is used,
 /// or when an actor fails and a supervisor requests an actor to be restarted.
-/// 
+///
 /// `ActorProducer` can hold values required by the actor's factory method
 /// parameters.
 pub struct Props;
 
 impl Props {
     /// Creates an `ActorProducer` with no factory method parameters.
-    /// 
-
-    pub fn new<A, F>(creator: F)
-                     -> Arc<Mutex<Box<dyn ActorProducer<Actor=A>>>>
-        where A: Actor + Send + 'static,
-              F: Fn() -> A + Send + 'static
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use riker::actors::*;
+    ///
+    /// #[derive(Default)]
+    /// struct User;
+    ///
+    /// # impl Actor for User {
+    /// #    type Msg = String;
+    /// #    fn recv(&mut self, _ctx: &Context<String>, _msg: String, _sender: Sender) {}
+    /// # }
+    /// // main
+    /// let sys = ActorSystem::new().unwrap();
+    ///
+    /// // start the actor and get an `ActorRef`
+    /// let actor = sys.actor_of::<User>("user").unwrap();
+    /// ```
+    pub fn new<A, F>(creator: F) -> Arc<Mutex<impl ActorProducer<Actor = A>>>
+    where
+        A: Actor + Send + 'static,
+        F: Fn() -> A + Send + 'static,
     {
         Arc::new(Mutex::new(ActorProps::new(creator)))
     }
 
     /// Creates an `ActorProducer` with one or more factory method parameters.
-    /// 
-
-    pub fn new_args<A, Args, F>(creator: F, args: Args)
-                                -> Arc<Mutex<Box<dyn ActorProducer<Actor=A>>>>
-        where A: Actor + Send + 'static,
-              Args: ActorArgs + 'static,
-              F: Fn(Args) -> A + Send + 'static
-
+    ///
+    /// # Examples
+    /// An actor requiring a single parameter.
+    /// ```
+    /// # use riker::actors::*;
+    ///
+    /// struct User {
+    ///     name: String,
+    /// }
+    ///
+    /// impl ActorFactoryArgs<String> for User {
+    ///     fn create_args(name: String) -> BoxActorProd<Self> {
+    ///         Props::new_args(|name| User { name }, name)
+    ///     }
+    /// }
+    ///
+    /// # impl Actor for User {
+    /// #    type Msg = String;
+    /// #    fn recv(&mut self, _ctx: &Context<String>, _msg: String, _sender: Sender) {}
+    /// # }
+    /// // main
+    /// let sys = ActorSystem::new().unwrap();
+    ///
+    /// let actor = sys.actor_of_args::<User, _>("user", "Naomi Nagata".into()).unwrap();
+    /// ```
+    /// An actor requiring multiple parameters.
+    /// ```
+    /// # use riker::actors::*;
+    ///
+    /// struct BankAccount {
+    ///     name: String,
+    ///     number: String,
+    /// }
+    ///
+    /// impl ActorFactoryArgs<(String, String)> for BankAccount {
+    ///     fn create_args(args: (String, String)) -> BoxActorProd<Self> {
+    ///         Props::new_args(|(name, number)| BankAccount { name, number }, args)
+    ///     }
+    /// }
+    ///
+    /// # impl Actor for BankAccount {
+    /// #    type Msg = String;
+    /// #    fn recv(&mut self, _ctx: &Context<String>, _msg: String, _sender: Sender) {}
+    /// # }
+    /// // main
+    /// let sys = ActorSystem::new().unwrap();
+    ///
+    /// // start the actor and get an `ActorRef`
+    /// let actor = sys.actor_of_args::<BankAccount, _>("bank_account", ("James Holden".into(), "12345678".into())).unwrap();
+    /// ```
+    pub fn new_args<A, Args, F>(creator: F, args: Args) -> Arc<Mutex<impl ActorProducer<Actor = A>>>
+    where
+        A: Actor + Send + 'static,
+        Args: ActorArgs + 'static,
+        F: Fn(Args) -> A + Send + 'static,
     {
         Arc::new(Mutex::new(ActorPropsWithArgs::new(creator, args)))
     }
@@ -44,7 +108,7 @@ impl Props {
 
 /// A `Clone`, `Send` and `Sync` `ActorProducer`
 // pub type BoxActorProd<Msg> = Arc<Mutex<ActorProducer<Actor=BoxActor<Msg>>>>;
-pub type BoxActorProd<A> = Arc<Mutex<Box<dyn ActorProducer<Actor=A>>>>;
+pub type BoxActorProd<A> = Arc<Mutex<dyn ActorProducer<Actor = A>>>;
 
 pub trait ActorFactory: Actor {
     fn create() -> BoxActorProd<Self>;
@@ -61,11 +125,11 @@ impl<A: Default + Actor> ActorFactory for A {
 }
 
 /// Represents the underlying Actor factory function for creating instances of `Actor`.
-/// 
+///
 /// Actors are not created directly. Instead you provide an `ActorProducer`
 /// that allows the `ActorSystem` to start an actor when `actor_of` is used,
 /// or when an actor fails and a supervisor requests an actor to be restarted.
-/// 
+///
 /// `ActorProducer` can hold values required by the actor's factory method
 /// parameters.
 pub trait ActorProducer: fmt::Debug + Send + UnwindSafe + RefUnwindSafe {
@@ -85,8 +149,9 @@ pub trait ActorProducer: fmt::Debug + Send + UnwindSafe + RefUnwindSafe {
     fn produce(&self) -> Self::Actor;
 }
 
-impl<A> ActorProducer for Arc<Mutex<Box<dyn ActorProducer<Actor=A>>>>
-    where A: Actor + Send + 'static
+impl<A> ActorProducer for Arc<Mutex<Box<dyn ActorProducer<Actor = A>>>>
+where
+    A: Actor + Send + 'static,
 {
     type Actor = A;
 
@@ -95,8 +160,9 @@ impl<A> ActorProducer for Arc<Mutex<Box<dyn ActorProducer<Actor=A>>>>
     }
 }
 
-impl<A> ActorProducer for Arc<Mutex<dyn ActorProducer<Actor=A>>>
-    where A: Actor + Send + 'static
+impl<A> ActorProducer for Arc<Mutex<dyn ActorProducer<Actor = A>>>
+where
+    A: Actor + Send + 'static,
 {
     type Actor = A;
 
@@ -105,8 +171,9 @@ impl<A> ActorProducer for Arc<Mutex<dyn ActorProducer<Actor=A>>>
     }
 }
 
-impl<A> ActorProducer for Box<dyn ActorProducer<Actor=A>>
-    where A: Actor + Send + 'static
+impl<A> ActorProducer for Box<dyn ActorProducer<Actor = A>>
+where
+    A: Actor + Send + 'static,
 {
     type Actor = A;
 
@@ -120,21 +187,25 @@ pub struct ActorProps<A: Actor> {
 }
 
 impl<A: Actor> UnwindSafe for ActorProps<A> {}
-
 impl<A: Actor> RefUnwindSafe for ActorProps<A> {}
 
 impl<A> ActorProps<A>
-    where A: Actor + Send + 'static
+where
+    A: Actor + Send + 'static,
 {
-    pub fn new<F>(creator: F) -> Box<dyn ActorProducer<Actor=A>>
-        where F: Fn() -> A + Send + 'static
+    pub fn new<F>(creator: F) -> impl ActorProducer<Actor = A>
+    where
+        F: Fn() -> A + Send + 'static,
     {
-        Box::new(ActorProps { creator: Box::new(creator) })
+        ActorProps {
+            creator: Box::new(creator),
+        }
     }
 }
 
 impl<A> ActorProducer for ActorProps<A>
-    where A: Actor + Send + 'static
+where
+    A: Actor + Send + 'static,
 {
     type Actor = A;
 
@@ -162,25 +233,28 @@ pub struct ActorPropsWithArgs<A: Actor, Args: ActorArgs> {
 }
 
 impl<A: Actor, Args: ActorArgs> UnwindSafe for ActorPropsWithArgs<A, Args> {}
-
 impl<A: Actor, Args: ActorArgs> RefUnwindSafe for ActorPropsWithArgs<A, Args> {}
 
 impl<A, Args> ActorPropsWithArgs<A, Args>
-    where A: Actor + Send + 'static,
-          Args: ActorArgs + 'static
+where
+    A: Actor + Send + 'static,
+    Args: ActorArgs + 'static,
 {
-    pub fn new<F>(creator: F, args: Args) -> Box<dyn ActorProducer<Actor=A>>
-        where F: Fn(Args) -> A + Send + 'static
+    pub fn new<F>(creator: F, args: Args) -> impl ActorProducer<Actor = A>
+    where
+        F: Fn(Args) -> A + Send + 'static,
     {
-        Box::new(ActorPropsWithArgs {
+        ActorPropsWithArgs {
             creator: Box::new(creator),
             args,
-        })
+        }
     }
 }
 
 impl<A, Args> ActorProducer for ActorPropsWithArgs<A, Args>
-    where A: Actor + Send + 'static, Args: ActorArgs + 'static
+where
+    A: Actor + Send + 'static,
+    Args: ActorArgs + 'static,
 {
     type Actor = A;
 
@@ -206,4 +280,3 @@ impl<A: Actor, Args: ActorArgs> fmt::Debug for ActorPropsWithArgs<A, Args> {
 pub trait ActorArgs: Clone + Send + Sync {}
 
 impl<T: Clone + Send + Sync> ActorArgs for T {}
-

@@ -1,25 +1,21 @@
 use std::{
     panic::{catch_unwind, AssertUnwindSafe},
-    sync::{Arc, Mutex}
+    sync::{Arc, Mutex},
 };
 
-use futures::{
-    StreamExt,
-    channel::mpsc::channel,
-    task::SpawnExt
-};
+use futures::{channel::mpsc::channel, task::SpawnExt, StreamExt};
 use log::warn;
 
 use crate::{
-    Message,
-    actor::*,
     actor::actor_cell::ExtendedCell,
+    actor::*,
     kernel::{
-        KernelMsg,
         kernel_ref::KernelRef,
-        mailbox::{Mailbox, run_mailbox, flush_to_deadletters}
+        mailbox::{flush_to_deadletters, run_mailbox, Mailbox},
+        KernelMsg,
     },
-    system::{ActorSystem, SystemMsg, ActorTerminated, ActorRestarted}
+    system::{ActorRestarted, ActorSystem, ActorTerminated, SystemMsg},
+    Message,
 };
 
 pub struct Dock<A: Actor> {
@@ -31,22 +27,23 @@ impl<A: Actor> Clone for Dock<A> {
     fn clone(&self) -> Dock<A> {
         Dock {
             actor: self.actor.clone(),
-            cell: self.cell.clone()
+            cell: self.cell.clone(),
         }
     }
 }
 
-pub fn kernel<A>(props: BoxActorProd<A>,
-                cell: ExtendedCell<A::Msg>,
-                mailbox: Mailbox<A::Msg>,
-                sys: &ActorSystem) -> Result<KernelRef, CreateError>
-        where A: Actor + 'static
+pub fn kernel<A>(
+    props: BoxActorProd<A>,
+    cell: ExtendedCell<A::Msg>,
+    mailbox: Mailbox<A::Msg>,
+    sys: &ActorSystem,
+) -> Result<KernelRef, CreateError>
+where
+    A: Actor + 'static,
 {
     let (tx, mut rx) = channel::<KernelMsg>(1000); // todo config?
-    let kr = KernelRef {
-        tx
-    };
-    
+    let kr = KernelRef { tx };
+
     let mut sys = sys.clone();
     let mut asys = sys.clone();
     let akr = kr.clone();
@@ -55,7 +52,7 @@ pub fn kernel<A>(props: BoxActorProd<A>,
 
     let dock = Dock {
         actor: Arc::new(Mutex::new(Some(actor))),
-        cell: cell.clone()
+        cell: cell.clone(),
     };
 
     let actor_ref = ActorRef::new(cell);
@@ -73,11 +70,8 @@ pub fn kernel<A>(props: BoxActorProd<A>,
                     let mb = mailbox.clone();
                     let d = dock.clone();
 
-                    let _ = std::panic::catch_unwind(
-                        AssertUnwindSafe(||{
-                            run_mailbox(mb, ctx, d)
-                        })
-                    );//.unwrap();
+                    let _ = std::panic::catch_unwind(AssertUnwindSafe(|| run_mailbox(mb, ctx, d)));
+                    //.unwrap();
                 }
                 KernelMsg::RestartActor => {
                     restart_actor(&dock, actor_ref.clone().into(), &props, &asys);
@@ -90,7 +84,6 @@ pub fn kernel<A>(props: BoxActorProd<A>,
                     asys = s;
                 }
             }
-            
         }
     };
 
@@ -98,11 +91,13 @@ pub fn kernel<A>(props: BoxActorProd<A>,
     Ok(kr)
 }
 
-fn restart_actor<A>(dock: &Dock<A>,
-                actor_ref: BasicActorRef,
-                props: &BoxActorProd<A>,
-                sys: &ActorSystem)
-    where A: Actor
+fn restart_actor<A>(
+    dock: &Dock<A>,
+    actor_ref: BasicActorRef,
+    props: &BoxActorProd<A>,
+    sys: &ActorSystem,
+) where
+    A: Actor,
 {
     let mut a = dock.actor.lock().unwrap();
     match start_actor(props) {
@@ -117,15 +112,19 @@ fn restart_actor<A>(dock: &Dock<A>,
     }
 }
 
-fn terminate_actor<Msg>(mbox: &Mailbox<Msg>,
-                    actor_ref: BasicActorRef,
-                    sys: &ActorSystem)
-    where Msg: Message
+fn terminate_actor<Msg>(mbox: &Mailbox<Msg>, actor_ref: BasicActorRef, sys: &ActorSystem)
+where
+    Msg: Message,
 {
     sys.provider.unregister(actor_ref.path());
     flush_to_deadletters(mbox, &actor_ref, sys);
-    sys.publish_event(ActorTerminated { actor: actor_ref.clone() }.into());
-    
+    sys.publish_event(
+        ActorTerminated {
+            actor: actor_ref.clone(),
+        }
+        .into(),
+    );
+
     let parent = actor_ref.parent();
     if !parent.is_root() {
         parent.sys_tell(ActorTerminated { actor: actor_ref }.into());
@@ -133,11 +132,10 @@ fn terminate_actor<Msg>(mbox: &Mailbox<Msg>,
 }
 
 fn start_actor<A>(props: &BoxActorProd<A>) -> Result<A, CreateError>
-    where A: Actor
+where
+    A: Actor,
 {
-    let actor = catch_unwind(|| props.produce()).map_err(|_| {
-            CreateError::Panicked
-    })?;
+    let actor = catch_unwind(|| props.produce()).map_err(|_| CreateError::Panicked)?;
 
     Ok(actor)
 }

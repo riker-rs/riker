@@ -1,21 +1,14 @@
+use log::trace;
 use std::{
     collections::HashSet,
     sync::{Arc, Mutex},
 };
 
-use log::trace;
-
 use crate::{
-    actor::*,
     actor::actor_cell::{ActorCell, ExtendedCell},
-    kernel::{
-        kernel::kernel,
-        mailbox::mailbox,
-    },
-    system::{
-        ActorSystem, system::SysActors,
-        SystemMsg,
-    },
+    actor::*,
+    kernel::{kernel::kernel, mailbox::mailbox},
+    system::{system::SysActors, ActorSystem, SystemMsg},
     validate::validate_name,
 };
 
@@ -37,16 +30,19 @@ impl Provider {
         };
 
         Provider {
-            inner: Arc::new(Mutex::new(inner))
+            inner: Arc::new(Mutex::new(inner)),
         }
     }
 
-    pub fn create_actor<A>(&self,
-                           props: impl Into<BoxActorProd<A>>,
-                           name: &str,
-                           parent: &BasicActorRef,
-                           sys: &ActorSystem) -> Result<ActorRef<A::Msg>, CreateError>
-        where A: Actor + 'static
+    pub fn create_actor<A>(
+        &self,
+        props: BoxActorProd<A>,
+        name: &str,
+        parent: &BasicActorRef,
+        sys: &ActorSystem,
+    ) -> Result<ActorRef<A::Msg>, CreateError>
+    where
+        A: Actor + 'static,
     {
         validate_name(name)?;
 
@@ -62,18 +58,18 @@ impl Provider {
             host: sys.host(),
         };
 
-        let (sender, sys_sender, mb) =
-            mailbox::<A::Msg>(sys.sys_settings()
-                .msg_process_limit);
+        let (sender, sys_sender, mb) = mailbox::<A::Msg>(sys.sys_settings().msg_process_limit);
 
-        let cell = ExtendedCell::new(uri.uid,
-                                     uri.clone(),
-                                     Some(parent.clone()),
-                                     sys,
-                                     // None,/*perconf*/
-                                     Arc::new(sender.clone()),
-                                     sys_sender.clone(),
-                                     sender.clone());
+        let cell = ExtendedCell::new(
+            uri.uid,
+            uri.clone(),
+            Some(parent.clone()),
+            sys,
+            // None,/*perconf*/
+            Arc::new(sender.clone()),
+            sys_sender.clone(),
+            sender.clone(),
+        );
 
         let k = kernel(props.into(), cell.clone(), mb, sys)?;
         let cell = cell.init(&k);
@@ -99,9 +95,7 @@ impl Provider {
 
                 Ok(id)
             }
-            Err(_) => {
-                Err(CreateError::System)
-            }
+            Err(_) => Err(CreateError::System),
         }
     }
 
@@ -141,13 +135,15 @@ fn root(sys: &ActorSystem) -> BasicActorRef {
     //     tx
     // };
 
-    let bb_cell = ActorCell::new(0,
-                                 uri.clone(),
-                                 None,
-                                 sys,
-                                 // None, // old perfaconf
-                                 Arc::new(sender),
-                                 sys_sender);
+    let bb_cell = ActorCell::new(
+        0,
+        uri.clone(),
+        None,
+        sys,
+        // None, // old perfaconf
+        Arc::new(sender),
+        sys_sender,
+    );
 
     let bigbang = BasicActorRef::new(bb_cell);
 
@@ -155,14 +151,16 @@ fn root(sys: &ActorSystem) -> BasicActorRef {
     let props: BoxActorProd<Guardian> = Props::new_args(Guardian::new, "root".to_string());
     let (sender, sys_sender, mb) = mailbox::<SystemMsg>(100);
 
-    let cell = ExtendedCell::new(uri.uid,
-                                 uri.clone(),
-                                 Some(bigbang.clone()),
-                                 sys,
-                                 // None,/*perconf*/
-                                 Arc::new(sender.clone()),
-                                 sys_sender.clone(),
-                                 sender.clone());
+    let cell = ExtendedCell::new(
+        uri.uid,
+        uri.clone(),
+        Some(bigbang.clone()),
+        sys,
+        // None,/*perconf*/
+        Arc::new(sender.clone()),
+        sys_sender.clone(),
+        sender.clone(),
+    );
 
     let k = kernel(props, cell.clone(), mb, sys).unwrap();
     let cell = cell.init(&k);
@@ -171,12 +169,13 @@ fn root(sys: &ActorSystem) -> BasicActorRef {
     BasicActorRef::from(actor_ref)
 }
 
-fn guardian(uid: ActorId,
-            name: &str,
-            path: &str,
-            root: &BasicActorRef,
-            sys: &ActorSystem)
-            -> BasicActorRef {
+fn guardian(
+    uid: ActorId,
+    name: &str,
+    path: &str,
+    root: &BasicActorRef,
+    sys: &ActorSystem,
+) -> BasicActorRef {
     let uri = ActorUri {
         uid,
         name: Arc::new(name.to_string()),
@@ -187,14 +186,16 @@ fn guardian(uid: ActorId,
     let props: BoxActorProd<Guardian> = Props::new_args(Guardian::new, name.to_string());
     let (sender, sys_sender, mb) = mailbox::<SystemMsg>(100);
 
-    let cell = ExtendedCell::new(uri.uid,
-                                 uri.clone(),
-                                 Some(root.clone()),
-                                 sys,
-                                 // None,/*perconf*/
-                                 Arc::new(sender.clone()),
-                                 sys_sender.clone(),
-                                 sender.clone());
+    let cell = ExtendedCell::new(
+        uri.uid,
+        uri.clone(),
+        Some(root.clone()),
+        sys,
+        // None,/*perconf*/
+        Arc::new(sender.clone()),
+        sys_sender.clone(),
+        sender.clone(),
+    );
 
     let k = kernel(props, cell.clone(), mb, sys).unwrap();
     let cell = cell.init(&k);
@@ -211,9 +212,7 @@ struct Guardian {
 
 impl Guardian {
     fn new(name: String) -> Self {
-        let actor = Guardian {
-            name
-        };
+        let actor = Guardian { name };
 
         actor
     }

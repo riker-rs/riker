@@ -3,36 +3,29 @@ use std::{
     fmt,
     ops::Deref,
     sync::{
-        Arc, atomic::{AtomicBool, AtomicUsize, Ordering},
-        RwLock,
+        atomic::{AtomicBool, AtomicUsize, Ordering},
+        Arc, RwLock,
     },
     time::{Duration, SystemTime},
 };
 
 use chrono::prelude::*;
-use futures::{
-    Future,
-    future::RemoteHandle,
-    task::SpawnError,
-};
+use futures::{future::RemoteHandle, task::SpawnError, Future};
 use rand;
 use uuid::Uuid;
 
 use crate::{
-    actor::{
-        *,
-        props::ActorFactory,
-    }, AnyMessage, Envelope,
+    actor::{props::ActorFactory, *},
     kernel::{
         kernel_ref::{dispatch, dispatch_any, KernelRef},
         mailbox::{AnySender, MailboxSender},
     },
-    Message,
     system::{
-        ActorSystem, Run, SystemCmd, SystemMsg,
         timer::{Job, OnceJob, RepeatJob, Timer},
+        ActorSystem, Run, SystemCmd, SystemMsg,
     },
     validate::InvalidPath,
+    AnyMessage, Envelope, Message,
 };
 
 #[derive(Clone)]
@@ -59,36 +52,35 @@ struct ActorCellInner {
 
 impl ActorCell {
     /// Constructs a new `ActorCell`
-    pub(crate) fn new(uid: ActorId,
-                      uri: ActorUri,
-                      parent: Option<BasicActorRef>,
-                      system: &ActorSystem,
-                      // perconf: Option<PersistenceConf>,
-                      mailbox: Arc<dyn AnySender>,
-                      sys_mailbox: MailboxSender<SystemMsg>)
-                      -> ActorCell {
+    pub(crate) fn new(
+        uid: ActorId,
+        uri: ActorUri,
+        parent: Option<BasicActorRef>,
+        system: &ActorSystem,
+        // perconf: Option<PersistenceConf>,
+        mailbox: Arc<dyn AnySender>,
+        sys_mailbox: MailboxSender<SystemMsg>,
+    ) -> ActorCell {
         ActorCell {
-            inner: Arc::new(
-                ActorCellInner {
-                    uid,
-                    uri,
-                    parent,
-                    children: Children::new(),
-                    is_remote: false,
-                    is_terminating: Arc::new(AtomicBool::new(false)),
-                    is_restarting: Arc::new(AtomicBool::new(false)),
-                    // persistence: Persistence {
-                    //     // event_store: system.event_store.clone(),
-                    //     is_persisting: Arc::new(AtomicBool::new(false)),
-                    //     persistence_conf: perconf,
-                    // },
-                    status: Arc::new(AtomicUsize::new(0)),
-                    kernel: None,
-                    system: system.clone(),
-                    mailbox,
-                    sys_mailbox,
-                }
-            )
+            inner: Arc::new(ActorCellInner {
+                uid,
+                uri,
+                parent,
+                children: Children::new(),
+                is_remote: false,
+                is_terminating: Arc::new(AtomicBool::new(false)),
+                is_restarting: Arc::new(AtomicBool::new(false)),
+                // persistence: Persistence {
+                //     // event_store: system.event_store.clone(),
+                //     is_persisting: Arc::new(AtomicBool::new(false)),
+                //     persistence_conf: perconf,
+                // },
+                status: Arc::new(AtomicUsize::new(0)),
+                kernel: None,
+                system: system.clone(),
+                mailbox,
+                sys_mailbox,
+            }),
         }
     }
 
@@ -99,7 +91,7 @@ impl ActorCell {
         };
 
         ActorCell {
-            inner: Arc::new(inner)
+            inner: Arc::new(inner),
         }
     }
 
@@ -108,9 +100,7 @@ impl ActorCell {
     }
 
     pub(crate) fn myself(&self) -> BasicActorRef {
-        BasicActorRef {
-            cell: self.clone()
-        }
+        BasicActorRef { cell: self.clone() }
     }
 
     pub(crate) fn uri(&self) -> &ActorUri {
@@ -125,7 +115,7 @@ impl ActorCell {
         self.inner.children.len() > 0
     }
 
-    pub(crate) fn children<'a>(&'a self) -> Box<dyn Iterator<Item=BasicActorRef> + 'a> {
+    pub(crate) fn children<'a>(&'a self) -> Box<dyn Iterator<Item = BasicActorRef> + 'a> {
         Box::new(self.inner.children.iter().clone())
     }
 
@@ -138,15 +128,14 @@ impl ActorCell {
     }
 
     pub fn is_user(&self) -> bool {
-        self.inner
-            .system
-            .user_root()
-            .is_child(&self.myself())
+        self.inner.system.user_root().is_child(&self.myself())
     }
 
-    pub(crate) fn send_any_msg(&self, msg: &mut AnyMessage,
-                               sender: crate::actor::Sender)
-                               -> Result<(), ()> {
+    pub(crate) fn send_any_msg(
+        &self,
+        msg: &mut AnyMessage,
+        sender: crate::actor::Sender,
+    ) -> Result<(), ()> {
         let mb = &self.inner.mailbox;
         let k = self.kernel();
 
@@ -188,12 +177,10 @@ impl ActorCell {
         self.inner.children.remove(actor)
     }
 
-    pub fn receive_cmd<A: Actor>(&self,
-                                 cmd: SystemCmd,
-                                 actor: &mut Option<A>) {
+    pub fn receive_cmd<A: Actor>(&self, cmd: SystemCmd, actor: &mut Option<A>) {
         match cmd {
             SystemCmd::Stop => self.terminate(actor),
-            SystemCmd::Restart => self.restart()
+            SystemCmd::Restart => self.restart(),
         }
     }
 
@@ -225,9 +212,7 @@ impl ActorCell {
         }
     }
 
-    pub fn death_watch<A: Actor>(&self,
-                                 terminated: &BasicActorRef,
-                                 actor: &mut Option<A>) {
+    pub fn death_watch<A: Actor>(&self, terminated: &BasicActorRef, actor: &mut Option<A>) {
         if self.is_child(&terminated) {
             self.remove_child(terminated);
 
@@ -247,13 +232,11 @@ impl ActorCell {
         }
     }
 
-    pub fn handle_failure(&self,
-                          failed: BasicActorRef,
-                          strategy: Strategy) {
+    pub fn handle_failure(&self, failed: BasicActorRef, strategy: Strategy) {
         match strategy {
             Strategy::Stop => self.stop(failed),
             Strategy::Restart => self.restart_child(failed),
-            Strategy::Escalate => self.escalate_failure()
+            Strategy::Escalate => self.escalate_failure(),
         }
     }
 
@@ -321,9 +304,10 @@ impl fmt::Debug for ActorCell {
 }
 
 impl TmpActorRefFactory for ActorCell {
-    fn tmp_actor_of_props<A: Actor>(&self,
-                                    _props: impl Into<BoxActorProd<A>>)
-                                    -> Result<ActorRef<A::Msg>, CreateError> {
+    fn tmp_actor_of_props<A: Actor>(
+        &self,
+        _props: BoxActorProd<A>,
+    ) -> Result<ActorRef<A::Msg>, CreateError> {
         let name = rand::random::<u64>();
         let _name = format!("{}", name);
 
@@ -333,8 +317,7 @@ impl TmpActorRefFactory for ActorCell {
         unimplemented!()
     }
 
-    fn tmp_actor_of<A: ActorFactory>(&self)
-                                     -> Result<ActorRef<<A as Actor>::Msg>, CreateError> {
+    fn tmp_actor_of<A: ActorFactory>(&self) -> Result<ActorRef<<A as Actor>::Msg>, CreateError> {
         let name = rand::random::<u64>();
         let _name = format!("{}", name);
 
@@ -344,9 +327,12 @@ impl TmpActorRefFactory for ActorCell {
         unimplemented!()
     }
 
-
-    fn tmp_actor_of_args<A, Args>(&self, _args: Args) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-        where A: ActorFactoryArgs<Args>
+    fn tmp_actor_of_args<A, Args>(
+        &self,
+        _args: Args,
+    ) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
+    where
+        A: ActorFactoryArgs<Args>,
     {
         let name = rand::random::<u64>();
         let _name = format!("{}", name);
@@ -365,45 +351,42 @@ pub struct ExtendedCell<Msg: Message> {
 }
 
 impl<Msg> ExtendedCell<Msg>
-    where Msg: Message
+where
+    Msg: Message,
 {
-    pub(crate) fn new(uid: ActorId,
-                      uri: ActorUri,
-                      parent: Option<BasicActorRef>,
-                      system: &ActorSystem,
-                      // perconf: Option<PersistenceConf>,
-                      any_mailbox: Arc<dyn AnySender>,
-                      sys_mailbox: MailboxSender<SystemMsg>,
-                      mailbox: MailboxSender<Msg>)
-                      -> Self {
+    pub(crate) fn new(
+        uid: ActorId,
+        uri: ActorUri,
+        parent: Option<BasicActorRef>,
+        system: &ActorSystem,
+        // perconf: Option<PersistenceConf>,
+        any_mailbox: Arc<dyn AnySender>,
+        sys_mailbox: MailboxSender<SystemMsg>,
+        mailbox: MailboxSender<Msg>,
+    ) -> Self {
         let cell = ActorCell {
-            inner: Arc::new(
-                ActorCellInner {
-                    uid,
-                    uri,
-                    parent,
-                    children: Children::new(),
-                    is_remote: false,
-                    is_terminating: Arc::new(AtomicBool::new(false)),
-                    is_restarting: Arc::new(AtomicBool::new(false)),
-                    // persistence: Persistence {
-                    //     // event_store: system.event_store.clone(),
-                    //     is_persisting: Arc::new(AtomicBool::new(false)),
-                    //     persistence_conf: perconf,
-                    // },
-                    status: Arc::new(AtomicUsize::new(0)),
-                    kernel: None,
-                    system: system.clone(),
-                    mailbox: any_mailbox,
-                    sys_mailbox,
-                }
-            )
+            inner: Arc::new(ActorCellInner {
+                uid,
+                uri,
+                parent,
+                children: Children::new(),
+                is_remote: false,
+                is_terminating: Arc::new(AtomicBool::new(false)),
+                is_restarting: Arc::new(AtomicBool::new(false)),
+                // persistence: Persistence {
+                //     // event_store: system.event_store.clone(),
+                //     is_persisting: Arc::new(AtomicBool::new(false)),
+                //     persistence_conf: perconf,
+                // },
+                status: Arc::new(AtomicUsize::new(0)),
+                kernel: None,
+                system: system.clone(),
+                mailbox: any_mailbox,
+                sys_mailbox,
+            }),
         };
 
-        ExtendedCell {
-            cell,
-            mailbox,
-        }
+        ExtendedCell { cell, mailbox }
     }
 
     pub(crate) fn init(self, kernel: &KernelRef) -> Self {
@@ -432,7 +415,7 @@ impl<Msg> ExtendedCell<Msg>
         self.cell.is_child(actor)
     }
 
-    pub fn children<'a>(&'a self) -> Box<dyn Iterator<Item=BasicActorRef> + 'a> {
+    pub fn children<'a>(&'a self) -> Box<dyn Iterator<Item = BasicActorRef> + 'a> {
         self.cell.children()
     }
 
@@ -452,22 +435,24 @@ impl<Msg> ExtendedCell<Msg>
         let mb = &self.mailbox;
         let k = self.cell.kernel();
 
-        dispatch(msg, mb, k, &self.system())
-            .map_err(|e| {
-                let dl = e.clone(); // clone the failed message and send to dead letters
-                let dl = DeadLetter {
-                    msg: format!("{:?}", dl.msg.msg),
-                    sender: dl.msg.sender,
-                    recipient: self.cell.myself(),
-                };
+        dispatch(msg, mb, k, &self.system()).map_err(|e| {
+            let dl = e.clone(); // clone the failed message and send to dead letters
+            let dl = DeadLetter {
+                msg: format!("{:?}", dl.msg.msg),
+                sender: dl.msg.sender,
+                recipient: self.cell.myself(),
+            };
 
-                self.cell
-                    .inner.system
-                    .dead_letters()
-                    .tell(Publish { topic: "dead_letter".into(), msg: dl }, None);
+            self.cell.inner.system.dead_letters().tell(
+                Publish {
+                    topic: "dead_letter".into(),
+                    msg: dl,
+                },
+                None,
+            );
 
-                e
-            })
+            e
+        })
     }
 
     pub(crate) fn send_sys_msg(&self, msg: Envelope<SystemMsg>) -> MsgResult<Envelope<SystemMsg>> {
@@ -478,21 +463,15 @@ impl<Msg> ExtendedCell<Msg>
         &self.cell.inner.system
     }
 
-    pub(crate) fn handle_failure(&self,
-                                 failed: BasicActorRef,
-                                 strategy: Strategy) {
+    pub(crate) fn handle_failure(&self, failed: BasicActorRef, strategy: Strategy) {
         self.cell.handle_failure(failed, strategy)
     }
 
-    pub(crate) fn receive_cmd<A: Actor>(&self,
-                                        cmd: SystemCmd,
-                                        actor: &mut Option<A>) {
+    pub(crate) fn receive_cmd<A: Actor>(&self, cmd: SystemCmd, actor: &mut Option<A>) {
         self.cell.receive_cmd(cmd, actor)
     }
 
-    pub(crate) fn death_watch<A: Actor>(&self,
-                                        terminated: &BasicActorRef,
-                                        actor: &mut Option<A>) {
+    pub(crate) fn death_watch<A: Actor>(&self, terminated: &BasicActorRef, actor: &mut Option<A>) {
         self.cell.death_watch(terminated, actor)
     }
 }
@@ -512,21 +491,20 @@ fn post_stop<A: Actor>(actor: &mut Option<A>) {
     }
 }
 
-
 /// Provides context, including the actor system during actor execution.
-/// 
+///
 /// `Context` is passed to an actor's functions, such as
 /// `receive`.
-/// 
+///
 /// Operations performed are in most cases done so from the
 /// actor's perspective. For example, creating a child actor
 /// using `ctx.actor_of` will create the child under the current
 /// actor within the heirarchy. In a similar manner, persistence
 /// operations such as `persist_event` use the current actor's
 /// persistence configuration.
-/// 
+///
 /// Since `Context` is specific to an actor and its functions
-/// it is not cloneable.  
+/// it is not cloneable.
 pub struct Context<Msg: Message> {
     pub myself: ActorRef<Msg>,
     pub system: ActorSystem,
@@ -535,7 +513,8 @@ pub struct Context<Msg: Message> {
 }
 
 impl<Msg> Context<Msg>
-    where Msg: Message
+where
+    Msg: Message,
 {
     /// Returns the `ActorRef` of the current actor.
     pub fn myself(&self) -> ActorRef<Msg> {
@@ -544,40 +523,42 @@ impl<Msg> Context<Msg>
 }
 
 impl<Msg: Message> ActorRefFactory for Context<Msg> {
-    fn actor_of_props<A>(&self,
-                         props: impl Into<BoxActorProd<A>>,
-                         name: &str) -> Result<ActorRef<A::Msg>, CreateError>
-        where A: Actor
+    fn actor_of_props<A>(
+        &self,
+        props: BoxActorProd<A>,
+        name: &str,
+    ) -> Result<ActorRef<A::Msg>, CreateError>
+    where
+        A: Actor,
     {
         self.system
             .provider
-            .create_actor(props.into(),
-                          name,
-                          &self.myself().into(),
-                          &self.system)
+            .create_actor(props.into(), name, &self.myself().into(), &self.system)
     }
 
-    fn actor_of<A>(&self,
-                   name: &str) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-        where A: ActorFactory
+    fn actor_of<A>(&self, name: &str) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
+    where
+        A: ActorFactory,
     {
         self.system
             .provider
-            .create_actor(A::create(),
-                          name,
-                          &self.myself().into(),
-                          &self.system)
+            .create_actor(A::create(), name, &self.myself().into(), &self.system)
     }
 
-    fn actor_of_args<A, Args>(&self, name: &str, args: Args) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-        where A: ActorFactoryArgs<Args>
+    fn actor_of_args<A, Args>(
+        &self,
+        name: &str,
+        args: Args,
+    ) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
+    where
+        A: ActorFactoryArgs<Args>,
     {
-        self.system
-            .provider
-            .create_actor(A::create_args(args),
-                          name,
-                          &self.myself().into(),
-                          &self.system)
+        self.system.provider.create_actor(
+            A::create_args(args),
+            name,
+            &self.myself().into(),
+            &self.system,
+        )
     }
 
     fn stop(&self, actor: impl ActorReference) {
@@ -586,7 +567,8 @@ impl<Msg: Message> ActorRefFactory for Context<Msg> {
 }
 
 impl<Msg> ActorSelectionFactory for Context<Msg>
-    where Msg: Message
+where
+    Msg: Message,
 {
     fn select(&self, path: &str) -> Result<ActorSelection, InvalidPath> {
         let (anchor, path_str) = if path.starts_with("/") {
@@ -599,33 +581,41 @@ impl<Msg> ActorSelectionFactory for Context<Msg>
             (self.myself.clone().into(), path.to_string())
         };
 
-        ActorSelection::new(anchor,
-                            // self.system.dead_letters(),
-                            path_str)
+        ActorSelection::new(
+            anchor, // self.system.dead_letters(),
+            path_str,
+        )
     }
 }
 
 impl<Msg> Run for Context<Msg>
-    where Msg: Message
+where
+    Msg: Message,
 {
-    fn run<Fut>(&self, future: Fut)
-                -> Result<RemoteHandle<<Fut as Future>::Output>, SpawnError>
-        where Fut: Future + Send + 'static, <Fut as Future>::Output: Send
+    fn run<Fut>(&self, future: Fut) -> Result<RemoteHandle<<Fut as Future>::Output>, SpawnError>
+    where
+        Fut: Future + Send + 'static,
+        <Fut as Future>::Output: Send,
     {
         self.system.run(future)
     }
 }
 
 impl<Msg> Timer for Context<Msg>
-    where Msg: Message
+where
+    Msg: Message,
 {
-    fn schedule<T, M>(&self,
-                      initial_delay: Duration,
-                      interval: Duration,
-                      receiver: ActorRef<M>,
-                      sender: Sender,
-                      msg: T) -> Uuid
-        where T: Message + Into<M>, M: Message
+    fn schedule<T, M>(
+        &self,
+        initial_delay: Duration,
+        interval: Duration,
+        receiver: ActorRef<M>,
+        sender: Sender,
+        msg: T,
+    ) -> Uuid
+    where
+        T: Message + Into<M>,
+        M: Message,
     {
         let id = Uuid::new_v4();
         let msg: M = msg.into();
@@ -643,12 +633,16 @@ impl<Msg> Timer for Context<Msg>
         id
     }
 
-    fn schedule_once<T, M>(&self,
-                           delay: Duration,
-                           receiver: ActorRef<M>,
-                           sender: Sender,
-                           msg: T) -> Uuid
-        where T: Message + Into<M>, M: Message
+    fn schedule_once<T, M>(
+        &self,
+        delay: Duration,
+        receiver: ActorRef<M>,
+        sender: Sender,
+        msg: T,
+    ) -> Uuid
+    where
+        T: Message + Into<M>,
+        M: Message,
     {
         let id = Uuid::new_v4();
         let msg: M = msg.into();
@@ -665,15 +659,18 @@ impl<Msg> Timer for Context<Msg>
         id
     }
 
-    fn schedule_at_time<T, M>(&self,
-                              time: DateTime<Utc>,
-                              receiver: ActorRef<M>,
-                              sender: Sender,
-                              msg: T) -> Uuid
-        where T: Message + Into<M>, M: Message
+    fn schedule_at_time<T, M>(
+        &self,
+        time: DateTime<Utc>,
+        receiver: ActorRef<M>,
+        sender: Sender,
+        msg: T,
+    ) -> Uuid
+    where
+        T: Message + Into<M>,
+        M: Message,
     {
-        let time = SystemTime::UNIX_EPOCH +
-            Duration::from_secs(time.timestamp() as u64);
+        let time = SystemTime::UNIX_EPOCH + Duration::from_secs(time.timestamp() as u64);
 
         let id = Uuid::new_v4();
         let msg: M = msg.into();
@@ -703,11 +700,7 @@ pub struct Children {
 impl Children {
     pub fn new() -> Children {
         Children {
-            actors: Arc::new(
-                RwLock::new(
-                    HashMap::new()
-                )
-            )
+            actors: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -719,17 +712,11 @@ impl Children {
     }
 
     pub fn remove(&self, actor: &BasicActorRef) {
-        self.actors
-            .write()
-            .unwrap()
-            .remove(actor.name());
+        self.actors.write().unwrap().remove(actor.name());
     }
 
     pub fn len(&self) -> usize {
-        self.actors
-            .read()
-            .unwrap()
-            .len()
+        self.actors.read().unwrap().len()
     }
 
     pub fn iter(&self) -> ChildrenIterator {
@@ -756,4 +743,3 @@ impl<'a> Iterator for ChildrenIterator<'a> {
         actor.map(|a| a.clone())
     }
 }
-
