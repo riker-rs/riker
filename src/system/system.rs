@@ -314,7 +314,7 @@ impl ActorSystem {
         A: Actor,
     {
         self.provider
-            .create_actor(props.into(), name, &self.sys_root(), self)
+            .create_actor(props, name, &self.sys_root(), self)
     }
 
     pub fn sys_actor_of<A>(&self, name: &str) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
@@ -367,7 +367,7 @@ impl ActorRefFactory for ActorSystem {
         A: Actor,
     {
         self.provider
-            .create_actor(props.into(), name, &self.user_root(), self)
+            .create_actor(props, name, &self.user_root(), self)
     }
 
     fn actor_of<A>(&self, name: &str) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
@@ -405,7 +405,7 @@ impl ActorRefFactory for &ActorSystem {
         A: Actor,
     {
         self.provider
-            .create_actor(props.into(), name, &self.user_root(), self)
+            .create_actor(props, name, &self.user_root(), self)
     }
 
     fn actor_of<A>(&self, name: &str) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
@@ -443,7 +443,7 @@ impl TmpActorRefFactory for ActorSystem {
     {
         let name = format!("{}", rand::random::<u64>());
         self.provider
-            .create_actor(props.into(), &name, &self.temp_root(), self)
+            .create_actor(props, &name, &self.temp_root(), self)
     }
 
     fn tmp_actor_of<A>(&self) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
@@ -620,7 +620,7 @@ fn sys_actor_of_props<A>(
 where
     A: Actor,
 {
-    prov.create_actor(props.into(), name, &sys.sys_root(), sys)
+    prov.create_actor(props, name, &sys.sys_root(), sys)
         .map_err(|_| SystemError::ModuleFailed(name.into()))
 }
 

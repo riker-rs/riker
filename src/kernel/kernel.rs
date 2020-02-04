@@ -70,8 +70,7 @@ where
                     let mb = mailbox.clone();
                     let d = dock.clone();
 
-                    let _ = std::panic::catch_unwind(AssertUnwindSafe(|| run_mailbox(mb, ctx, d)));
-                    //.unwrap();
+                    let _ = std::panic::catch_unwind(AssertUnwindSafe(|| run_mailbox(mb, ctx, d))); //.unwrap();
                 }
                 KernelMsg::RestartActor => {
                     restart_actor(&dock, actor_ref.clone().into(), &props, &asys);

@@ -533,7 +533,7 @@ impl<Msg: Message> ActorRefFactory for Context<Msg> {
     {
         self.system
             .provider
-            .create_actor(props.into(), name, &self.myself().into(), &self.system)
+            .create_actor(props, name, &self.myself().into(), &self.system)
     }
 
     fn actor_of<A>(&self, name: &str) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
