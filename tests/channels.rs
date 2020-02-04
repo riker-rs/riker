@@ -20,7 +20,8 @@ struct Subscriber {
     topic: Topic,
 }
 
-impl ActorFactoryArgs<(ChannelRef<SomeMessage>, Topic)> for Subscriber {
+impl ActorFactoryArgs for Subscriber {
+    type Args = (ChannelRef<SomeMessage>, Topic);
     fn create_args(args: (ChannelRef<SomeMessage>, Topic)) -> BoxActorProd<Self> {
         Props::new_args(
             |(chan, topic)| Subscriber {
@@ -80,7 +81,7 @@ fn channel_publish() {
     // On Subscriber's pre_start it will subscribe to this channel+topic
     let topic = Topic::from("my-topic");
     let sub = sys
-        .actor_of_args::<Subscriber, _>("sub-actor", (chan.clone(), topic.clone()))
+        .actor_of_args::<Subscriber>("sub-actor", (chan.clone(), topic.clone()))
         .unwrap();
 
     let (probe, listen) = probe();
@@ -112,7 +113,7 @@ fn channel_publish_subscribe_all() {
     // On Subscriber's pre_start it will subscribe to all topics on this channel.
     let topic = Topic::from("*");
     let sub = sys
-        .actor_of_args::<Subscriber, _>("sub-actor", (chan.clone(), topic.clone()))
+        .actor_of_args::<Subscriber>("sub-actor", (chan.clone(), topic.clone()))
         .unwrap();
 
     let (probe, listen) = probe();

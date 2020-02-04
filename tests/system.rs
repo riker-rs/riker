@@ -21,7 +21,8 @@ struct ShutdownTest {
     level: u32,
 }
 
-impl ActorFactoryArgs<u32> for ShutdownTest {
+impl ActorFactoryArgs for ShutdownTest {
+    type Args = u32;
     fn create_args(level: u32) -> BoxActorProd<Self> {
         Props::new_args(|level| ShutdownTest { level }, level)
     }
@@ -32,7 +33,7 @@ impl Actor for ShutdownTest {
 
     fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
         if self.level < 10 {
-            ctx.actor_of_args::<ShutdownTest, _>(
+            ctx.actor_of_args::<ShutdownTest>(
                 format!("test-actor-{}", self.level + 1).as_str(),
                 self.level + 1,
             )
@@ -49,7 +50,7 @@ fn system_shutdown() {
     let sys = ActorSystem::new().unwrap();
 
     let _ = sys
-        .actor_of_args::<ShutdownTest, _>("test-actor-1", 1)
+        .actor_of_args::<ShutdownTest>("test-actor-1", 1)
         .unwrap();
 
     block_on(sys.shutdown()).unwrap();

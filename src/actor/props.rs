@@ -56,7 +56,8 @@ impl Props {
     ///     name: String,
     /// }
     ///
-    /// impl ActorFactoryArgs<String> for User {
+    /// impl ActorFactoryArgs for User {
+    ///     type Args = String;
     ///     fn create_args(name: String) -> BoxActorProd<Self> {
     ///         Props::new_args(|name| User { name }, name)
     ///     }
@@ -69,7 +70,7 @@ impl Props {
     /// // main
     /// let sys = ActorSystem::new().unwrap();
     ///
-    /// let actor = sys.actor_of_args::<User, _>("user", "Naomi Nagata".into()).unwrap();
+    /// let actor = sys.actor_of_args::<User>("user", "Naomi Nagata".into()).unwrap();
     /// ```
     /// An actor requiring multiple parameters.
     /// ```
@@ -80,7 +81,8 @@ impl Props {
     ///     number: String,
     /// }
     ///
-    /// impl ActorFactoryArgs<(String, String)> for BankAccount {
+    /// impl ActorFactoryArgs for BankAccount {
+    ///     type Args = (String, String);
     ///     fn create_args(args: (String, String)) -> BoxActorProd<Self> {
     ///         Props::new_args(|(name, number)| BankAccount { name, number }, args)
     ///     }
@@ -94,7 +96,7 @@ impl Props {
     /// let sys = ActorSystem::new().unwrap();
     ///
     /// // start the actor and get an `ActorRef`
-    /// let actor = sys.actor_of_args::<BankAccount, _>("bank_account", ("James Holden".into(), "12345678".into())).unwrap();
+    /// let actor = sys.actor_of_args::<BankAccount>("bank_account", ("James Holden".into(), "12345678".into())).unwrap();
     /// ```
     pub fn new_args<A, Args, F>(creator: F, args: Args) -> Arc<Mutex<impl ActorProducer<Actor = A>>>
     where
@@ -114,8 +116,9 @@ pub trait ActorFactory: Actor {
     fn create() -> BoxActorProd<Self>;
 }
 
-pub trait ActorFactoryArgs<Args>: Actor {
-    fn create_args(args: Args) -> BoxActorProd<Self>;
+pub trait ActorFactoryArgs: Actor {
+    type Args;
+    fn create_args(args: Self::Args) -> BoxActorProd<Self>;
 }
 
 impl<A: Default + Actor> ActorFactory for A {
