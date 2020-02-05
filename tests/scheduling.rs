@@ -1,14 +1,14 @@
 #[macro_use]
 extern crate riker_testkit;
 
-use std::time::Duration;
+use riker::actors::*;
 
-use chrono::{Duration as CDuration, Utc};
 use riker_testkit::probe::channel::{probe, ChannelProbe};
 use riker_testkit::probe::{Probe, ProbeReceive};
-use uuid::Uuid;
 
-use riker::actors::*;
+use chrono::{Duration as CDuration, Utc};
+use std::time::Duration;
+use uuid::Uuid;
 
 #[derive(Clone, Debug)]
 pub struct TestProbe(ChannelProbe<(), ()>);

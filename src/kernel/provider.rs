@@ -221,9 +221,9 @@ impl Guardian {
 impl Actor for Guardian {
     type Msg = SystemMsg;
 
+    fn recv(&mut self, _: &Context<Self::Msg>, _: Self::Msg, _: Option<BasicActorRef>) {}
+
     fn post_stop(&mut self) {
         trace!("{} guardian stopped", self.name);
     }
-
-    fn recv(&mut self, _: &Context<Self::Msg>, _: Self::Msg, _: Option<BasicActorRef>) {}
 }

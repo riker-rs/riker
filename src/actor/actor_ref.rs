@@ -31,15 +31,15 @@ pub trait ActorReference {
     /// I.e. `/root`
     fn is_root(&self) -> bool;
 
-    /// Parent reference
-    ///
-    /// Returns the `BasicActorRef` of this actor's parent actor
-    fn parent(&self) -> BasicActorRef;
-
     /// User root reference
     ///
     /// I.e. `/root/user`
     fn user_root(&self) -> BasicActorRef;
+
+    /// Parent reference
+    ///
+    /// Returns the `BasicActorRef` of this actor's parent actor
+    fn parent(&self) -> BasicActorRef;
 
     /// True is this actor has any children actors
     fn has_children(&self) -> bool;

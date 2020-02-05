@@ -1,12 +1,13 @@
+use std::sync::{Arc, Mutex};
+use std::marker::PhantomData;
+
 use chrono::prelude::{DateTime, Utc};
 use config::Config;
 use log::warn;
-use std::marker::PhantomData;
-use std::sync::{Arc, Mutex};
 
-use crate::actors::{Actor, ActorRef, BoxActor, BoxActorProd, Context};
-use crate::actors::{ActorRefFactory, Props, SysTell, Tell, TmpActorRefFactory};
-use crate::protocol::{ActorMsg, ESMsg, Message, SystemMsg};
+use crate::protocol::{Message, ActorMsg, ESMsg, SystemMsg};
+use crate::actors::{Actor, BoxActor, Context, ActorRef, BoxActorProd};
+use crate::actors::{Props, ActorRefFactory, TmpActorRefFactory, Tell, SysTell};
 
 pub struct EsManager<Evs: EventStore> {
     es: Evs,
@@ -15,7 +16,7 @@ pub struct EsManager<Evs: EventStore> {
 impl<Evs: EventStore> EsManager<Evs> {
     fn new(es: Evs) -> BoxActor<Evs::Msg> {
         let actor: EsManager<Evs> = EsManager {
-            es,
+            es: es,
         };
 
         Box::new(actor)
@@ -31,9 +32,10 @@ impl<Evs: EventStore> Actor for EsManager<Evs> {
     type Msg = Evs::Msg;
 
     fn other_receive(&mut self,
-                     _: &Context<Self::Msg>,
-                     msg: ActorMsg<Self::Msg>,
-                     sender: Option<ActorRef<Self::Msg>>) {
+                    _: &Context<Self::Msg>,
+                    msg: ActorMsg<Self::Msg>,
+                    sender: Option<ActorRef<Self::Msg>>) {
+
         if let ActorMsg::ES(msg) = msg {
             match msg {
                 ESMsg::Persist(evt, id, keyspace, og_sender) => {
@@ -52,7 +54,7 @@ impl<Evs: EventStore> Actor for EsManager<Evs> {
     fn receive(&mut self, _: &Context<Self::Msg>, _: Self::Msg, _: Option<ActorRef<Self::Msg>>) {}
 }
 
-pub trait EventStore: Clone + Send + Sync + 'static {
+pub trait EventStore : Clone + Send + Sync + 'static {
     type Msg: Message;
 
     fn new(config: &Config) -> Self;
@@ -72,7 +74,7 @@ impl<Msg: Message> Evt<Msg> {
     pub fn new(msg: Msg) -> Self {
         Evt {
             date: Utc::now(),
-            msg,
+            msg: msg
         }
     }
 }
@@ -93,6 +95,7 @@ impl<Msg: Message> EventStore for NoEventStore<Msg> {
 
     fn insert(&mut self, _: &String, _: &String, _: Evt<Msg>) {
         warn!("No event store configured");
+        
     }
 
     fn load(&self, _: &String, _: &String) -> Vec<Msg> {
@@ -133,16 +136,18 @@ impl<Msg: Message> Actor for EsQueryActor<Msg> {
         }
     }
 
-    fn receive(&mut self, _: &Context<Msg>, _: Msg, _: Option<ActorRef<Msg>>) {}
+    fn receive(&mut self, _: &Context<Msg>, _: Msg, _: Option<ActorRef<Msg>>) {
+        
+    }
 }
 
 // type QueryFuture<Msg> = Pin<Box<dyn Future<Output=Result<Vec<Msg>, Canceled>> + Send>>;
 
 pub fn query<Msg, Ctx>(id: &String,
-                       keyspace: &String,
-                       es: &ActorRef<Msg>,
-                       ctx: &Ctx,
-                       rec: ActorRef<Msg>)
+                        keyspace: &String,
+                        es: &ActorRef<Msg>,
+                        ctx: &Ctx,
+                        rec: ActorRef<Msg>)
     where Msg: Message, Ctx: TmpActorRefFactory<Msg=Msg>
 {
     let props = Props::new_args(EsQueryActor::actor, rec);

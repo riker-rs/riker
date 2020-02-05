@@ -11,8 +11,9 @@ use std::{
 
 use chrono::prelude::*;
 use futures::{future::RemoteHandle, task::SpawnError, Future};
-use rand;
 use uuid::Uuid;
+
+use rand;
 
 use crate::{
     actor::{props::ActorFactory, *},
@@ -504,7 +505,7 @@ fn post_stop<A: Actor>(actor: &mut Option<A>) {
 /// persistence configuration.
 ///
 /// Since `Context` is specific to an actor and its functions
-/// it is not cloneable.
+/// it is not cloneable.  
 pub struct Context<Msg: Message> {
     pub myself: ActorRef<Msg>,
     pub system: ActorSystem,
@@ -623,9 +624,9 @@ where
         let job = RepeatJob {
             id: id.clone(),
             send_at: SystemTime::now() + initial_delay,
-            interval,
+            interval: interval,
             receiver: receiver.into(),
-            sender,
+            sender: sender,
             msg: AnyMessage::new(msg, false),
         };
 
@@ -651,7 +652,7 @@ where
             id: id.clone(),
             send_at: SystemTime::now() + delay,
             receiver: receiver.into(),
-            sender,
+            sender: sender,
             msg: AnyMessage::new(msg, true),
         };
 
@@ -679,7 +680,7 @@ where
             id: id.clone(),
             send_at: time,
             receiver: receiver.into(),
-            sender,
+            sender: sender,
             msg: AnyMessage::new(msg, true),
         };
 

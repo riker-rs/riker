@@ -281,5 +281,4 @@ impl<A: Actor, Args: ActorArgs> fmt::Debug for ActorPropsWithArgs<A, Args> {
 }
 
 pub trait ActorArgs: Clone + Send + Sync {}
-
 impl<T: Clone + Send + Sync> ActorArgs for T {}

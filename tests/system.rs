@@ -1,7 +1,4 @@
-#![feature(async_await, arbitrary_self_types)]
-
 use futures::executor::block_on;
-
 use riker::actors::*;
 
 #[test]

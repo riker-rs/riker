@@ -1,10 +1,10 @@
 #[macro_use]
 extern crate riker_testkit;
 
+use riker::actors::*;
+
 use riker_testkit::probe::channel::{probe, ChannelProbe};
 use riker_testkit::probe::{Probe, ProbeReceive};
-
-use riker::actors::*;
 
 #[derive(Clone, Debug)]
 pub struct TestProbe(ChannelProbe<(), ()>);
@@ -214,14 +214,14 @@ impl Actor for EventSubscriber {
         );
     }
 
+    fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender) {
+        self.receive(ctx, msg, sender);
+    }
+
     fn sys_recv(&mut self, ctx: &Context<Self::Msg>, msg: SystemMsg, sender: Sender) {
         if let SystemMsg::Event(evt) = msg {
             self.receive(ctx, evt, sender);
         }
-    }
-
-    fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender) {
-        self.receive(ctx, msg, sender);
     }
 }
 

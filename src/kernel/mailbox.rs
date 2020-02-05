@@ -373,7 +373,7 @@ where
                 (msg, sender) => {
                     let dl = DeadLetter {
                         msg: format!("{:?}", msg),
-                        sender,
+                        sender: sender,
                         recipient: actor.clone(),
                     };
 

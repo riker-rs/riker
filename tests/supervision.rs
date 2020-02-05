@@ -1,10 +1,10 @@
 #[macro_use]
 extern crate riker_testkit;
 
+use riker::actors::*;
+
 use riker_testkit::probe::channel::{probe, ChannelProbe};
 use riker_testkit::probe::{Probe, ProbeReceive};
-
-use riker::actors::*;
 
 #[derive(Clone, Debug)]
 pub struct Panic;
@@ -173,10 +173,6 @@ impl Actor for EscRestartSup {
         self.escalator = ctx.actor_of::<EscalateSup>("escalate-supervisor").ok();
     }
 
-    fn supervisor_strategy(&self) -> Strategy {
-        Strategy::Restart
-    }
-
     fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender) {
         self.receive(ctx, msg, sender);
         // match msg {
@@ -184,6 +180,10 @@ impl Actor for EscRestartSup {
         //     TestMsg::Panic => self.escalator.try_tell(msg, None).unwrap(),
         //     TestMsg::Probe(_) => self.escalator.try_tell(msg, None).unwrap(),
         // };
+    }
+
+    fn supervisor_strategy(&self) -> Strategy {
+        Strategy::Restart
     }
 }
 

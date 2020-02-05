@@ -1,10 +1,10 @@
 #[macro_use]
 extern crate riker_testkit;
 
+use riker::actors::*;
+
 use riker_testkit::probe::channel::{probe, ChannelProbe};
 use riker_testkit::probe::{Probe, ProbeReceive};
-
-use riker::actors::*;
 
 #[derive(Clone, Debug)]
 pub struct TestProbe(ChannelProbe<(), ()>);
