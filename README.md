@@ -19,7 +19,7 @@ Riker provides:
 - Message scheduling
 - Out-of-the-box, configurable, non-blocking logging
 - Persistent actors using Event Sourcing
-- Command Query Responsiblily Separation (CQRS)
+- Command Query Responsibly Separation (CQRS)
 - Easily run futures
 
 [Website](https://riker.rs) | [API Docs](https://docs.rs/riker)
@@ -90,7 +90,7 @@ Riker is a full-featured actor model implementation that scales to hundreds or t
 
 Rust empowers developers with control over memory management, requiring no garbage collection and runtime overhead, while also providing modern semantics and expressive syntax such as the trait system. The result is a language that can solve problems equally for Web and IoT.
 
-Riker adds to this by providing a famililar actor model API which in turn makes concurrent, resilent systems programming easy.
+Riker adds to this by providing a familiar actor model API which in turn makes concurrent, resilient systems programming easy.
 
 ## Rust Version
 

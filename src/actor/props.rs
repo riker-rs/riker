@@ -57,8 +57,8 @@ impl Props {
     /// }
     ///
     /// impl ActorFactoryArgs<String> for User {
-    ///     fn create_args(name: String) -> BoxActorProd<Self> {
-    ///         Props::new_args(|name| User { name }, name)
+    ///     fn create_args(name: String) -> Self {
+    ///         User { name }
     ///     }
     /// }
     ///
@@ -81,8 +81,8 @@ impl Props {
     /// }
     ///
     /// impl ActorFactoryArgs<(String, String)> for BankAccount {
-    ///     fn create_args(args: (String, String)) -> BoxActorProd<Self> {
-    ///         Props::new_args(|(name, number)| BankAccount { name, number }, args)
+    ///     fn create_args((name, number): (String, String)) -> Self {
+    ///         BankAccount { name, number }
     ///     }
     /// }
     ///
@@ -99,7 +99,7 @@ impl Props {
     pub fn new_args<A, Args, F>(creator: F, args: Args) -> Arc<Mutex<impl ActorProducer<Actor = A>>>
     where
         A: Actor + Send + 'static,
-        Args: ActorArgs + 'static,
+        Args: ActorArgs,
         F: Fn(Args) -> A + Send + 'static,
     {
         Arc::new(Mutex::new(ActorPropsWithArgs::new(creator, args)))
@@ -114,8 +114,8 @@ pub trait ActorFactory: Actor {
     fn create() -> BoxActorProd<Self>;
 }
 
-pub trait ActorFactoryArgs<Args>: Actor {
-    fn create_args(args: Args) -> BoxActorProd<Self>;
+pub trait ActorFactoryArgs<Args: ActorArgs>: Actor {
+    fn create_args(args: Args) -> Self;
 }
 
 impl<A: Default + Actor> ActorFactory for A {
@@ -238,7 +238,7 @@ impl<A: Actor, Args: ActorArgs> RefUnwindSafe for ActorPropsWithArgs<A, Args> {}
 impl<A, Args> ActorPropsWithArgs<A, Args>
 where
     A: Actor + Send + 'static,
-    Args: ActorArgs + 'static,
+    Args: ActorArgs,
 {
     pub fn new<F>(creator: F, args: Args) -> impl ActorProducer<Actor = A>
     where
@@ -254,7 +254,7 @@ where
 impl<A, Args> ActorProducer for ActorPropsWithArgs<A, Args>
 where
     A: Actor + Send + 'static,
-    Args: ActorArgs + 'static,
+    Args: ActorArgs,
 {
     type Actor = A;
 
@@ -277,5 +277,5 @@ impl<A: Actor, Args: ActorArgs> fmt::Debug for ActorPropsWithArgs<A, Args> {
     }
 }
 
-pub trait ActorArgs: Clone + Send + Sync {}
-impl<T: Clone + Send + Sync> ActorArgs for T {}
+pub trait ActorArgs: Clone + Send + Sync + 'static {}
+impl<T: Clone + Send + Sync + 'static> ActorArgs for T {}

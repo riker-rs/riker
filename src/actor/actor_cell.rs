@@ -333,6 +333,7 @@ impl TmpActorRefFactory for ActorCell {
         _args: Args,
     ) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
     where
+        Args: ActorArgs,
         A: ActorFactoryArgs<Args>,
     {
         let name = rand::random::<u64>();
@@ -505,7 +506,7 @@ fn post_stop<A: Actor>(actor: &mut Option<A>) {
 /// persistence configuration.
 ///
 /// Since `Context` is specific to an actor and its functions
-/// it is not cloneable.  
+/// it is not cloneable.
 pub struct Context<Msg: Message> {
     pub myself: ActorRef<Msg>,
     pub system: ActorSystem,
@@ -552,10 +553,11 @@ impl<Msg: Message> ActorRefFactory for Context<Msg> {
         args: Args,
     ) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
     where
+        Args: ActorArgs,
         A: ActorFactoryArgs<Args>,
     {
         self.system.provider.create_actor(
-            A::create_args(args),
+            Props::new_args(A::create_args, args),
             name,
             &self.myself().into(),
             &self.system,

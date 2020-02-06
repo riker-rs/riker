@@ -19,8 +19,8 @@ struct ShutdownTest {
 }
 
 impl ActorFactoryArgs<u32> for ShutdownTest {
-    fn create_args(level: u32) -> BoxActorProd<Self> {
-        Props::new_args(|level| ShutdownTest { level }, level)
+    fn create_args(level: u32) -> Self {
+        ShutdownTest { level }
     }
 }
 

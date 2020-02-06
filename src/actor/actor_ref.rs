@@ -3,7 +3,7 @@ use std::fmt;
 use crate::{
     actor::{
         actor_cell::{ActorCell, ExtendedCell},
-        props::{ActorFactory, ActorFactoryArgs},
+        props::{ActorArgs, ActorFactory, ActorFactoryArgs},
         Actor, ActorPath, ActorUri, BoxActorProd, CreateError,
     },
     system::{ActorSystem, SystemMsg},
@@ -532,6 +532,7 @@ pub trait ActorRefFactory {
         args: Args,
     ) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
     where
+        Args: ActorArgs,
         A: ActorFactoryArgs<Args>;
 
     fn stop(&self, actor: impl ActorReference);
@@ -555,5 +556,6 @@ pub trait TmpActorRefFactory {
         args: Args,
     ) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
     where
+        Args: ActorArgs,
         A: ActorFactoryArgs<Args>;
 }
