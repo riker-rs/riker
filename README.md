@@ -19,7 +19,7 @@ Riker provides:
 - Message scheduling
 - Out-of-the-box, configurable, non-blocking logging
 - Persistent actors using Event Sourcing
-- Command Query Responsibly Separation (CQRS)
+- Command Query Responsibility Segregation (CQRS)
 - Easily run futures
 
 [Website](https://riker.rs) | [API Docs](https://docs.rs/riker)
