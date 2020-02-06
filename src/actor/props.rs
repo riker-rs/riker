@@ -111,7 +111,7 @@ impl Props {
 pub type BoxActorProd<A> = Arc<Mutex<dyn ActorProducer<Actor = A>>>;
 
 pub trait ActorFactory: Actor {
-    fn create() -> BoxActorProd<Self>;
+    fn create() -> Self;
 }
 
 pub trait ActorFactoryArgs<Args: ActorArgs>: Actor {
@@ -119,8 +119,8 @@ pub trait ActorFactoryArgs<Args: ActorArgs>: Actor {
 }
 
 impl<A: Default + Actor> ActorFactory for A {
-    fn create() -> BoxActorProd<Self> {
-        Props::new(A::default)
+    fn create() -> Self {
+        A::default()
     }
 }
 

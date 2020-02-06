@@ -322,7 +322,7 @@ impl ActorSystem {
         A: ActorFactory,
     {
         self.provider
-            .create_actor(A::create(), name, &self.sys_root(), self)
+            .create_actor(Props::new(A::create), name, &self.sys_root(), self)
     }
 
     pub fn sys_actor_of_args<A, Args>(
@@ -376,7 +376,7 @@ impl ActorRefFactory for ActorSystem {
         A: ActorFactory,
     {
         self.provider
-            .create_actor(A::create(), name, &self.user_root(), self)
+            .create_actor(Props::new(A::create), name, &self.user_root(), self)
     }
 
     fn actor_of_args<A, Args>(
@@ -415,7 +415,7 @@ impl ActorRefFactory for &ActorSystem {
         A: ActorFactory,
     {
         self.provider
-            .create_actor(A::create(), name, &self.user_root(), self)
+            .create_actor(Props::new(A::create), name, &self.user_root(), self)
     }
 
     fn actor_of_args<A, Args>(
@@ -455,7 +455,7 @@ impl TmpActorRefFactory for ActorSystem {
     {
         let name = format!("{}", rand::random::<u64>());
         self.provider
-            .create_actor(A::create(), &name, &self.temp_root(), self)
+            .create_actor(Props::new(A::create), &name, &self.temp_root(), self)
     }
 
     fn tmp_actor_of_args<A, Args>(
@@ -636,7 +636,7 @@ fn sys_actor_of<A>(
 where
     A: ActorFactory,
 {
-    prov.create_actor(A::create(), name, &sys.sys_root(), sys)
+    prov.create_actor(Props::new(A::create), name, &sys.sys_root(), sys)
         .map_err(|_| SystemError::ModuleFailed(name.into()))
 }
 

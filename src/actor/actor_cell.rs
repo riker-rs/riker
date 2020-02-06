@@ -544,7 +544,7 @@ impl<Msg: Message> ActorRefFactory for Context<Msg> {
     {
         self.system
             .provider
-            .create_actor(A::create(), name, &self.myself().into(), &self.system)
+            .create_actor(Props::new(A::create), name, &self.myself().into(), &self.system)
     }
 
     fn actor_of_args<A, Args>(
