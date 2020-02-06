@@ -325,13 +325,13 @@ impl ActorSystem {
             .create_actor(A::create(), name, &self.sys_root(), self)
     }
 
-    pub fn sys_actor_of_args<A>(
+    pub fn sys_actor_of_args<A, Args>(
         &self,
         name: &str,
-        args: A::Args,
+        args: Args,
     ) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
     where
-        A: ActorFactoryArgs,
+        A: ActorFactoryArgs<Args>,
     {
         self.provider
             .create_actor(A::create_args(args), name, &self.sys_root(), self)
@@ -348,7 +348,7 @@ impl ActorSystem {
         let (tx, rx) = oneshot::channel::<()>();
         let tx = Arc::new(Mutex::new(Some(tx)));
 
-        self.tmp_actor_of_args::<ShutdownActor>(tx).unwrap();
+        self.tmp_actor_of_args::<ShutdownActor, _>(tx).unwrap();
 
         rx
     }
@@ -378,13 +378,13 @@ impl ActorRefFactory for ActorSystem {
             .create_actor(A::create(), name, &self.user_root(), self)
     }
 
-    fn actor_of_args<A>(
+    fn actor_of_args<A, Args>(
         &self,
         name: &str,
-        args: A::Args,
+        args: Args,
     ) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
     where
-        A: ActorFactoryArgs,
+        A: ActorFactoryArgs<Args>,
     {
         self.provider
             .create_actor(A::create_args(args), name, &self.user_root(), self)
@@ -416,13 +416,13 @@ impl ActorRefFactory for &ActorSystem {
             .create_actor(A::create(), name, &self.user_root(), self)
     }
 
-    fn actor_of_args<A>(
+    fn actor_of_args<A, Args>(
         &self,
         name: &str,
-        args: A::Args,
+        args: Args,
     ) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
     where
-        A: ActorFactoryArgs,
+        A: ActorFactoryArgs<Args>,
     {
         self.provider
             .create_actor(A::create_args(args), name, &self.user_root(), self)
@@ -455,12 +455,12 @@ impl TmpActorRefFactory for ActorSystem {
             .create_actor(A::create(), &name, &self.temp_root(), self)
     }
 
-    fn tmp_actor_of_args<A>(
+    fn tmp_actor_of_args<A, Args>(
         &self,
-        args: A::Args,
+        args: Args,
     ) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
     where
-        A: ActorFactoryArgs,
+        A: ActorFactoryArgs<Args>,
     {
         let name = format!("{}", rand::random::<u64>());
         self.provider
@@ -637,14 +637,14 @@ where
 }
 
 #[allow(dead_code)]
-fn sys_actor_of_args<A>(
+fn sys_actor_of_args<A, Args>(
     prov: &Provider,
     sys: &ActorSystem,
     name: &str,
-    args: A::Args,
+    args: Args,
 ) -> Result<ActorRef<<A as Actor>::Msg>, SystemError>
 where
-    A: ActorFactoryArgs,
+    A: ActorFactoryArgs<Args>,
 {
     prov.create_actor(A::create_args(args), name, &sys.sys_root(), sys)
         .map_err(|_| SystemError::ModuleFailed(name.into()))
@@ -741,8 +741,7 @@ struct ShutdownActor {
     tx: Arc<Mutex<Option<oneshot::Sender<()>>>>,
 }
 
-impl ActorFactoryArgs for ShutdownActor {
-    type Args = Arc<Mutex<Option<oneshot::Sender<()>>>>;
+impl ActorFactoryArgs<Arc<Mutex<Option<oneshot::Sender<()>>>>> for ShutdownActor {
     fn create_args(tx: Arc<Mutex<Option<oneshot::Sender<()>>>>) -> BoxActorProd<Self> {
         Props::new_args(|tx| ShutdownActor::new(tx), tx)
     }
