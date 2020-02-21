@@ -213,7 +213,7 @@ where
     type Actor = A;
 
     fn produce(&self) -> A {
-        let ref f = self.creator;
+        let f = &self.creator;
         f()
     }
 }
@@ -262,7 +262,7 @@ where
     type Actor = A;
 
     fn produce(&self) -> A {
-        let ref f = self.creator;
+        let f = &self.creator;
         let args = self.args.clone();
         f(args)
     }

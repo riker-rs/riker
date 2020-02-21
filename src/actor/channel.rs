@@ -69,15 +69,12 @@ where
     // terminated but did not explicity unsubscribe before terminating.
     fn sys_recv(&mut self, _: &ChannelCtx<Msg>, msg: SystemMsg, sender: Sender) {
         if let SystemMsg::Event(evt) = msg {
-            match evt {
-                SystemEvent::ActorTerminated(terminated) => {
-                    let subs = self.subs.clone();
+            if let SystemEvent::ActorTerminated(terminated) = evt {
+                let subs = self.subs.clone();
 
-                    for topic in subs.keys() {
-                        unsubscribe(&mut self.subs, topic, &terminated.actor);
-                    }
+                for topic in subs.keys() {
+                    unsubscribe(&mut self.subs, topic, &terminated.actor);
                 }
-                _ => {}
             }
         }
     }
@@ -106,11 +103,8 @@ where
     type Msg = ChannelMsg<Msg>;
 
     fn receive(&mut self, ctx: &ChannelCtx<Msg>, msg: Subscribe<Msg>, sender: Sender) {
-        if self.subs.contains_key(&msg.topic) {
-            self.subs.get_mut(&msg.topic).unwrap().push(msg.actor);
-        } else {
-            self.subs.insert(msg.topic, vec![msg.actor]);
-        }
+        let subs = self.subs.entry(msg.topic).or_default();
+        subs.push(msg.actor);
     }
 }
 
@@ -332,16 +326,8 @@ impl<Msg: Message> Into<ChannelMsg<Msg>> for UnsubscribeAll<Msg> {
 // Topics allow channel subscribers to filter messages by interest
 ///
 /// When publishing a message to a channel a Topic is provided.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Topic(String);
-
-impl Eq for Topic {}
-
-impl Hash for Topic {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.0.hash(state);
-    }
-}
 
 impl<'a> From<&'a str> for Topic {
     fn from(topic: &str) -> Self {
@@ -351,16 +337,16 @@ impl<'a> From<&'a str> for Topic {
 
 impl From<String> for Topic {
     fn from(topic: String) -> Self {
-        Topic(topic.to_string())
+        Topic(topic)
     }
 }
 
 impl<'a> From<&'a SystemEvent> for Topic {
     fn from(evt: &SystemEvent) -> Self {
-        match evt {
-            &SystemEvent::ActorCreated(_) => Topic::from("actor.created"),
-            &SystemEvent::ActorTerminated(_) => Topic::from("actor.terminated"),
-            &SystemEvent::ActorRestarted(_) => Topic::from("actor.restarted"),
+        match *evt {
+            SystemEvent::ActorCreated(_) => Topic::from("actor.created"),
+            SystemEvent::ActorTerminated(_) => Topic::from("actor.terminated"),
+            SystemEvent::ActorRestarted(_) => Topic::from("actor.restarted"),
         }
     }
 }

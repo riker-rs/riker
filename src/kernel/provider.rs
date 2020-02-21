@@ -62,13 +62,13 @@ impl Provider {
 
         let cell = ExtendedCell::new(
             uri.uid,
-            uri.clone(),
+            uri,
             Some(parent.clone()),
             sys,
             // None,/*perconf*/
             Arc::new(sender.clone()),
-            sys_sender.clone(),
-            sender.clone(),
+            sys_sender,
+            sender,
         );
 
         let k = kernel(props, cell.clone(), mb, sys)?;
@@ -153,13 +153,13 @@ fn root(sys: &ActorSystem) -> BasicActorRef {
 
     let cell = ExtendedCell::new(
         uri.uid,
-        uri.clone(),
-        Some(bigbang.clone()),
+        uri,
+        Some(bigbang),
         sys,
         // None,/*perconf*/
         Arc::new(sender.clone()),
-        sys_sender.clone(),
-        sender.clone(),
+        sys_sender,
+        sender,
     );
 
     let k = kernel(props, cell.clone(), mb, sys).unwrap();
@@ -188,13 +188,13 @@ fn guardian(
 
     let cell = ExtendedCell::new(
         uri.uid,
-        uri.clone(),
+        uri,
         Some(root.clone()),
         sys,
         // None,/*perconf*/
         Arc::new(sender.clone()),
-        sys_sender.clone(),
-        sender.clone(),
+        sys_sender,
+        sender,
     );
 
     let k = kernel(props, cell.clone(), mb, sys).unwrap();
@@ -212,9 +212,7 @@ struct Guardian {
 
 impl Guardian {
     fn new(name: String) -> Self {
-        let actor = Guardian { name };
-
-        actor
+        Guardian { name }
     }
 }
 

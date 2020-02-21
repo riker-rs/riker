@@ -42,6 +42,7 @@ pub struct ProtoSystem {
     started_at: DateTime<Utc>,
 }
 
+#[derive(Default)]
 pub struct SystemBuilder {
     name: Option<String>,
     cfg: Option<Config>,
@@ -51,18 +52,13 @@ pub struct SystemBuilder {
 
 impl SystemBuilder {
     pub fn new() -> Self {
-        SystemBuilder {
-            name: None,
-            cfg: None,
-            log: None,
-            exec: None,
-        }
+        SystemBuilder::default()
     }
 
     pub fn create(self) -> Result<ActorSystem, SystemError> {
-        let cfg = self.cfg.unwrap_or(load_config());
-        let exec = self.exec.unwrap_or(default_exec(&cfg));
-        let log = self.log.unwrap_or(default_log(&cfg));
+        let cfg = self.cfg.unwrap_or_else(load_config);
+        let exec = self.exec.unwrap_or_else(|| default_exec(&cfg));
+        let log = self.log.unwrap_or_else(|| default_log(&cfg));
 
         ActorSystem::create(self.name.as_ref().unwrap(), exec, log, cfg)
     }
@@ -230,7 +226,7 @@ impl ActorSystem {
 
     /// Returns the UUID assigned to the system
     pub fn id(&self) -> Uuid {
-        self.proto.id.clone()
+        self.proto.id
     }
 
     /// Returns the name of the system
@@ -370,7 +366,7 @@ impl TmpActorRefFactory for ActorSystem {
 impl ActorSelectionFactory for ActorSystem {
     fn select(&self, path: &str) -> Result<ActorSelection, InvalidPath> {
         let anchor = self.user_root();
-        let (anchor, path_str) = if path.starts_with("/") {
+        let (anchor, path_str) = if path.starts_with('/') {
             let anchor = self.user_root();
             let anchor_path = format!("{}/", anchor.path().deref().clone());
             let path = path.to_string().replace(&anchor_path, "");
@@ -437,11 +433,11 @@ impl Timer for ActorSystem {
         let msg: M = msg.into();
 
         let job = RepeatJob {
-            id: id.clone(),
+            id,
             send_at: SystemTime::now() + initial_delay,
-            interval: interval,
+            interval,
             receiver: receiver.into(),
-            sender: sender,
+            sender,
             msg: AnyMessage::new(msg, false),
         };
 
@@ -464,10 +460,10 @@ impl Timer for ActorSystem {
         let msg: M = msg.into();
 
         let job = OnceJob {
-            id: id.clone(),
+            id,
             send_at: SystemTime::now() + delay,
             receiver: receiver.into(),
-            sender: sender,
+            sender,
             msg: AnyMessage::new(msg, true),
         };
 
@@ -492,10 +488,10 @@ impl Timer for ActorSystem {
         let msg: M = msg.into();
 
         let job = OnceJob {
-            id: id.clone(),
+            id,
             send_at: time,
             receiver: receiver.into(),
-            sender: sender,
+            sender,
             msg: AnyMessage::new(msg, true),
         };
 

@@ -118,12 +118,12 @@ pub struct LoggerConfig {
 impl<'a> From<&'a Config> for LoggerConfig {
     fn from(config: &Config) -> Self {
         LoggerConfig {
-            time_fmt: config.get_str("log.time_format").unwrap().to_string(),
-            date_fmt: config.get_str("log.date_format").unwrap().to_string(),
-            log_fmt: config.get_str("log.log_format").unwrap().to_string(),
+            time_fmt: config.get_str("log.time_format").unwrap(),
+            date_fmt: config.get_str("log.date_format").unwrap(),
+            log_fmt: config.get_str("log.log_format").unwrap(),
             filter: config
                 .get_array("log.filter")
-                .unwrap_or(vec![])
+                .unwrap_or_else(|_| vec![])
                 .into_iter()
                 .map(|e| e.to_string())
                 .collect(),

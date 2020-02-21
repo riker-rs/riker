@@ -521,7 +521,7 @@ where
     Msg: Message,
 {
     fn select(&self, path: &str) -> Result<ActorSelection, InvalidPath> {
-        let (anchor, path_str) = if path.starts_with("/") {
+        let (anchor, path_str) = if path.starts_with('/') {
             let anchor = self.system.user_root().clone();
             let anchor_path = format!("{}/", anchor.path().deref().clone());
             let path = path.to_string().replace(&anchor_path, "");
@@ -571,15 +571,15 @@ where
         let msg: M = msg.into();
 
         let job = RepeatJob {
-            id: id.clone(),
+            id,
             send_at: SystemTime::now() + initial_delay,
-            interval: interval,
+            interval,
             receiver: receiver.into(),
-            sender: sender,
+            sender,
             msg: AnyMessage::new(msg, false),
         };
 
-        let _ = self.system.timer.send(Job::Repeat(job)).unwrap();
+        self.system.timer.send(Job::Repeat(job)).unwrap();
         id
     }
 
@@ -598,14 +598,14 @@ where
         let msg: M = msg.into();
 
         let job = OnceJob {
-            id: id.clone(),
+            id,
             send_at: SystemTime::now() + delay,
             receiver: receiver.into(),
-            sender: sender,
+            sender,
             msg: AnyMessage::new(msg, true),
         };
 
-        let _ = self.system.timer.send(Job::Once(job)).unwrap();
+        self.system.timer.send(Job::Once(job)).unwrap();
         id
     }
 
@@ -626,14 +626,14 @@ where
         let msg: M = msg.into();
 
         let job = OnceJob {
-            id: id.clone(),
+            id,
             send_at: time,
             receiver: receiver.into(),
-            sender: sender,
+            sender,
             msg: AnyMessage::new(msg, true),
         };
 
-        let _ = self.system.timer.send(Job::Once(job)).unwrap();
+        self.system.timer.send(Job::Once(job)).unwrap();
         id
     }
 
@@ -688,8 +688,8 @@ impl<'a> Iterator for ChildrenIterator<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let actors = self.children.actors.read().unwrap();
-        let actor = actors.values().skip(self.position).next();
+        let actor = actors.values().nth(self.position);
         self.position += 1;
-        actor.map(|a| a.clone())
+        actor.cloned()
     }
 }
