@@ -2,7 +2,7 @@ use std::{
     fmt,
     ops::Deref,
     sync::{Arc, Mutex},
-    time::{Duration, SystemTime},
+    time::{Duration, Instant},
 };
 
 use chrono::prelude::*;
@@ -447,8 +447,8 @@ impl Timer for ActorSystem {
 
         let job = RepeatJob {
             id: id.clone(),
-            send_at: SystemTime::now() + initial_delay,
-            interval,
+            send_at: Instant::now() + initial_delay,
+            interval: interval,
             receiver: receiver.into(),
             sender,
             msg: AnyMessage::new(msg, false),
@@ -474,7 +474,7 @@ impl Timer for ActorSystem {
 
         let job = OnceJob {
             id: id.clone(),
-            send_at: SystemTime::now() + delay,
+            send_at: Instant::now() + delay,
             receiver: receiver.into(),
             sender,
             msg: AnyMessage::new(msg, true),
@@ -495,14 +495,15 @@ impl Timer for ActorSystem {
         T: Message + Into<M>,
         M: Message,
     {
-        let time = SystemTime::UNIX_EPOCH + Duration::from_secs(time.timestamp() as u64);
+        let delay = std::cmp::max(time.timestamp() - Utc::now().timestamp(), 0 as i64);
+        let delay = Duration::from_secs(delay as u64);
 
         let id = Uuid::new_v4();
         let msg: M = msg.into();
 
         let job = OnceJob {
             id: id.clone(),
-            send_at: time,
+            send_at: Instant::now() + delay,
             receiver: receiver.into(),
             sender,
             msg: AnyMessage::new(msg, true),
