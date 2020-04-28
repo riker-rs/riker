@@ -8,7 +8,6 @@ use crate::actor::BasicActorRef;
 
 // Public riker::system API (plus the pub data types in this file)
 pub use self::{
-    logger::LogEntry,
     system::{ActorSystem, Run, SystemBuilder},
     timer::{BasicTimer, Timer},
 };

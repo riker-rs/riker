@@ -4,7 +4,7 @@ use std::{
 };
 
 use futures::{channel::mpsc::channel, task::SpawnExt, StreamExt};
-use log::warn;
+use slog::warn;
 
 use crate::{
     actor::actor_cell::ExtendedCell,
@@ -106,7 +106,7 @@ fn restart_actor<A>(
             sys.publish_event(ActorRestarted { actor: actor_ref }.into());
         }
         Err(_) => {
-            warn!("Actor failed to restart: {:?}", actor_ref);
+            warn!(sys.log(), "Actor failed to restart: {:?}", actor_ref);
         }
     }
 }
