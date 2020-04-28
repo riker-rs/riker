@@ -5,7 +5,6 @@ use std::sync::{
 use std::thread;
 
 use config::Config;
-use log::trace;
 
 use crate::{
     actor::actor_cell::ExtendedCell,
@@ -291,7 +290,6 @@ fn handle_init<A>(
 ) where
     A: Actor,
 {
-    trace!("ACTOR INIT");
     actor.as_mut().unwrap().pre_start(ctx);
     mbox.set_suspended(false);
 
