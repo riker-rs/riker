@@ -55,11 +55,12 @@ impl SystemBuilder {
     }
 
     pub fn create(self) -> Result<ActorSystem, SystemError> {
+        let name = self.name.unwrap_or_else(|| "riker".to_string());
         let cfg = self.cfg.unwrap_or_else(load_config);
         let exec = self.exec.unwrap_or_else(|| default_exec(&cfg));
         let log = self.log.unwrap_or_else(|| default_log(&cfg));
 
-        ActorSystem::create(self.name.as_ref().unwrap(), exec, log, cfg)
+        ActorSystem::create(name.as_ref(), exec, log, cfg)
     }
 
     pub fn name(self, name: &str) -> Self {

@@ -88,7 +88,9 @@ fn system_load_app_config() {
 
 #[test]
 fn system_builder() {
-    let sys = SystemBuilder::new().name("my-sys").create().unwrap();
+    let sys = SystemBuilder::new().create().unwrap();
+    block_on(sys.shutdown()).unwrap();
 
+    let sys = SystemBuilder::new().name("my-sys").create().unwrap();
     block_on(sys.shutdown()).unwrap();
 }
