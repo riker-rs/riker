@@ -132,10 +132,10 @@ impl fmt::Display for SystemError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             SystemError::ModuleFailed(ref m) => {
-                f.write_str(&format!("{} ({})", self.description(), m))
+                f.write_str(&format!("{} ({})", self.to_string(), m))
             }
             SystemError::InvalidName(ref name) => {
-                f.write_str(&format!("{} ({})", self.description(), name))
+                f.write_str(&format!("{} ({})", self.to_string(), name))
             }
         }
     }
@@ -143,6 +143,6 @@ impl fmt::Display for SystemError {
 
 impl fmt::Debug for SystemError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(self.description())
+        f.write_str(&self.to_string())
     }
 }

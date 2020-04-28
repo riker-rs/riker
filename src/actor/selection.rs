@@ -51,9 +51,9 @@ impl ActorSelection {
             .split_terminator('/')
             .map({
                 |seg| match seg {
-                    ".." => Selection::SelectParent,
-                    "*" => Selection::SelectAllChildren,
-                    name => Selection::SelectChildName(name.to_string()),
+                    ".." => Selection::Parent,
+                    "*" => Selection::AllChildren,
+                    name => Selection::ChildName(name.to_string()),
                 }
             })
             .collect();
@@ -76,7 +76,7 @@ impl ActorSelection {
             mut path_vec: Peekable<I>,
             msg: Msg,
             sender: &Sender,
-            path: &String,
+            path: &str,
         ) where
             I: Iterator<Item = &'a Selection>,
             Msg: Message,
@@ -84,7 +84,7 @@ impl ActorSelection {
             let seg = path_vec.next();
 
             match seg {
-                Some(&Selection::SelectParent) => {
+                Some(&Selection::Parent) => {
                     if path_vec.peek().is_none() {
                         let parent = anchor.parent();
                         let _ = parent.try_tell(msg, sender.clone());
@@ -92,15 +92,17 @@ impl ActorSelection {
                         walk(&anchor.parent(), path_vec, msg, sender, path);
                     }
                 }
-                Some(&Selection::SelectAllChildren) => {
+                Some(&Selection::AllChildren) => {
                     for child in anchor.children() {
                         let _ = child.try_tell(msg.clone(), sender.clone());
                     }
                 }
-                Some(&Selection::SelectChildName(ref name)) => {
-                    let child = anchor.children().filter({ |c| c.name() == name }).last();
-                    if path_vec.peek().is_none() && child.is_some() {
-                        let _ = child.unwrap().try_tell(msg, sender.clone());
+                Some(&Selection::ChildName(ref name)) => {
+                    let child = anchor.children().filter(|c| c.name() == name).last();
+                    if path_vec.peek().is_none() {
+                        if let Some(actor_ref) = child {
+                            actor_ref.try_tell(msg, sender.clone()).unwrap();
+                        }
                     } else if path_vec.peek().is_some() && child.is_some() {
                         walk(
                             &child.as_ref().unwrap(),
@@ -135,14 +137,14 @@ impl ActorSelection {
             mut path_vec: Peekable<I>,
             msg: SystemMsg,
             sender: &Sender,
-            path: &String,
+            path: &str,
         ) where
             I: Iterator<Item = &'a Selection>,
         {
             let seg = path_vec.next();
 
             match seg {
-                Some(&Selection::SelectParent) => {
+                Some(&Selection::Parent) => {
                     if path_vec.peek().is_none() {
                         let parent = anchor.parent();
                         parent.sys_tell(msg);
@@ -150,15 +152,17 @@ impl ActorSelection {
                         walk(&anchor.parent(), path_vec, msg, sender, path);
                     }
                 }
-                Some(&Selection::SelectAllChildren) => {
+                Some(&Selection::AllChildren) => {
                     for child in anchor.children() {
                         child.sys_tell(msg.clone());
                     }
                 }
-                Some(&Selection::SelectChildName(ref name)) => {
-                    let child = anchor.children().filter({ |c| c.name() == name }).last();
-                    if path_vec.peek().is_none() && child.is_some() {
-                        child.unwrap().sys_tell(msg);
+                Some(&Selection::ChildName(ref name)) => {
+                    let child = anchor.children().filter(|c| c.name() == name).last();
+                    if path_vec.peek().is_none() {
+                        if let Some(actor_ref) = child {
+                            actor_ref.try_tell(msg, sender.clone()).unwrap();
+                        }
                     } else if path_vec.peek().is_some() && child.is_some() {
                         walk(
                             &child.as_ref().unwrap(),
@@ -189,9 +193,9 @@ impl ActorSelection {
 
 #[derive(Debug)]
 enum Selection {
-    SelectParent,
-    SelectChildName(String),
-    SelectAllChildren,
+    Parent,
+    ChildName(String),
+    AllChildren,
 }
 
 pub trait ActorSelectionFactory {
