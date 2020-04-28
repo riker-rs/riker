@@ -13,8 +13,6 @@ use chrono::prelude::*;
 use futures::{future::RemoteHandle, task::SpawnError, Future};
 use uuid::Uuid;
 
-use rand;
-
 use crate::{
     actor::*,
     kernel::{

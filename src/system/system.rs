@@ -14,7 +14,7 @@ use futures::{
     task::{SpawnError, SpawnExt},
     Future,
 };
-use rand;
+
 use uuid::Uuid;
 
 use crate::{
