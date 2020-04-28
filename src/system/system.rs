@@ -59,7 +59,7 @@ impl SystemBuilder {
         let exec = self.exec.unwrap_or_else(|| default_exec(&cfg));
         let log = self.log.unwrap_or_else(|| default_log(&cfg));
 
-        ActorSystem::create(&name, exec, log, cfg)
+        ActorSystem::create(self.name.as_ref().unwrap(), exec, log, cfg)
     }
 
     pub fn name(self, name: &str) -> Self {

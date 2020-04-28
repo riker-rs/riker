@@ -98,7 +98,7 @@ impl ActorSelection {
                     }
                 }
                 Some(&Selection::ChildName(ref name)) => {
-                    let child = anchor.children().filter({ |c| c.name() == name }).last();
+                    let child = anchor.children().filter(|c| c.name() == name).last();
                     if path_vec.peek().is_none() {
                         if let Some(actor_ref) = child {
                             actor_ref.try_tell(msg, sender.clone()).unwrap();
@@ -158,7 +158,7 @@ impl ActorSelection {
                     }
                 }
                 Some(&Selection::ChildName(ref name)) => {
-                    let child = anchor.children().filter({ |c| c.name() == name }).last();
+                    let child = anchor.children().filter(|c| c.name() == name).last();
                     if path_vec.peek().is_none() {
                         if let Some(actor_ref) = child {
                             actor_ref.try_tell(msg, sender.clone()).unwrap();

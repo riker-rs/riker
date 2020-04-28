@@ -53,13 +53,13 @@ impl<T> Error for MsgError<T> {
 
 impl<T> fmt::Display for MsgError<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(self.description())
+        f.write_str(&self.to_string())
     }
 }
 
 impl<T> fmt::Debug for MsgError<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(self.description())
+        f.write_str(&self.to_string())
     }
 }
 
@@ -82,13 +82,13 @@ impl<T> Error for TryMsgError<T> {
 
 impl<T> fmt::Display for TryMsgError<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(self.description())
+        f.write_str(&self.to_string())
     }
 }
 
 impl<T> fmt::Debug for TryMsgError<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(self.description())
+        f.write_str(&self.to_string())
     }
 }
 
@@ -116,13 +116,13 @@ impl Error for CreateError {
 impl fmt::Display for CreateError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            CreateError::Panicked => f.write_str(self.description()),
-            CreateError::System => f.write_str(self.description()),
+            CreateError::Panicked => f.write_str(&self.to_string()),
+            CreateError::System => f.write_str(&self.to_string()),
             CreateError::InvalidName(ref name) => {
-                f.write_str(&format!("{} ({})", self.description(), name))
+                f.write_str(&format!("{} ({})", self.to_string(), name))
             }
             CreateError::AlreadyExists(ref path) => {
-                f.write_str(&format!("{} ({})", self.description(), path))
+                f.write_str(&format!("{} ({})", self.to_string(), path))
             }
         }
     }
@@ -130,7 +130,7 @@ impl fmt::Display for CreateError {
 
 impl fmt::Debug for CreateError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(self.description())
+        f.write_str(&self.to_string())
     }
 }
 
@@ -151,12 +151,12 @@ impl Error for RestartError {
 
 impl fmt::Display for RestartError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(self.description())
+        f.write_str(&self.to_string())
     }
 }
 
 impl fmt::Debug for RestartError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(self.description())
+        f.write_str(&self.to_string())
     }
 }

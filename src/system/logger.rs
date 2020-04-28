@@ -79,9 +79,10 @@ impl Drain for DefaultConsoleLogger {
                      record.module(),
                      record.msg());
         }
-        
+
         Ok(())
     }
+}
 
 /// Simple actor that subscribes to the dead letters channel and logs using the default logger
 pub struct DeadLetterLogger {

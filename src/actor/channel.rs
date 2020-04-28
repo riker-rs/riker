@@ -2,7 +2,7 @@
 
 use std::{
     collections::HashMap,
-    hash::{Hash, Hasher},
+    hash::Hash,
 };
 
 use crate::{
