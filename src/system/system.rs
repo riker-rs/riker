@@ -1,9 +1,8 @@
 use std::{
     fmt,
     ops::Deref,
-    str::FromStr,
     sync::{Arc, Mutex},
-    time::{Duration, SystemTime},
+    time::{Duration, Instant},
 };
 
 use chrono::prelude::*;
@@ -15,8 +14,7 @@ use futures::{
     task::{SpawnError, SpawnExt},
     Future,
 };
-use log::{debug, Level};
-use rand;
+
 use uuid::Uuid;
 
 use crate::{
@@ -29,6 +27,7 @@ use crate::{
     validate::{validate_name, InvalidPath},
     AnyMessage, Message,
 };
+use slog::{debug, Logger};
 
 // 0. error results on any
 // 1. visibility
@@ -42,29 +41,26 @@ pub struct ProtoSystem {
     started_at: DateTime<Utc>,
 }
 
+#[derive(Default)]
 pub struct SystemBuilder {
     name: Option<String>,
     cfg: Option<Config>,
-    log: Option<BoxActorProd<LogActor>>,
+    log: Option<Logger>,
     exec: Option<ThreadPool>,
 }
 
 impl SystemBuilder {
     pub fn new() -> Self {
-        SystemBuilder {
-            name: None,
-            cfg: None,
-            log: None,
-            exec: None,
-        }
+        SystemBuilder::default()
     }
 
     pub fn create(self) -> Result<ActorSystem, SystemError> {
-        let cfg = self.cfg.unwrap_or(load_config());
-        let exec = self.exec.unwrap_or(default_exec(&cfg));
-        let log = self.log.unwrap_or(default_log(&cfg));
+        let name = self.name.unwrap_or_else(|| "riker".to_string());
+        let cfg = self.cfg.unwrap_or_else(load_config);
+        let exec = self.exec.unwrap_or_else(|| default_exec(&cfg));
+        let log = self.log.unwrap_or_else(|| default_log(&cfg));
 
-        ActorSystem::create(self.name.as_ref().unwrap(), exec, log, cfg)
+        ActorSystem::create(name.as_ref(), exec, log, cfg)
     }
 
     pub fn name(self, name: &str) -> Self {
@@ -87,6 +83,13 @@ impl SystemBuilder {
             ..self
         }
     }
+
+    pub fn log(self, log: Logger) -> Self {
+        SystemBuilder {
+            log: Some(log),
+            ..self
+        }
+    }
 }
 
 /// The actor runtime and common services coordinator
@@ -101,7 +104,7 @@ impl SystemBuilder {
 pub struct ActorSystem {
     proto: Arc<ProtoSystem>,
     sys_actors: Option<SysActors>,
-    log: Option<Logger>,
+    log: Logger,
     debug: bool,
     pub exec: ThreadPool,
     pub timer: TimerRef,
@@ -143,7 +146,7 @@ impl ActorSystem {
     fn create(
         name: &str,
         exec: ThreadPool,
-        log: BoxActorProd<LogActor>,
+        log: Logger,
         cfg: Config,
     ) -> Result<ActorSystem, SystemError> {
         validate_name(name).map_err(|_| SystemError::InvalidName(name.into()))?;
@@ -152,10 +155,10 @@ impl ActorSystem {
 
         // Until the logger has started, use println
         if debug {
-            println!("Starting actor system: System[{}]", name);
+            debug!(log, "Starting actor system: System[{}]", name);
         }
 
-        let prov = Provider::new();
+        let prov = Provider::new(log.clone());
         let timer = BasicTimer::start(&cfg);
 
         // 1. create proto system
@@ -173,7 +176,7 @@ impl ActorSystem {
             proto: Arc::new(proto),
             debug,
             exec,
-            log: None,
+            log,
             // event_store: None,
             timer,
             sys_channels: None,
@@ -185,19 +188,16 @@ impl ActorSystem {
         let sys_actors = create_root(&sys);
         sys.sys_actors = Some(sys_actors);
 
-        // 4. start logger
-        sys.log = Some(logger(&prov, &sys, &cfg, log)?);
-
-        // 5. start system channels
+        // 4. start system channels
         sys.sys_channels = Some(sys_channels(&prov, &sys)?);
 
-        // 6. start dead letter logger
-        let props = DeadLetterLogger::props(sys.dead_letters());
+        // 5. start dead letter logger
+        let props = DeadLetterLogger::props(sys.dead_letters(), sys.log());
         let _dl_logger = sys_actor_of_props(&prov, &sys, props, "dl_logger")?;
 
         sys.complete_start();
 
-        debug!("Actor system [{}] [{}] started", sys.id(), name);
+        debug!(sys.log, "Actor system [{}] [{}] started", sys.id(), name);
 
         Ok(sys)
     }
@@ -230,7 +230,7 @@ impl ActorSystem {
 
     /// Returns the UUID assigned to the system
     pub fn id(&self) -> Uuid {
-        self.proto.id.clone()
+        self.proto.id
     }
 
     /// Returns the name of the system
@@ -336,6 +336,11 @@ impl ActorSystem {
     {
         self.provider
             .create_actor(Props::new_args(A::create_args, args), name, &self.sys_root(), self)
+    }
+
+    #[inline]
+    pub fn log(&self) -> Logger {
+        self.log.clone()
     }
 
     /// Shutdown the actor system
@@ -475,7 +480,7 @@ impl TmpActorRefFactory for ActorSystem {
 impl ActorSelectionFactory for ActorSystem {
     fn select(&self, path: &str) -> Result<ActorSelection, InvalidPath> {
         let anchor = self.user_root();
-        let (anchor, path_str) = if path.starts_with("/") {
+        let (anchor, path_str) = if path.starts_with('/') {
             let anchor = self.user_root();
             let anchor_path = format!("{}/", anchor.path().deref().clone());
             let path = path.to_string().replace(&anchor_path, "");
@@ -542,11 +547,11 @@ impl Timer for ActorSystem {
         let msg: M = msg.into();
 
         let job = RepeatJob {
-            id: id.clone(),
-            send_at: SystemTime::now() + initial_delay,
-            interval: interval,
+            id,
+            send_at: Instant::now() + initial_delay,
+            interval,
             receiver: receiver.into(),
-            sender: sender,
+            sender,
             msg: AnyMessage::new(msg, false),
         };
 
@@ -569,10 +574,10 @@ impl Timer for ActorSystem {
         let msg: M = msg.into();
 
         let job = OnceJob {
-            id: id.clone(),
-            send_at: SystemTime::now() + delay,
+            id,
+            send_at: Instant::now() + delay,
             receiver: receiver.into(),
-            sender: sender,
+            sender,
             msg: AnyMessage::new(msg, true),
         };
 
@@ -591,16 +596,17 @@ impl Timer for ActorSystem {
         T: Message + Into<M>,
         M: Message,
     {
-        let time = SystemTime::UNIX_EPOCH + Duration::from_secs(time.timestamp() as u64);
+        let delay = std::cmp::max(time.timestamp() - Utc::now().timestamp(), 0 as i64);
+        let delay = Duration::from_secs(delay as u64);
 
         let id = Uuid::new_v4();
         let msg: M = msg.into();
 
         let job = OnceJob {
-            id: id.clone(),
-            send_at: time,
+            id,
+            send_at: Instant::now() + delay,
             receiver: receiver.into(),
-            sender: sender,
+            sender,
             msg: AnyMessage::new(msg, true),
         };
 
@@ -655,22 +661,6 @@ where
         .map_err(|_| SystemError::ModuleFailed(name.into()))
 }
 
-fn logger(
-    prov: &Provider,
-    sys: &ActorSystem,
-    cfg: &Config,
-    props: BoxActorProd<LogActor>,
-) -> Result<Logger, SystemError> {
-    let logger = sys_actor_of_props(prov, sys, props, "logger")?;
-
-    let level = cfg
-        .get_str("log.level")
-        .map(|l| Level::from_str(&l))
-        .unwrap()
-        .unwrap();
-    Ok(Logger::init(level, logger))
-}
-
 fn sys_channels(prov: &Provider, sys: &ActorSystem) -> Result<SysChannels, SystemError> {
     let sys_events = sys_actor_of::<EventsChannel>(prov, sys, "sys_events")?;
     let dead_letters = sys_actor_of::<Channel<DeadLetter>>(prov, sys, "dead_letters")?;
@@ -718,11 +708,6 @@ fn default_exec(cfg: &Config) -> ThreadPool {
         .name_prefix("pool-thread-#")
         .create()
         .unwrap()
-}
-
-fn default_log(cfg: &Config) -> BoxActorProd<LogActor> {
-    let cfg = LoggerConfig::from(cfg);
-    SimpleLogger::props(cfg)
 }
 
 #[derive(Clone)]

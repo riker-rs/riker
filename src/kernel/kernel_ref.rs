@@ -62,7 +62,7 @@ where
 
             Ok(())
         }
-        Err(e) => Err(MsgError::new(e.msg.into())),
+        Err(e) => Err(MsgError::new(e.msg)),
     }
 }
 

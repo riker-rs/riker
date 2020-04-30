@@ -1,5 +1,7 @@
 debug = true
 
+# This are the default logger settings. If slog logger is used, then
+# the whole [log] section is ignored and the slog settings are used.
 [log]
 # max level to log
 level = "debug"

@@ -5,7 +5,6 @@ use std::sync::{
 use std::thread;
 
 use config::Config;
-use log::trace;
 
 use crate::{
     actor::actor_cell::ExtendedCell,
@@ -231,13 +230,9 @@ fn process_msgs<A>(
         if count < mbox.msg_process_limit() {
             match mbox.try_dequeue() {
                 Ok(msg) => {
-                    match (msg.msg, msg.sender) {
-                        (msg, sender) => {
-                            actor.as_mut().unwrap().recv(ctx, msg, sender);
-                            process_sys_msgs(&mbox, &ctx, cell, actor);
-                        }
-                        // (ActorMsg::Identify, sender) => handle_identify(sender, cell),
-                    }
+                    let (msg, sender) = (msg.msg, msg.sender);
+                    actor.as_mut().unwrap().recv(ctx, msg, sender);
+                    process_sys_msgs(&mbox, &ctx, cell, actor);
 
                     count += 1;
                 }
@@ -264,13 +259,8 @@ fn process_sys_msgs<A>(
     // from being processed by staging them in a Vec.
     // This prevents during actor restart.
     let mut sys_msgs: Vec<Envelope<SystemMsg>> = Vec::new();
-    loop {
-        match mbox.sys_try_dequeue() {
-            Ok(sys_msg) => {
-                sys_msgs.push(sys_msg);
-            }
-            Err(_) => break,
-        }
+    while let Ok(sys_msg) = mbox.sys_try_dequeue() {
+        sys_msgs.push(sys_msg);
     }
 
     for msg in sys_msgs.into_iter() {
@@ -291,7 +281,6 @@ fn handle_init<A>(
 ) where
     A: Actor,
 {
-    trace!("ACTOR INIT");
     actor.as_mut().unwrap().pre_start(ctx);
     mbox.set_suspended(false);
 
@@ -306,9 +295,9 @@ fn handle_init<A>(
 
     // if persistence is not configured then set as not suspended
     // if cell.load_events(actor) {
-    //     actor.as_mut().unwrap().post_start(ctx);
     //     mbox.set_suspended(false);
     // }
+    actor.as_mut().unwrap().post_start(ctx);
 }
 
 fn handle_failed<A>(failed: BasicActorRef, cell: &ExtendedCell<A::Msg>, actor: &mut Option<A>)
@@ -367,29 +356,20 @@ pub fn flush_to_deadletters<Msg>(mbox: &Mailbox<Msg>, actor: &BasicActorRef, sys
 where
     Msg: Message,
 {
-    loop {
-        match mbox.try_dequeue() {
-            Ok(msg) => match (msg.msg, msg.sender) {
-                (msg, sender) => {
-                    let dl = DeadLetter {
-                        msg: format!("{:?}", msg),
-                        sender: sender,
-                        recipient: actor.clone(),
-                    };
+    while let Ok(Envelope { msg, sender }) = mbox.try_dequeue() {
+        let dl = DeadLetter {
+            msg: format!("{:?}", msg),
+            sender,
+            recipient: actor.clone(),
+        };
 
-                    sys.dead_letters().tell(
-                        Publish {
-                            topic: "dead_letter".into(),
-                            msg: dl,
-                        },
-                        None,
-                    );
-                }
+        sys.dead_letters().tell(
+            Publish {
+                topic: "dead_letter".into(),
+                msg: dl,
             },
-            Err(_) => {
-                break;
-            }
-        }
+            None,
+        );
     }
 }
 

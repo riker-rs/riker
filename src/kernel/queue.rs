@@ -8,10 +8,10 @@ use crate::{Envelope, Message};
 pub fn queue<Msg: Message>() -> (QueueWriter<Msg>, QueueReader<Msg>) {
     let (tx, rx) = channel::<Envelope<Msg>>();
 
-    let qw = QueueWriter { tx: tx };
+    let qw = QueueWriter { tx };
 
     let qr = QueueReaderInner {
-        rx: rx,
+        rx,
         next_item: None,
     };
 

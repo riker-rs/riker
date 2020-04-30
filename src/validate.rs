@@ -23,13 +23,13 @@ impl Error for InvalidName {
 
 impl fmt::Display for InvalidName {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(&format!("\"{}\". {}", self.name, self.description()))
+        f.write_str(&format!("\"{}\". {}", self.name, self.to_string()))
     }
 }
 
 impl fmt::Debug for InvalidName {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(&format!("\"{}\". {}", self.name, self.description()))
+        f.write_str(&format!("\"{}\". {}", self.name, self.to_string()))
     }
 }
 
@@ -54,12 +54,12 @@ impl Error for InvalidPath {
 
 impl fmt::Display for InvalidPath {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(&format!("\"{}\". {}", self.path, self.description()))
+        f.write_str(&format!("\"{}\". {}", self.path, self.to_string()))
     }
 }
 
 impl fmt::Debug for InvalidPath {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(&format!("\"{}\". {}", self.path, self.description()))
+        f.write_str(&format!("\"{}\". {}", self.path, self.to_string()))
     }
 }

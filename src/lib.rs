@@ -2,9 +2,6 @@
 
 // #![allow(warnings)] // toggle for easier compile error fixing
 
-#[allow(unused_imports)]
-extern crate log;
-
 mod validate;
 
 pub mod actor;
@@ -35,14 +32,15 @@ pub fn load_config() -> Config {
 
     // load the system config
     // riker.toml contains settings for anything related to the actor framework and its modules
-    let path = env::var("RIKER_CONF").unwrap_or("config/riker.toml".into());
-    cfg.merge(File::with_name(&format!("{}", path)).required(false))
+    let path = env::var("RIKER_CONF")
+        .unwrap_or_else(|_| "config/riker.toml".into());
+    cfg.merge(File::with_name(&path).required(false))
         .unwrap();
 
     // load the user application config
     // app.toml or app.yaml contains settings specific to the user application
-    let path = env::var("APP_CONF").unwrap_or("config/app".into());
-    cfg.merge(File::with_name(&format!("{}", path)).required(false))
+    let path = env::var("APP_CONF").unwrap_or_else(|_| "config/app".into());
+    cfg.merge(File::with_name(&path).required(false))
         .unwrap();
     cfg
 }
@@ -92,7 +90,7 @@ impl AnyMessage {
             }
         } else {
             match self.msg.as_ref() {
-                Some(ref m) if m.is::<T>() => Ok(m.downcast_ref::<T>().map(|t| t.clone()).unwrap()),
+                Some(ref m) if m.is::<T>() => Ok(m.downcast_ref::<T>().cloned().unwrap()),
                 Some(_) => Err(()),
                 None => Err(()),
             }
