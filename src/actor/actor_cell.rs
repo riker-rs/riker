@@ -525,8 +525,8 @@ where
 impl<Msg: Message> ActorRefFactory for Context<Msg> {
     fn actor_of_props<A>(
         &self,
-        props: BoxActorProd<A>,
         name: &str,
+        props: BoxActorProd<A>,
     ) -> Result<ActorRef<A::Msg>, CreateError>
     where
         A: Actor,
@@ -542,7 +542,7 @@ impl<Msg: Message> ActorRefFactory for Context<Msg> {
     {
         self.system
             .provider
-            .create_actor(Props::new(A::create), name, &self.myself().into(), &self.system)
+            .create_actor(Props::new::<A>(), name, &self.myself().into(), &self.system)
     }
 
     fn actor_of_args<A, Args>(
@@ -555,7 +555,7 @@ impl<Msg: Message> ActorRefFactory for Context<Msg> {
         A: ActorFactoryArgs<Args>,
     {
         self.system.provider.create_actor(
-            Props::new_args(A::create_args, args),
+            Props::new_args::<A, _>(args),
             name,
             &self.myself().into(),
             &self.system,

@@ -192,8 +192,7 @@ impl ActorSystem {
         sys.sys_channels = Some(sys_channels(&prov, &sys)?);
 
         // 5. start dead letter logger
-        let props = DeadLetterLogger::props(sys.dead_letters(), sys.log());
-        let _dl_logger = sys_actor_of_props(&prov, &sys, props, "dl_logger")?;
+        let _dl_logger = sys_actor_of_args::<DeadLetterLogger, _>(&prov, &sys, "dl_logger", (sys.dead_letters().clone(), sys.log()))?;
 
         sys.complete_start();
 
@@ -307,8 +306,8 @@ impl ActorSystem {
     /// Create an actor under the system root
     pub fn sys_actor_of_props<A>(
         &self,
-        props: BoxActorProd<A>,
         name: &str,
+        props: BoxActorProd<A>,
     ) -> Result<ActorRef<A::Msg>, CreateError>
     where
         A: Actor,
@@ -322,7 +321,7 @@ impl ActorSystem {
         A: ActorFactory,
     {
         self.provider
-            .create_actor(Props::new(A::create), name, &self.sys_root(), self)
+            .create_actor(Props::new::<A>(), name, &self.sys_root(), self)
     }
 
     pub fn sys_actor_of_args<A, Args>(
@@ -335,7 +334,7 @@ impl ActorSystem {
         A: ActorFactoryArgs<Args>,
     {
         self.provider
-            .create_actor(Props::new_args(A::create_args, args), name, &self.sys_root(), self)
+            .create_actor(Props::new_args::<A, _>(args), name, &self.sys_root(), self)
     }
 
     #[inline]
@@ -366,8 +365,8 @@ unsafe impl Sync for ActorSystem {}
 impl ActorRefFactory for ActorSystem {
     fn actor_of_props<A>(
         &self,
-        props: BoxActorProd<A>,
         name: &str,
+        props: BoxActorProd<A>,
     ) -> Result<ActorRef<A::Msg>, CreateError>
     where
         A: Actor,
@@ -381,7 +380,7 @@ impl ActorRefFactory for ActorSystem {
         A: ActorFactory,
     {
         self.provider
-            .create_actor(Props::new(A::create), name, &self.user_root(), self)
+            .create_actor(Props::new::<A>(), name, &self.user_root(), self)
     }
 
     fn actor_of_args<A, Args>(
@@ -394,7 +393,7 @@ impl ActorRefFactory for ActorSystem {
         A: ActorFactoryArgs<Args>,
     {
         self.provider
-            .create_actor(Props::new_args(A::create_args, args), name, &self.user_root(), self)
+            .create_actor(Props::new_args::<A, _>(args), name, &self.user_root(), self)
     }
 
     fn stop(&self, actor: impl ActorReference) {
@@ -405,8 +404,8 @@ impl ActorRefFactory for ActorSystem {
 impl ActorRefFactory for &ActorSystem {
     fn actor_of_props<A>(
         &self,
-        props: BoxActorProd<A>,
         name: &str,
+        props: BoxActorProd<A>,
     ) -> Result<ActorRef<A::Msg>, CreateError>
     where
         A: Actor,
@@ -420,7 +419,7 @@ impl ActorRefFactory for &ActorSystem {
         A: ActorFactory,
     {
         self.provider
-            .create_actor(Props::new(A::create), name, &self.user_root(), self)
+            .create_actor(Props::new::<A>(), name, &self.user_root(), self)
     }
 
     fn actor_of_args<A, Args>(
@@ -433,7 +432,7 @@ impl ActorRefFactory for &ActorSystem {
         A: ActorFactoryArgs<Args>,
     {
         self.provider
-            .create_actor(Props::new_args(A::create_args, args), name, &self.user_root(), self)
+            .create_actor(Props::new_args::<A, _>(args), name, &self.user_root(), self)
     }
 
     fn stop(&self, actor: impl ActorReference) {
@@ -460,7 +459,7 @@ impl TmpActorRefFactory for ActorSystem {
     {
         let name = format!("{}", rand::random::<u64>());
         self.provider
-            .create_actor(Props::new(A::create), &name, &self.temp_root(), self)
+            .create_actor(Props::new::<A>(), &name, &self.temp_root(), self)
     }
 
     fn tmp_actor_of_args<A, Args>(
@@ -473,7 +472,7 @@ impl TmpActorRefFactory for ActorSystem {
     {
         let name = format!("{}", rand::random::<u64>());
         self.provider
-            .create_actor(Props::new_args(A::create_args, args), &name, &self.temp_root(), self)
+            .create_actor(Props::new_args::<A, _>(args), &name, &self.temp_root(), self)
     }
 }
 
@@ -620,12 +619,12 @@ impl Timer for ActorSystem {
 }
 
 // helper functions
-
+#[allow(unused)]
 fn sys_actor_of_props<A>(
     prov: &Provider,
     sys: &ActorSystem,
-    props: BoxActorProd<A>,
     name: &str,
+    props: BoxActorProd<A>,
 ) -> Result<ActorRef<A::Msg>, SystemError>
 where
     A: Actor,
@@ -642,7 +641,7 @@ fn sys_actor_of<A>(
 where
     A: ActorFactory,
 {
-    prov.create_actor(Props::new(A::create), name, &sys.sys_root(), sys)
+    prov.create_actor(Props::new::<A>(), name, &sys.sys_root(), sys)
         .map_err(|_| SystemError::ModuleFailed(name.into()))
 }
 
@@ -657,7 +656,7 @@ where
     Args: ActorArgs,
     A: ActorFactoryArgs<Args>,
 {
-    prov.create_actor(Props::new_args(A::create_args, args), name, &sys.sys_root(), sys)
+    prov.create_actor(Props::new_args::<A, _>(args), name, &sys.sys_root(), sys)
         .map_err(|_| SystemError::ModuleFailed(name.into()))
 }
 

@@ -2,8 +2,8 @@ use config::Config;
 use slog::{info, Drain, Logger, Never, OwnedKVList, Record, Level, o};
 use std::str::FromStr;
 use crate::actor::{
-    Actor, ActorRef, All, BasicActorRef, BoxActorProd, ChannelMsg, Context, DeadLetter, Props,
-    Subscribe, Tell,
+    Actor, ActorRef, All, BasicActorRef, ChannelMsg, Context, DeadLetter,
+    Subscribe, Tell, ActorFactoryArgs,
 };
 
 
@@ -90,13 +90,9 @@ pub struct DeadLetterLogger {
     logger: Logger,
 }
 
-impl DeadLetterLogger {
-    fn new((dl_chan, logger): (ActorRef<ChannelMsg<DeadLetter>>, Logger)) -> Self {
+impl ActorFactoryArgs<(ActorRef<ChannelMsg<DeadLetter>>, Logger)> for DeadLetterLogger {
+    fn create_args((dl_chan, logger): (ActorRef<ChannelMsg<DeadLetter>>, Logger)) -> Self {
         DeadLetterLogger { dl_chan, logger }
-    }
-
-    pub fn props(dl_chan: &ActorRef<ChannelMsg<DeadLetter>>, logger: Logger) -> BoxActorProd<DeadLetterLogger> {
-        Props::new_args(DeadLetterLogger::new, (dl_chan.clone(), logger))
     }
 }
 
