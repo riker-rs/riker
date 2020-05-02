@@ -6,10 +6,10 @@ use std::{
 
 use crate::actor::Actor;
 
-/// Provides instances of `ActorProducer` for use when creating Actors (`actor_of`).
+/// Provides instances of `ActorProducer` for use when creating Actors (`actor_of_props`).
 ///
 /// Actors are not created directly. Instead you provide an `ActorProducer`
-/// that allows the `ActorSystem` to start an actor when `actor_of` is used,
+/// that allows the `ActorSystem` to start an actor when `actor_of_props` is used,
 /// or when an actor fails and a supervisor requests an actor to be restarted.
 ///
 /// `ActorProducer` can hold values required by the actor's factory method
@@ -42,7 +42,7 @@ impl Props {
     /// let props = Props::new_from(User::actor);
     ///
     /// // start the actor and get an `ActorRef`
-    /// let actor = sys.actor_of(props, "user").unwrap();
+    /// let actor = sys.actor_of_props("user", props).unwrap();
     /// ```
     #[inline]
     pub fn new_from<A, F>(creator: F) -> Arc<Mutex<impl ActorProducer<Actor = A>>>
@@ -81,7 +81,7 @@ impl Props {
     ///
     /// let props = Props::new_from_args(User::actor, "Naomi Nagata".into());
     ///
-    /// let actor = sys.actor_of(props, "user").unwrap();
+    /// let actor = sys.actor_of_props("user", props).unwrap();
     /// ```
     /// An actor requiring multiple parameters.
     /// ```
@@ -112,7 +112,7 @@ impl Props {
     ///                             ("James Holden".into(), "12345678".into()));
     ///
     /// // start the actor and get an `ActorRef`
-    /// let actor = sys.actor_of(props, "bank_account").unwrap();
+    /// let actor = sys.actor_of_props("bank_account", props).unwrap();
     /// ```
     #[inline]
     pub fn new_from_args<A, Args, F>(creator: F, args: Args) -> Arc<Mutex<impl ActorProducer<Actor = A>>>
@@ -131,7 +131,7 @@ impl Props {
     /// ```
     /// # use riker::actors::*;
     ///
-    /// #[derive(Debug)]
+    /// #[derive(Default)]
     /// struct User;
     ///
     /// # impl Actor for User {
@@ -144,7 +144,7 @@ impl Props {
     /// let props = Props::new::<User>();
     ///
     /// // start the actor and get an `ActorRef`
-    /// let actor = sys.actor_of(props, "user").unwrap();
+    /// let actor = sys.actor_of_props("user", props).unwrap();
     /// ```
     /// Creates an `ActorProducer` from a type which implements ActorFactory with no factory method parameters.
     ///
@@ -171,7 +171,7 @@ impl Props {
     /// let props = Props::new::<User>();
     ///
     /// // start the actor and get an `ActorRef`
-    /// let actor = sys.actor_of(props, "user").unwrap();
+    /// let actor = sys.actor_of_props("user", props).unwrap();
     /// ```
     #[inline]
     pub fn new<A>() -> Arc<Mutex<impl ActorProducer<Actor = A>>>
@@ -208,9 +208,9 @@ impl Props {
     /// // main
     /// let sys = ActorSystem::new().unwrap();
     ///
-    /// let props = Props::new_args::<User>("Naomi Nagata".into());
+    /// let props = Props::new_args::<User, _>("Naomi Nagata".into());
     ///
-    /// let actor = sys.actor_of(props, "user").unwrap();
+    /// let actor = sys.actor_of_props("user", props).unwrap();
     /// ```
     /// An actor requiring multiple parameters.
     /// ```
@@ -221,7 +221,7 @@ impl Props {
     ///     number: String,
     /// }
     ///
-    /// impl ActorFactoryArgs<String> for BankAccount {
+    /// impl ActorFactoryArgs<(String, String)> for BankAccount {
     ///     fn create_args((name, number): (String, String)) -> Self {
     ///         BankAccount {
     ///             name,
@@ -237,11 +237,11 @@ impl Props {
     /// // main
     /// let sys = ActorSystem::new().unwrap();
     ///
-    /// let props = Props::new_from_args(BankAccount::actor,
+    /// let props = Props::new_from_args(BankAccount::create_args,
     ///                             ("James Holden".into(), "12345678".into()));
     ///
     /// // start the actor and get an `ActorRef`
-    /// let actor = sys.actor_of(props, "bank_account").unwrap();
+    /// let actor = sys.actor_of_props("bank_account", props).unwrap();
     /// ```
     #[inline]
     pub fn new_args<A, Args>(args: Args) -> Arc<Mutex<impl ActorProducer<Actor = A>>>
@@ -275,7 +275,7 @@ impl<A: Default + Actor> ActorFactory for A {
 /// Represents the underlying Actor factory function for creating instances of `Actor`.
 ///
 /// Actors are not created directly. Instead you provide an `ActorProducer`
-/// that allows the `ActorSystem` to start an actor when `actor_of` is used,
+/// that allows the `ActorSystem` to start an actor when `actor_of_props` is used,
 /// or when an actor fails and a supervisor requests an actor to be restarted.
 ///
 /// `ActorProducer` can hold values required by the actor's factory method
@@ -293,7 +293,7 @@ pub trait ActorProducer: fmt::Debug + Send + UnwindSafe + RefUnwindSafe {
     ///
     /// # Panics
     /// If the provided factory method panics the panic will be caught
-    /// by the system, resulting in an error result returning to `actor_of`.
+    /// by the system, resulting in an error result returning to `actor_of_props`.
     fn produce(&self) -> Self::Actor;
 }
 
