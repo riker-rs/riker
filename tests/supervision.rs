@@ -12,13 +12,8 @@ pub struct Panic;
 #[derive(Clone, Debug)]
 pub struct TestProbe(ChannelProbe<(), ()>);
 
+#[derive(Default)]
 struct DumbActor;
-
-impl DumbActor {
-    fn new() -> Self {
-        DumbActor
-    }
-}
 
 impl Actor for DumbActor {
     type Msg = ();
@@ -27,29 +22,20 @@ impl Actor for DumbActor {
 }
 
 #[actor(TestProbe, Panic)]
+#[derive(Default)]
 struct PanicActor;
-
-impl PanicActor {
-    fn new() -> Self {
-        PanicActor
-    }
-}
 
 impl Actor for PanicActor {
     type Msg = PanicActorMsg;
 
     fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
-        let props = Props::new(DumbActor::new);
-        ctx.actor_of(props, "child_a").unwrap();
+        ctx.actor_of::<DumbActor>("child_a").unwrap();
 
-        let props = Props::new(DumbActor::new);
-        ctx.actor_of(props, "child_b").unwrap();
+        ctx.actor_of::<DumbActor>("child_b").unwrap();
 
-        let props = Props::new(DumbActor::new);
-        ctx.actor_of(props, "child_c").unwrap();
+        ctx.actor_of::<DumbActor>("child_c").unwrap();
 
-        let props = Props::new(DumbActor::new);
-        ctx.actor_of(props, "child_d").unwrap();
+        ctx.actor_of::<DumbActor>("child_d").unwrap();
     }
 
     fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender) {
@@ -75,32 +61,24 @@ impl Receive<Panic> for PanicActor {
 
 // Test Restart Strategy
 #[actor(TestProbe, Panic)]
+#[derive(Default)]
 struct RestartSup {
     actor_to_fail: Option<ActorRef<PanicActorMsg>>,
-}
-
-impl RestartSup {
-    fn new() -> Self {
-        RestartSup {
-            actor_to_fail: None,
-        }
-    }
 }
 
 impl Actor for RestartSup {
     type Msg = RestartSupMsg;
 
     fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
-        let props = Props::new(PanicActor::new);
-        self.actor_to_fail = ctx.actor_of(props, "actor-to-fail").ok();
-    }
-
-    fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender) {
-        self.receive(ctx, msg, sender)
+        self.actor_to_fail = ctx.actor_of::<PanicActor>("actor-to-fail").ok();
     }
 
     fn supervisor_strategy(&self) -> Strategy {
         Strategy::Restart
+    }
+
+    fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender) {
+        self.receive(ctx, msg, sender)
     }
 }
 
@@ -125,8 +103,9 @@ fn supervision_restart_failed_actor() {
     let sys = ActorSystem::new().unwrap();
 
     for i in 0..100 {
-        let props = Props::new(RestartSup::new);
-        let sup = sys.actor_of(props, &format!("supervisor_{}", i)).unwrap();
+        let sup = sys
+            .actor_of::<RestartSup>(&format!("supervisor_{}", i))
+            .unwrap();
 
         // Make the test actor panic
         sup.tell(Panic, None);
@@ -139,24 +118,20 @@ fn supervision_restart_failed_actor() {
 
 // Test Escalate Strategy
 #[actor(TestProbe, Panic)]
+#[derive(Default)]
 struct EscalateSup {
     actor_to_fail: Option<ActorRef<PanicActorMsg>>,
-}
-
-impl EscalateSup {
-    fn new() -> Self {
-        EscalateSup {
-            actor_to_fail: None,
-        }
-    }
 }
 
 impl Actor for EscalateSup {
     type Msg = EscalateSupMsg;
 
     fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
-        let props = Props::new(PanicActor::new);
-        self.actor_to_fail = ctx.actor_of(props, "actor-to-fail").ok();
+        self.actor_to_fail = ctx.actor_of::<PanicActor>("actor-to-fail").ok();
+    }
+
+    fn supervisor_strategy(&self) -> Strategy {
+        Strategy::Escalate
     }
 
     fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender) {
@@ -166,10 +141,6 @@ impl Actor for EscalateSup {
         //     TestMsg::Panic => self.actor_to_fail.try_tell(msg, None).unwrap(),
         //     TestMsg::Probe(_) => self.actor_to_fail.try_tell(msg, None).unwrap(),
         // };
-    }
-
-    fn supervisor_strategy(&self) -> Strategy {
-        Strategy::Escalate
     }
 }
 
@@ -190,22 +161,16 @@ impl Receive<Panic> for EscalateSup {
 }
 
 #[actor(TestProbe, Panic)]
+#[derive(Default)]
 struct EscRestartSup {
     escalator: Option<ActorRef<EscalateSupMsg>>,
-}
-
-impl EscRestartSup {
-    fn new() -> Self {
-        EscRestartSup { escalator: None }
-    }
 }
 
 impl Actor for EscRestartSup {
     type Msg = EscRestartSupMsg;
 
     fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
-        let props = Props::new(EscalateSup::new);
-        self.escalator = ctx.actor_of(props, "escalate-supervisor").ok();
+        self.escalator = ctx.actor_of::<EscalateSup>("escalate-supervisor").ok();
     }
 
     fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender) {
@@ -242,8 +207,7 @@ impl Receive<Panic> for EscRestartSup {
 fn supervision_escalate_failed_actor() {
     let sys = ActorSystem::new().unwrap();
 
-    let props = Props::new(EscRestartSup::new);
-    let sup = sys.actor_of(props, "supervisor").unwrap();
+    let sup = sys.actor_of::<EscRestartSup>("supervisor").unwrap();
 
     // Make the test actor panic
     sup.tell(Panic, None);

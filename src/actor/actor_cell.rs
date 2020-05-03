@@ -14,7 +14,7 @@ use futures::{future::RemoteHandle, task::SpawnError, Future};
 use uuid::Uuid;
 
 use crate::{
-    actor::*,
+    actor::{props::ActorFactory, *},
     kernel::{
         kernel_ref::{dispatch, dispatch_any, KernelRef},
         mailbox::{AnySender, MailboxSender},
@@ -303,10 +303,37 @@ impl fmt::Debug for ActorCell {
 }
 
 impl TmpActorRefFactory for ActorCell {
-    fn tmp_actor_of<A: Actor>(
+    fn tmp_actor_of_props<A: Actor>(
         &self,
         _props: BoxActorProd<A>,
     ) -> Result<ActorRef<A::Msg>, CreateError> {
+        let name = rand::random::<u64>();
+        let _name = format!("{}", name);
+
+        // self.inner
+        //     .kernel
+        //     .create_actor(props, &name, &self.inner.system.temp_root())
+        unimplemented!()
+    }
+
+    fn tmp_actor_of<A: ActorFactory>(&self) -> Result<ActorRef<<A as Actor>::Msg>, CreateError> {
+        let name = rand::random::<u64>();
+        let _name = format!("{}", name);
+
+        // self.inner
+        //     .kernel
+        //     .create_actor(props, &name, &self.inner.system.temp_root())
+        unimplemented!()
+    }
+
+    fn tmp_actor_of_args<A, Args>(
+        &self,
+        _args: Args,
+    ) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
+    where
+        Args: ActorArgs,
+        A: ActorFactoryArgs<Args>,
+    {
         let name = rand::random::<u64>();
         let _name = format!("{}", name);
 
@@ -477,7 +504,7 @@ fn post_stop<A: Actor>(actor: &mut Option<A>) {
 /// persistence configuration.
 ///
 /// Since `Context` is specific to an actor and its functions
-/// it is not cloneable.  
+/// it is not cloneable.
 pub struct Context<Msg: Message> {
     pub myself: ActorRef<Msg>,
     pub system: ActorSystem,
@@ -496,10 +523,10 @@ where
 }
 
 impl<Msg: Message> ActorRefFactory for Context<Msg> {
-    fn actor_of<A>(
+    fn actor_of_props<A>(
         &self,
-        props: BoxActorProd<A>,
         name: &str,
+        props: BoxActorProd<A>,
     ) -> Result<ActorRef<A::Msg>, CreateError>
     where
         A: Actor,
@@ -507,6 +534,32 @@ impl<Msg: Message> ActorRefFactory for Context<Msg> {
         self.system
             .provider
             .create_actor(props, name, &self.myself().into(), &self.system)
+    }
+
+    fn actor_of<A>(&self, name: &str) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
+    where
+        A: ActorFactory,
+    {
+        self.system
+            .provider
+            .create_actor(Props::new::<A>(), name, &self.myself().into(), &self.system)
+    }
+
+    fn actor_of_args<A, Args>(
+        &self,
+        name: &str,
+        args: Args,
+    ) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
+    where
+        Args: ActorArgs,
+        A: ActorFactoryArgs<Args>,
+    {
+        self.system.provider.create_actor(
+            Props::new_args::<A, _>(args),
+            name,
+            &self.myself().into(),
+            &self.system,
+        )
     }
 
     fn stop(&self, actor: impl ActorReference) {

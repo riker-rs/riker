@@ -7,8 +7,8 @@ use std::{
 
 use crate::{
     actor::{
-        Actor, ActorRef, ActorRefFactory, ActorReference, BasicActorRef, BoxActorProd, BoxedTell,
-        Context, CreateError, Props, Receive, Sender,
+        Actor, ActorRef, ActorRefFactory, ActorReference, BasicActorRef, BoxedTell, Context,
+        CreateError, Receive, Sender,
     },
     system::{SystemEvent, SystemMsg},
     Message,
@@ -28,18 +28,11 @@ pub struct Channel<Msg: Message> {
     subs: Subs<Msg>,
 }
 
-impl<Msg> Channel<Msg>
-where
-    Msg: Message,
-{
-    pub fn new() -> Self {
+impl<Msg: Message> Default for Channel<Msg> {
+    fn default() -> Self {
         Channel {
             subs: HashMap::new(),
         }
-    }
-
-    pub fn props() -> BoxActorProd<Channel<Msg>> {
-        Props::new(Channel::new)
     }
 }
 
@@ -172,17 +165,8 @@ fn unsubscribe<Msg>(subs: &mut Subs<Msg>, topic: &Topic, actor: &dyn ActorRefere
 }
 
 /// A specialized channel that publishes messages as system messages
+#[derive(Default)]
 pub struct EventsChannel(Channel<SystemEvent>);
-
-impl EventsChannel {
-    pub fn new() -> Self {
-        EventsChannel(Channel::new())
-    }
-
-    pub fn props() -> BoxActorProd<Channel<SystemEvent>> {
-        Props::new(Channel::new)
-    }
-}
 
 impl Actor for EventsChannel {
     type Msg = ChannelMsg<SystemEvent>;
@@ -381,5 +365,5 @@ pub fn channel<Msg>(name: &str, fact: &impl ActorRefFactory) -> Result<ChannelRe
 where
     Msg: Message,
 {
-    fact.actor_of(Channel::<Msg>::props(), name)
+    fact.actor_of::<Channel<Msg>>(name)
 }

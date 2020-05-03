@@ -233,15 +233,6 @@ fn process_msgs<A>(
                     let (msg, sender) = (msg.msg, msg.sender);
                     actor.as_mut().unwrap().recv(ctx, msg, sender);
                     process_sys_msgs(&mbox, &ctx, cell, actor);
-                    
-
-                    // match (msg.msg, msg.sender) {
-                    //     (msg, sender) => {
-                    //         actor.as_mut().unwrap().recv(ctx, msg, sender);
-                    //         process_sys_msgs(&mbox, &ctx, cell, actor);
-                    //     }
-                    //     // (ActorMsg::Identify, sender) => handle_identify(sender, cell),
-                    // }
 
                     count += 1;
                 }

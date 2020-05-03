@@ -17,14 +17,9 @@ pub struct TestProbe(ChannelProbe<(), ()>);
 pub struct SomeMessage;
 
 #[actor(TestProbe, SomeMessage)]
+#[derive(Default)]
 struct ScheduleOnce {
     probe: Option<TestProbe>,
-}
-
-impl ScheduleOnce {
-    fn new() -> Self {
-        ScheduleOnce { probe: None }
-    }
 }
 
 impl Actor for ScheduleOnce {
@@ -57,8 +52,7 @@ impl Receive<SomeMessage> for ScheduleOnce {
 fn schedule_once() {
     let sys = ActorSystem::new().unwrap();
 
-    let props = Props::new(ScheduleOnce::new);
-    let actor = sys.actor_of(props, "schedule-once").unwrap();
+    let actor = sys.actor_of::<ScheduleOnce>("schedule-once").unwrap();
 
     let (probe, listen) = probe();
 
@@ -71,8 +65,7 @@ fn schedule_once() {
 fn schedule_at_time() {
     let sys = ActorSystem::new().unwrap();
 
-    let props = Props::new(ScheduleOnce::new);
-    let actor = sys.actor_of(props, "schedule-once").unwrap();
+    let actor = sys.actor_of::<ScheduleOnce>("schedule-once").unwrap();
 
     let (probe, listen) = probe();
 
@@ -84,20 +77,11 @@ fn schedule_at_time() {
 
 // *** Schedule repeat test ***
 #[actor(TestProbe, SomeMessage)]
+#[derive(Default)]
 struct ScheduleRepeat {
     probe: Option<TestProbe>,
     counter: u32,
     schedule_id: Option<Uuid>,
-}
-
-impl ScheduleRepeat {
-    fn new() -> Self {
-        ScheduleRepeat {
-            probe: None,
-            counter: 0,
-            schedule_id: None,
-        }
-    }
 }
 
 impl Actor for ScheduleRepeat {
@@ -143,8 +127,7 @@ impl Receive<SomeMessage> for ScheduleRepeat {
 fn schedule_repeat() {
     let sys = ActorSystem::new().unwrap();
 
-    let props = Props::new(ScheduleRepeat::new);
-    let actor = sys.actor_of(props, "schedule-repeat").unwrap();
+    let actor = sys.actor_of::<ScheduleRepeat>("schedule-repeat").unwrap();
 
     let (probe, listen) = probe();
 

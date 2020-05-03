@@ -22,14 +22,8 @@ fn impls_test() {
 // }
 
 #[actor(String, u32)]
-#[derive(Clone)]
+#[derive(Clone, Default)]
 struct NewActor;
-
-impl NewActor {
-    fn actor() -> Self {
-        NewActor
-    }  
-}
 
 impl Actor for NewActor {
     type Msg = NewActorMsg;
@@ -152,7 +146,7 @@ struct ActorRef<T: Message> {
 
 impl<T: Message> ActorRef<T> {
     fn send_msg(&self, msg: T, sender: Option<BasicActorRef>) {
-        let a = NewActor::actor();
+        let a = NewActor::default();
         // a.receive(msg);
     }
 } 

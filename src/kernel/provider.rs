@@ -151,7 +151,7 @@ fn root(sys: &ActorSystem) -> BasicActorRef {
     let bigbang = BasicActorRef::new(bb_cell);
 
     // root
-    let props: BoxActorProd<Guardian> = Guardian::props("root".to_string(), sys.log());
+    let props: BoxActorProd<Guardian> = Props::new_args::<Guardian, _>(("root".to_string(), sys.log()));
     let (sender, sys_sender, mb) = mailbox::<SystemMsg>(100);
 
     let cell = ExtendedCell::new(
@@ -186,7 +186,7 @@ fn guardian(
         host: Arc::new("localhost".to_string()),
     };
 
-    let props: BoxActorProd<Guardian> = Guardian::props(name.to_string(), sys.log());
+    let props: BoxActorProd<Guardian> = Props::new_args::<Guardian, _>((name.to_string(), sys.log()));
     let (sender, sys_sender, mb) = mailbox::<SystemMsg>(100);
 
     let cell = ExtendedCell::new(
@@ -214,13 +214,9 @@ struct Guardian {
     log: Logger,
 }
 
-impl Guardian {
-    fn new((name, log): (String, Logger)) -> Self {
+impl ActorFactoryArgs<(String, Logger)> for Guardian {
+    fn create_args((name, log): (String, Logger)) -> Self {
         Guardian { name, log }
-    }
-
-    fn props(name: String, logger: Logger) -> BoxActorProd<Guardian> {
-        Props::new_args(Guardian::new, (name, logger))
     }
 }
 

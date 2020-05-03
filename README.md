@@ -19,7 +19,7 @@ Riker provides:
 - Message scheduling
 - Out-of-the-box, configurable, non-blocking logging
 - Persistent actors using Event Sourcing
-- Command Query Responsiblily Separation (CQRS)
+- Command Query Responsibility Segregation (CQRS)
 - Easily run futures
 
 [Website](https://riker.rs) | [API Docs](https://docs.rs/riker)
@@ -39,6 +39,7 @@ riker = "0.3.1"
 use std::time::Duration;
 use riker::actors::*;
 
+#[derive(Default)]
 struct MyActor;
 
 // implement the Actor trait
@@ -54,23 +55,11 @@ impl Actor for MyActor {
     }
 }
 
-// provide factory and props methods
-impl MyActor {
-    fn actor() -> Self {
-        MyActor
-    }
-
-    fn props() -> BoxActorProd<MyActor> {
-        Props::new(MyActor::actor)
-    }
-}
-
 // start the system and create an actor
 fn main() {
     let sys = ActorSystem::new().unwrap();
 
-    let props = MyActor::props();
-    let my_actor = sys.actor_of(props, "my-actor").unwrap();
+    let my_actor = sys.actor_of::<MyActor>("my-actor").unwrap();
 
     my_actor.tell("Hello my actor!".to_string(), None);
 
@@ -101,7 +90,7 @@ Riker is a full-featured actor model implementation that scales to hundreds or t
 
 Rust empowers developers with control over memory management, requiring no garbage collection and runtime overhead, while also providing modern semantics and expressive syntax such as the trait system. The result is a language that can solve problems equally for Web and IoT.
 
-Riker adds to this by providing a famililar actor model API which in turn makes concurrent, resilent systems programming easy.
+Riker adds to this by providing a familiar actor model API which in turn makes concurrent, resilient systems programming easy.
 
 ## Rust Version
 

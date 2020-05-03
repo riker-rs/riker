@@ -24,7 +24,7 @@ pub use self::{
         Publish, Subscribe, SysTopic, Topic, Unsubscribe, UnsubscribeAll,
     },
     macros::actor,
-    props::{ActorArgs, ActorProducer, BoxActorProd, Props},
+    props::{ActorArgs, ActorFactory, ActorFactoryArgs, ActorProducer, BoxActorProd, Props},
     selection::{ActorSelection, ActorSelectionFactory},
     uri::{ActorId, ActorPath, ActorUri},
 };

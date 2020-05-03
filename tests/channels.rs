@@ -20,17 +20,13 @@ struct Subscriber {
     topic: Topic,
 }
 
-impl Subscriber {
-    fn actor((chan, topic): (ChannelRef<SomeMessage>, Topic)) -> Self {
+impl ActorFactoryArgs<(ChannelRef<SomeMessage>, Topic)> for Subscriber {
+    fn create_args((chan, topic): (ChannelRef<SomeMessage>, Topic)) -> Self {
         Subscriber {
             probe: None,
             chan,
             topic,
         }
-    }
-
-    fn props(chan: ChannelRef<SomeMessage>, topic: Topic) -> BoxActorProd<Subscriber> {
-        Props::new_args(Subscriber::actor, (chan, topic))
     }
 }
 
@@ -81,7 +77,7 @@ fn channel_publish() {
     // On Subscriber's pre_start it will subscribe to this channel+topic
     let topic = Topic::from("my-topic");
     let sub = sys
-        .actor_of(Subscriber::props(chan.clone(), topic.clone()), "sub-actor")
+        .actor_of_args::<Subscriber, _>("sub-actor", (chan.clone(), topic.clone()))
         .unwrap();
 
     let (probe, listen) = probe();
@@ -94,7 +90,7 @@ fn channel_publish() {
     chan.tell(
         Publish {
             msg: SomeMessage,
-            topic: topic,
+            topic,
         },
         None,
     );
@@ -113,7 +109,7 @@ fn channel_publish_subscribe_all() {
     // On Subscriber's pre_start it will subscribe to all topics on this channel.
     let topic = Topic::from("*");
     let sub = sys
-        .actor_of(Subscriber::props(chan.clone(), topic.clone()), "sub-actor")
+        .actor_of_args::<Subscriber, _>("sub-actor", (chan.clone(), topic.clone()))
         .unwrap();
 
     let (probe, listen) = probe();
@@ -159,13 +155,8 @@ fn channel_publish_subscribe_all() {
 pub struct Panic;
 
 #[actor(Panic, SomeMessage)]
+#[derive(Default)]
 struct DumbActor;
-
-impl DumbActor {
-    fn new() -> Self {
-        DumbActor
-    }
-}
 
 impl Actor for DumbActor {
     type Msg = DumbActorMsg;
@@ -199,18 +190,9 @@ struct SysEvent(SystemEvent);
 
 // *** Event stream test ***
 #[actor(TestProbe, SystemEvent)]
+#[derive(Default)]
 struct EventSubscriber {
     probe: Option<TestProbe>,
-}
-
-impl EventSubscriber {
-    fn new() -> Self {
-        EventSubscriber { probe: None }
-    }
-
-    fn props() -> BoxActorProd<EventSubscriber> {
-        Props::new(EventSubscriber::new)
-    }
 }
 
 impl Actor for EventSubscriber {
@@ -276,7 +258,7 @@ impl Receive<SystemEvent> for EventSubscriber {
 fn channel_system_events() {
     let sys = ActorSystem::new().unwrap();
 
-    let actor = sys.actor_of(EventSubscriber::props(), "event-sub").unwrap();
+    let actor = sys.actor_of::<EventSubscriber>("event-sub").unwrap();
 
     let (probe, listen) = probe();
     actor.tell(TestProbe(probe), None);
@@ -286,8 +268,7 @@ fn channel_system_events() {
     listen.recv();
 
     // Create an actor
-    let props = Props::new(DumbActor::new);
-    let dumb = sys.actor_of(props, "dumb-actor").unwrap();
+    let dumb = sys.actor_of::<DumbActor>("dumb-actor").unwrap();
     // ActorCreated event was received
     p_assert_eq!(listen, ());
 
@@ -304,18 +285,9 @@ fn channel_system_events() {
 
 // *** Dead letters test ***
 #[actor(TestProbe, DeadLetter)]
+#[derive(Default)]
 struct DeadLetterSub {
     probe: Option<TestProbe>,
-}
-
-impl DeadLetterSub {
-    fn new() -> Self {
-        DeadLetterSub { probe: None }
-    }
-
-    fn props() -> BoxActorProd<DeadLetterSub> {
-        Props::new(DeadLetterSub::new)
-    }
 }
 
 impl Actor for DeadLetterSub {
@@ -358,9 +330,7 @@ impl Receive<DeadLetter> for DeadLetterSub {
 #[test]
 fn channel_dead_letters() {
     let sys = ActorSystem::new().unwrap();
-    let actor = sys
-        .actor_of(DeadLetterSub::props(), "dl-subscriber")
-        .unwrap();
+    let actor = sys.actor_of::<DeadLetterSub>("dl-subscriber").unwrap();
 
     let (probe, listen) = probe();
     actor.tell(TestProbe(probe), None);
@@ -368,8 +338,7 @@ fn channel_dead_letters() {
     // wait for the probe to arrive at the actor before attempting to stop the actor
     listen.recv();
 
-    let props = Props::new(DumbActor::new);
-    let dumb = sys.actor_of(props, "dumb-actor").unwrap();
+    let dumb = sys.actor_of::<DumbActor>("dumb-actor").unwrap();
 
     // immediately stop the actor and attempt to send a message
     sys.stop(&dumb);

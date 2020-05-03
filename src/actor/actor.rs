@@ -98,6 +98,7 @@ impl<A: Actor + ?Sized> Actor for Box<A> {
 /// #[derive(Clone, Debug)]
 /// pub struct Bar;
 /// #[actor(Foo, Bar)] // <-- set our actor to receive Foo and Bar types
+/// #[derive(Default)]
 /// struct MyActor;
 ///
 /// impl Actor for MyActor {
@@ -108,16 +109,6 @@ impl<A: Actor + ?Sized> Actor for Box<A> {
 ///                 msg: Self::Msg,
 ///                 sender: Sender) {
 ///         self.receive(ctx, msg, sender); // <-- call the respective implementation
-///     }
-/// }
-///
-/// impl MyActor {
-///     fn actor() -> Self {
-///         MyActor
-///     }
-///
-///     fn props() -> BoxActorProd<MyActor> {
-///         Props::new(MyActor::actor)
 ///     }
 /// }
 ///
@@ -145,7 +136,7 @@ impl<A: Actor + ?Sized> Actor for Box<A> {
 ///
 /// // main
 /// let sys = ActorSystem::new().unwrap();
-/// let actor = sys.actor_of(MyActor::props(), "my-actor").unwrap();
+/// let actor = sys.actor_of::<MyActor>("my-actor").unwrap();
 ///
 /// actor.tell(Foo, None);
 /// actor.tell(Bar, None);

@@ -3,6 +3,7 @@ use std::fmt;
 use crate::{
     actor::{
         actor_cell::{ActorCell, ExtendedCell},
+        props::{ActorArgs, ActorFactory, ActorFactoryArgs},
         Actor, ActorPath, ActorUri, BoxActorProd, CreateError,
     },
     system::{ActorSystem, SystemMsg},
@@ -78,6 +79,9 @@ impl<T> ActorReference for BoxedTell<T>
 where
     T: Message,
 {
+    /// Actor name.
+    ///
+    /// Unique among siblings.
     fn name(&self) -> &str {
         (**self).name()
     }
@@ -86,6 +90,9 @@ where
         (**self).uri()
     }
 
+    /// Actor path.
+    ///
+    /// e.g. `/user/actor_a/actor_b
     fn path(&self) -> &ActorPath {
         (**self).path()
     }
@@ -94,6 +101,7 @@ where
         (**self).is_root()
     }
 
+    /// Parent reference.
     fn parent(&self) -> BasicActorRef {
         (**self).parent()
     }
@@ -110,6 +118,7 @@ where
         (**self).is_child(actor)
     }
 
+    /// Iterator over children references.
     fn children<'a>(&'a self) -> Box<dyn Iterator<Item = BasicActorRef> + 'a> {
         (**self).children()
     }
@@ -200,6 +209,9 @@ impl BasicActorRef {
 }
 
 impl ActorReference for BasicActorRef {
+    /// Actor name.
+    ///
+    /// Unique among siblings.
     fn name(&self) -> &str {
         self.cell.uri().name.as_str()
     }
@@ -208,6 +220,9 @@ impl ActorReference for BasicActorRef {
         self.cell.uri()
     }
 
+    /// Actor path.
+    ///
+    /// e.g. `/user/actor_a/actor_b`
     fn path(&self) -> &ActorPath {
         &self.cell.uri().path
     }
@@ -216,6 +231,7 @@ impl ActorReference for BasicActorRef {
         self.cell.is_root()
     }
 
+    /// Parent reference.
     fn parent(&self) -> BasicActorRef {
         self.cell.parent()
     }
@@ -232,6 +248,7 @@ impl ActorReference for BasicActorRef {
         self.cell.is_child(actor)
     }
 
+    /// Iterator over children references.
     fn children<'a>(&'a self) -> Box<dyn Iterator<Item = BasicActorRef> + 'a> {
         self.cell.children()
     }
@@ -243,6 +260,9 @@ impl ActorReference for BasicActorRef {
 }
 
 impl ActorReference for &BasicActorRef {
+    /// Actor name.
+    ///
+    /// Unique among siblings.
     fn name(&self) -> &str {
         self.cell.uri().name.as_str()
     }
@@ -251,6 +271,9 @@ impl ActorReference for &BasicActorRef {
         self.cell.uri()
     }
 
+    /// Actor path.
+    ///
+    /// e.g. `/user/actor_a/actor_b`
     fn path(&self) -> &ActorPath {
         &self.cell.uri().path
     }
@@ -259,6 +282,7 @@ impl ActorReference for &BasicActorRef {
         self.cell.is_root()
     }
 
+    /// Parent reference.
     fn parent(&self) -> BasicActorRef {
         self.cell.parent()
     }
@@ -275,6 +299,7 @@ impl ActorReference for &BasicActorRef {
         self.cell.is_child(actor)
     }
 
+    /// Iterator over children references.
     fn children<'a>(&'a self) -> Box<dyn Iterator<Item = BasicActorRef> + 'a> {
         self.cell.children()
     }
@@ -363,6 +388,9 @@ impl<Msg: Message> ActorRef<Msg> {
 }
 
 impl<Msg: Message> ActorReference for ActorRef<Msg> {
+    /// Actor name.
+    ///
+    /// Unique among siblings.
     fn name(&self) -> &str {
         self.cell.uri().name.as_str()
     }
@@ -371,6 +399,9 @@ impl<Msg: Message> ActorReference for ActorRef<Msg> {
         self.cell.uri()
     }
 
+    /// Actor path.
+    ///
+    /// e.g. `/user/actor_a/actor_b`
     fn path(&self) -> &ActorPath {
         &self.cell.uri().path
     }
@@ -379,6 +410,7 @@ impl<Msg: Message> ActorReference for ActorRef<Msg> {
         self.cell.is_root()
     }
 
+    /// Parent reference.
     fn parent(&self) -> BasicActorRef {
         self.cell.parent()
     }
@@ -395,6 +427,7 @@ impl<Msg: Message> ActorReference for ActorRef<Msg> {
         self.cell.is_child(actor)
     }
 
+    /// Iterator over children references.
     fn children<'a>(&'a self) -> Box<dyn Iterator<Item = BasicActorRef> + 'a> {
         self.cell.children()
     }
@@ -406,6 +439,9 @@ impl<Msg: Message> ActorReference for ActorRef<Msg> {
 }
 
 impl<Msg: Message> ActorReference for &ActorRef<Msg> {
+    /// Actor name.
+    ///
+    /// Unique among siblings.
     fn name(&self) -> &str {
         self.cell.uri().name.as_str()
     }
@@ -414,6 +450,9 @@ impl<Msg: Message> ActorReference for &ActorRef<Msg> {
         self.cell.uri()
     }
 
+    /// Actor path.
+    ///
+    /// e.g. `/user/actor_a/actor_b`
     fn path(&self) -> &ActorPath {
         &self.cell.uri().path
     }
@@ -422,6 +461,7 @@ impl<Msg: Message> ActorReference for &ActorRef<Msg> {
         self.cell.is_root()
     }
 
+    /// Parent reference.
     fn parent(&self) -> BasicActorRef {
         self.cell.parent()
     }
@@ -438,6 +478,7 @@ impl<Msg: Message> ActorReference for &ActorRef<Msg> {
         self.cell.is_child(actor)
     }
 
+    /// Iterator over children references.
     fn children<'a>(&'a self) -> Box<dyn Iterator<Item = BasicActorRef> + 'a> {
         self.cell.children()
     }
@@ -473,20 +514,48 @@ impl<Msg: Message> PartialEq for ActorRef<Msg> {
 /// handle any initialization in the actor's `pre_start` method, which is
 /// invoked after the `ActorRef` is returned.
 pub trait ActorRefFactory {
-    fn actor_of<A>(
+    fn actor_of_props<A>(
         &self,
-        props: BoxActorProd<A>,
         name: &str,
+        props: BoxActorProd<A>,
     ) -> Result<ActorRef<A::Msg>, CreateError>
     where
         A: Actor;
+
+    fn actor_of<A>(&self, name: &str) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
+    where
+        A: ActorFactory + Actor;
+
+    fn actor_of_args<A, Args>(
+        &self,
+        name: &str,
+        args: Args,
+    ) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
+    where
+        Args: ActorArgs,
+        A: ActorFactoryArgs<Args>;
 
     fn stop(&self, actor: impl ActorReference);
 }
 
 /// Produces `ActorRef`s under the `temp` guardian actor.
 pub trait TmpActorRefFactory {
-    fn tmp_actor_of<A>(&self, props: BoxActorProd<A>) -> Result<ActorRef<A::Msg>, CreateError>
+    fn tmp_actor_of_props<A>(
+        &self,
+        props: BoxActorProd<A>,
+    ) -> Result<ActorRef<A::Msg>, CreateError>
     where
         A: Actor;
+
+    fn tmp_actor_of<A>(&self) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
+    where
+        A: ActorFactory + Actor;
+
+    fn tmp_actor_of_args<A, Args>(
+        &self,
+        args: Args,
+    ) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
+    where
+        Args: ActorArgs,
+        A: ActorFactoryArgs<Args>;
 }
