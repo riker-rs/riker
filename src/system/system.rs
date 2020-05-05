@@ -690,12 +690,14 @@ impl<'a> From<&'a Config> for SystemSettings {
 
 struct ThreadPoolConfig {
     pool_size: usize,
+    stack_size: usize,
 }
 
 impl<'a> From<&'a Config> for ThreadPoolConfig {
     fn from(config: &Config) -> Self {
         ThreadPoolConfig {
             pool_size: config.get_int("dispatcher.pool_size").unwrap() as usize,
+            stack_size: config.get_int("dispatcher.stack_size").unwrap() as usize,
         }
     }
 }
@@ -704,6 +706,7 @@ fn default_exec(cfg: &Config) -> ThreadPool {
     let exec_cfg = ThreadPoolConfig::from(cfg);
     ThreadPoolBuilder::new()
         .pool_size(exec_cfg.pool_size)
+        .stack_size(exec_cfg.stack_size)
         .name_prefix("pool-thread-#")
         .create()
         .unwrap()
