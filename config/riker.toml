@@ -34,12 +34,12 @@ time_format = "%H:%M:%S%:z"
 
 [mailbox]
 # maximum number of messages to process in each execution of mailbox
-# the mailbox will be rescheduled if there are any remaining messages 
+# the mailbox will be rescheduled if there are any remaining messages
 msg_process_limit = 1000
 
 [dispatcher]
 # number of threads available to the CPU pool
-pool_size = 4
+# pool_size = 4
 
 [scheduler]
 frequency_millis = 50
