@@ -44,7 +44,7 @@ where
     let (tx, mut rx) = channel::<KernelMsg>(1000); // todo config?
     let kr = KernelRef { tx };
 
-    let mut sys = sys.clone();
+    let sys = sys.clone();
     let mut asys = sys.clone();
     let akr = kr.clone();
     let actor = start_actor(&props)?;
