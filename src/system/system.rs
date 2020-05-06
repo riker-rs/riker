@@ -512,7 +512,7 @@ impl Run for ActorSystem {
         Fut: Future + Send + 'static,
         <Fut as Future>::Output: Send,
     {
-        let mut exec = self.exec.clone();
+        let exec = self.exec.clone();
         exec.spawn_with_handle(future)
     }
 }
