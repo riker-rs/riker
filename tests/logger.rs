@@ -2,6 +2,7 @@ use futures::executor::block_on;
 
 use riker::actors::*;
 use slog::{Logger, Fuse, o};
+use log;
 
 mod common {
     use std::{fmt, result};
@@ -50,4 +51,12 @@ fn system_create_with_slog() {
         .log(log)
         .create().unwrap();
     block_on(sys.shutdown()).unwrap();
+}
+
+// a test that logging without slog using "log" crate works
+#[test]
+fn logging_stdlog() {
+    log::info!("before the system");
+    let _sys = ActorSystem::new().unwrap();
+    log::info!("system exists");
 }

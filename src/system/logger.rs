@@ -5,7 +5,10 @@ use crate::actor::{
     Actor, ActorRef, All, BasicActorRef, ChannelMsg, Context, DeadLetter,
     Subscribe, Tell, ActorFactoryArgs,
 };
+use std::sync::Arc;
+use crate::system::system::LoggingSystem;
 
+pub(crate) type GlobalLoggerGuard = Arc<slog_scope::GlobalLoggerGuard>;
 
 #[derive(Clone)]
 pub struct LoggerConfig {
@@ -36,16 +39,16 @@ impl<'a> From<&'a Config> for LoggerConfig {
     }
 }
 
-pub(crate) fn default_log(cfg: &Config) -> Logger {
+pub(crate) fn default_log(cfg: &Config) -> LoggingSystem {
     let cfg = LoggerConfig::from(cfg);
 
     let drain = DefaultConsoleLogger::new(cfg.clone()).filter_level(cfg.level).fuse();
     let logger = Logger::root(drain, o!());
 
-    let _scope_guard = slog_scope::set_global_logger(logger.clone());
+    let scope_guard = slog_scope::set_global_logger(logger.clone());
     let _log_guard = slog_stdlog::init();   // will not call `.unwrap()` because this might be called more than once
 
-    logger
+    LoggingSystem::new(logger, Some(Arc::new(scope_guard)))
 }
 
 struct DefaultConsoleLogger {
@@ -87,11 +90,11 @@ impl Drain for DefaultConsoleLogger {
 /// Simple actor that subscribes to the dead letters channel and logs using the default logger
 pub struct DeadLetterLogger {
     dl_chan: ActorRef<ChannelMsg<DeadLetter>>,
-    logger: Logger,
+    logger: LoggingSystem,
 }
 
-impl ActorFactoryArgs<(ActorRef<ChannelMsg<DeadLetter>>, Logger)> for DeadLetterLogger {
-    fn create_args((dl_chan, logger): (ActorRef<ChannelMsg<DeadLetter>>, Logger)) -> Self {
+impl ActorFactoryArgs<(ActorRef<ChannelMsg<DeadLetter>>, LoggingSystem)> for DeadLetterLogger {
+    fn create_args((dl_chan, logger): (ActorRef<ChannelMsg<DeadLetter>>, LoggingSystem)) -> Self {
         DeadLetterLogger { dl_chan, logger }
     }
 }
