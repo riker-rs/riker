@@ -1,5 +1,13 @@
+# verified on https://config.travis-ci.com/explore
 language: rust
-rust:
-  - nightly
-matrix:
+os: linux
+dist: xenial
+jobs:
   fast_finish: true
+  include:
+    - rust: stable
+script:
+  - cargo update
+  - cargo check --all --no-default-features
+  - cargo test --all-features --all -- --nocapture
+  - cd riker-macros; cargo test --no-default-features -- --nocapture; cd ..
