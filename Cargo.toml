@@ -15,7 +15,6 @@ travis-ci = { repository = "riker-rs/riker" }
 
 [dependencies]
 riker-macros = { path = "riker-macros", version = "0.1" }
-bytes = "0.5.4"
 chrono = "0.4"
 config = "0.10.1"
 futures = { version = "0.3.4", features = ["thread-pool"] }
