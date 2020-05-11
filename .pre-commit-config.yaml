@@ -1,0 +1,7 @@
+files: '^(riker-macros/.*|config/.*|src/.*|tests/.*|examples/.*|[^/]*)$'
+repos:
+  - repo: https://github.com/doublify/pre-commit-rust
+    rev: 55f347186aec7f2a4ec13c31effdb4b26512f2bc
+    hooks:
+      - id: cargo-check
+        name: cargo check https://doc.rust-lang.org/cargo/commands/cargo-check.html .
