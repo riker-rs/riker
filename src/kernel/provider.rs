@@ -4,6 +4,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use crate::system::system::LoggingSystem;
 use crate::{
     actor::actor_cell::{ActorCell, ExtendedCell},
     actor::*,
@@ -11,7 +12,6 @@ use crate::{
     system::{system::SysActors, ActorSystem, SystemMsg},
     validate::validate_name,
 };
-use crate::system::system::LoggingSystem;
 
 #[derive(Clone)]
 pub struct Provider {
@@ -151,7 +151,8 @@ fn root(sys: &ActorSystem) -> BasicActorRef {
     let bigbang = BasicActorRef::new(bb_cell);
 
     // root
-    let props: BoxActorProd<Guardian> = Props::new_args::<Guardian, _>(("root".to_string(), sys.log()));
+    let props: BoxActorProd<Guardian> =
+        Props::new_args::<Guardian, _>(("root".to_string(), sys.log()));
     let (sender, sys_sender, mb) = mailbox::<SystemMsg>(100);
 
     let cell = ExtendedCell::new(
@@ -186,7 +187,8 @@ fn guardian(
         host: Arc::new("localhost".to_string()),
     };
 
-    let props: BoxActorProd<Guardian> = Props::new_args::<Guardian, _>((name.to_string(), sys.log()));
+    let props: BoxActorProd<Guardian> =
+        Props::new_args::<Guardian, _>((name.to_string(), sys.log()));
     let (sender, sys_sender, mb) = mailbox::<SystemMsg>(100);
 
     let cell = ExtendedCell::new(

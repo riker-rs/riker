@@ -37,7 +37,11 @@ impl Actor for DeadLetterActor {
     fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
         let topic = Topic::from("*");
 
-        println!("{}: pre_start subscribe to topic {:?}", ctx.myself.name(), topic);
+        println!(
+            "{}: pre_start subscribe to topic {:?}",
+            ctx.myself.name(),
+            topic
+        );
         let sub = Box::new(ctx.myself());
 
         ctx.system

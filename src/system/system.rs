@@ -58,7 +58,10 @@ impl SystemBuilder {
         let name = self.name.unwrap_or_else(|| "riker".to_string());
         let cfg = self.cfg.unwrap_or_else(load_config);
         let exec = self.exec.unwrap_or_else(|| default_exec(&cfg));
-        let log = self.log.map(|log| LoggingSystem::new(log, None)).unwrap_or_else(|| default_log(&cfg));
+        let log = self
+            .log
+            .map(|log| LoggingSystem::new(log, None))
+            .unwrap_or_else(|| default_log(&cfg));
 
         ActorSystem::create(name.as_ref(), exec, log, cfg)
     }
@@ -103,7 +106,10 @@ pub struct LoggingSystem {
 
 impl LoggingSystem {
     pub(crate) fn new(log: Logger, global_logger_guard: Option<GlobalLoggerGuard>) -> Self {
-        Self { log, global_logger_guard }
+        Self {
+            log,
+            global_logger_guard,
+        }
     }
 }
 
@@ -215,7 +221,12 @@ impl ActorSystem {
         sys.sys_channels = Some(sys_channels(&prov, &sys)?);
 
         // 5. start dead letter logger
-        let _dl_logger = sys_actor_of_args::<DeadLetterLogger, _>(&prov, &sys, "dl_logger", (sys.dead_letters().clone(), sys.log()))?;
+        let _dl_logger = sys_actor_of_args::<DeadLetterLogger, _>(
+            &prov,
+            &sys,
+            "dl_logger",
+            (sys.dead_letters().clone(), sys.log()),
+        )?;
 
         sys.complete_start();
 
@@ -464,10 +475,7 @@ impl ActorRefFactory for &ActorSystem {
 }
 
 impl TmpActorRefFactory for ActorSystem {
-    fn tmp_actor_of_props<A>(
-        &self,
-        props: BoxActorProd<A>,
-    ) -> Result<ActorRef<A::Msg>, CreateError>
+    fn tmp_actor_of_props<A>(&self, props: BoxActorProd<A>) -> Result<ActorRef<A::Msg>, CreateError>
     where
         A: Actor,
     {
@@ -494,8 +502,12 @@ impl TmpActorRefFactory for ActorSystem {
         A: ActorFactoryArgs<Args>,
     {
         let name = format!("{}", rand::random::<u64>());
-        self.provider
-            .create_actor(Props::new_args::<A, _>(args), &name, &self.temp_root(), self)
+        self.provider.create_actor(
+            Props::new_args::<A, _>(args),
+            &name,
+            &self.temp_root(),
+            self,
+        )
     }
 }
 
