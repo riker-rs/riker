@@ -58,7 +58,7 @@ impl SystemBuilder {
         let name = self.name.unwrap_or_else(|| "riker".to_string());
         let cfg = self.cfg.unwrap_or_else(load_config);
         let exec = self.exec.unwrap_or_else(|| default_exec(&cfg));
-        let log = self.log.unwrap_or_else(|| default_log(&cfg));
+        let log = self.log.map(|log| LoggingSystem::new(log, None)).unwrap_or_else(|| default_log(&cfg));
 
         ActorSystem::create(name.as_ref(), exec, log, cfg)
     }
@@ -92,19 +92,42 @@ impl SystemBuilder {
     }
 }
 
+/// Holds fields related to logging system.
+#[derive(Clone)]
+pub struct LoggingSystem {
+    /// Logger
+    log: Logger,
+    /// Global logger guard
+    global_logger_guard: Option<GlobalLoggerGuard>,
+}
+
+impl LoggingSystem {
+    pub(crate) fn new(log: Logger, global_logger_guard: Option<GlobalLoggerGuard>) -> Self {
+        Self { log, global_logger_guard }
+    }
+}
+
+impl Deref for LoggingSystem {
+    type Target = Logger;
+
+    fn deref(&self) -> &Self::Target {
+        &self.log
+    }
+}
+
 /// The actor runtime and common services coordinator
 ///
 /// The `ActorSystem` provides a runtime on which actors are executed.
 /// It also provides common services such as channels, persistence
 /// and scheduling. The `ActorSystem` is the heart of a Riker application,
-/// starting serveral threads when it is created. Create only one instance
+/// starting several threads when it is created. Create only one instance
 /// of `ActorSystem` per application.
 #[allow(dead_code)]
 #[derive(Clone)]
 pub struct ActorSystem {
     proto: Arc<ProtoSystem>,
     sys_actors: Option<SysActors>,
-    log: Logger,
+    log: LoggingSystem,
     debug: bool,
     pub exec: ThreadPool,
     pub timer: TimerRef,
@@ -146,7 +169,7 @@ impl ActorSystem {
     fn create(
         name: &str,
         exec: ThreadPool,
-        log: Logger,
+        log: LoggingSystem,
         cfg: Config,
     ) -> Result<ActorSystem, SystemError> {
         validate_name(name).map_err(|_| SystemError::InvalidName(name.into()))?;
@@ -338,7 +361,7 @@ impl ActorSystem {
     }
 
     #[inline]
-    pub fn log(&self) -> Logger {
+    pub fn log(&self) -> LoggingSystem {
         self.log.clone()
     }
 
