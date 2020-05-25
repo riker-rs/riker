@@ -540,9 +540,12 @@ impl<Msg: Message> ActorRefFactory for Context<Msg> {
     where
         A: ActorFactory,
     {
-        self.system
-            .provider
-            .create_actor(Props::new::<A>(), name, &self.myself().into(), &self.system)
+        self.system.provider.create_actor(
+            Props::new::<A>(),
+            name,
+            &self.myself().into(),
+            &self.system,
+        )
     }
 
     fn actor_of_args<A, Args>(

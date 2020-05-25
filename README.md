@@ -5,6 +5,7 @@
 [![crates.io](https://meritbadge.herokuapp.com/riker)](https://crates.io/crates/riker)
 [![Released API docs](https://docs.rs/riker/badge.svg)](https://docs.rs/riker)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
+[![code style: prettier](https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square)](https://github.com/prettier/prettier)
 
 ## Overview
 
@@ -111,7 +112,7 @@ There are multiple ways to contribute:
 ### pre-commit
 
 [pre-commit](https://pre-commit.com/) used to validate the code during commit as git hook mechanism.
-Please do not skip git hooks as it many fail travis build anyway.  
+Please do not skip git hooks as it many fail travis build anyway.
 
 You can use different 2 approaches to run pre-commit
 

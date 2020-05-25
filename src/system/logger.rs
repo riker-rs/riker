@@ -1,12 +1,12 @@
-use config::Config;
-use slog::{info, Drain, Logger, Never, OwnedKVList, Record, Level, o};
-use std::str::FromStr;
 use crate::actor::{
-    Actor, ActorRef, All, BasicActorRef, ChannelMsg, Context, DeadLetter,
-    Subscribe, Tell, ActorFactoryArgs,
+    Actor, ActorFactoryArgs, ActorRef, All, BasicActorRef, ChannelMsg, Context, DeadLetter,
+    Subscribe, Tell,
 };
-use std::sync::Arc;
 use crate::system::system::LoggingSystem;
+use config::Config;
+use slog::{info, o, Drain, Level, Logger, Never, OwnedKVList, Record};
+use std::str::FromStr;
+use std::sync::Arc;
 
 pub(crate) type GlobalLoggerGuard = Arc<slog_scope::GlobalLoggerGuard>;
 
@@ -16,7 +16,7 @@ pub struct LoggerConfig {
     date_fmt: String,
     log_fmt: String,
     filter: Vec<String>,
-    level: Level
+    level: Level,
 }
 
 impl<'a> From<&'a Config> for LoggerConfig {
@@ -34,7 +34,7 @@ impl<'a> From<&'a Config> for LoggerConfig {
             level: config
                 .get_str("log.level")
                 .map(|l| Level::from_str(&l).unwrap_or(Level::Info))
-                .unwrap_or(Level::Info)
+                .unwrap_or(Level::Info),
         }
     }
 }
@@ -42,17 +42,19 @@ impl<'a> From<&'a Config> for LoggerConfig {
 pub(crate) fn default_log(cfg: &Config) -> LoggingSystem {
     let cfg = LoggerConfig::from(cfg);
 
-    let drain = DefaultConsoleLogger::new(cfg.clone()).filter_level(cfg.level).fuse();
+    let drain = DefaultConsoleLogger::new(cfg.clone())
+        .filter_level(cfg.level)
+        .fuse();
     let logger = Logger::root(drain, o!());
 
     let scope_guard = slog_scope::set_global_logger(logger.clone());
-    let _log_guard = slog_stdlog::init();   // will not call `.unwrap()` because this might be called more than once
+    let _log_guard = slog_stdlog::init(); // will not call `.unwrap()` because this might be called more than once
 
     LoggingSystem::new(logger, Some(Arc::new(scope_guard)))
 }
 
 struct DefaultConsoleLogger {
-    cfg: LoggerConfig
+    cfg: LoggerConfig,
 }
 
 impl DefaultConsoleLogger {
@@ -67,20 +69,21 @@ impl Drain for DefaultConsoleLogger {
 
     fn log(&self, record: &Record, _values: &OwnedKVList) -> Result<Self::Ok, Self::Err> {
         let now = chrono::Utc::now();
-        let filter_match = self.cfg.filter.iter()
-            .any(|f| record.module().contains(f));
+        let filter_match = self.cfg.filter.iter().any(|f| record.module().contains(f));
         if !filter_match {
             // note:
             // println! below has replaced rt_println! from runtime-fmt crate.
             // The log format is fixed as "{date} {time} {level} [{module}] {body}".
             // It's not clear if runtime-fmt is maintained any longer as so we'll
             // attempt to find an alternative to provide configurable formatting.
-            println!("{} {} {} [{}] {}",
-                     now.format(&self.cfg.date_fmt),
-                     now.format(&self.cfg.time_fmt),
-                     record.level().as_short_str(),
-                     record.module(),
-                     record.msg());
+            println!(
+                "{} {} {} [{}] {}",
+                now.format(&self.cfg.date_fmt),
+                now.format(&self.cfg.time_fmt),
+                record.level().as_short_str(),
+                record.module(),
+                record.msg()
+            );
         }
 
         Ok(())
@@ -114,8 +117,9 @@ impl Actor for DeadLetterLogger {
     }
 
     fn recv(&mut self, _: &Context<Self::Msg>, msg: Self::Msg, _: Option<BasicActorRef>) {
-        info!(self.logger, "DeadLetter: {:?} => {:?} ({:?})",
-            msg.sender, msg.recipient, msg.msg
+        info!(
+            self.logger,
+            "DeadLetter: {:?} => {:?} ({:?})", msg.sender, msg.recipient, msg.msg
         )
     }
 }
