@@ -9,9 +9,9 @@ use std::{
 };
 
 use chrono::prelude::*;
+use dashmap::{DashMap, Iter};
 use futures::{future::RemoteHandle, task::SpawnError, Future};
 use uuid::Uuid;
-use dashmap::{DashMap, Iter};
 
 use crate::{
     actor::{props::ActorFactory, *},
@@ -710,8 +710,7 @@ impl Children {
     }
 
     pub fn add(&self, actor: BasicActorRef) {
-        self.actors
-            .insert(actor.name().to_string(), actor);
+        self.actors.insert(actor.name().to_string(), actor);
     }
 
     pub fn remove(&self, actor: &BasicActorRef) {
