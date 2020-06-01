@@ -1,8 +1,7 @@
+use dashmap::DashMap;
 use slog::trace;
-use std::{
-    collections::HashSet,
-    sync::{Arc, Mutex},
-};
+
+use std::sync::{atomic::Ordering, Arc};
 
 use crate::system::system::LoggingSystem;
 use crate::{
@@ -15,24 +14,25 @@ use crate::{
 
 #[derive(Clone)]
 pub struct Provider {
-    inner: Arc<Mutex<ProviderInner>>,
+    inner: Arc<ProviderInner>,
     log: LoggingSystem,
 }
 
 struct ProviderInner {
-    paths: HashSet<ActorPath>,
-    counter: ActorId,
+    counter: AtomicActorId,
+    paths: DashMap<ActorPath, ()>,
 }
 
 impl Provider {
     pub fn new(log: LoggingSystem) -> Self {
         let inner = ProviderInner {
-            paths: HashSet::new(),
-            counter: 100, // ActorIds start at 100
+            // ActorIds start at 100
+            counter: AtomicActorId::new(100),
+            paths: DashMap::new(),
         };
 
         Provider {
-            inner: Arc::new(Mutex::new(inner)),
+            inner: Arc::new(inner),
             log,
         }
     }
@@ -86,25 +86,22 @@ impl Provider {
     }
 
     fn register(&self, path: &ActorPath) -> Result<ActorId, CreateError> {
-        match self.inner.lock() {
-            Ok(mut inner) => {
-                if inner.paths.contains(path) {
-                    return Err(CreateError::AlreadyExists(path.clone()));
-                }
-
-                inner.paths.insert(path.clone());
-                let id = inner.counter;
-                inner.counter += 1;
-
+        if self.inner.paths.contains_key(path) {
+            Err(CreateError::AlreadyExists(path.clone()))
+        } else {
+            let old = self.inner.paths.replace(path.clone(), ());
+            if let Some(old) = old {
+                self.inner.paths.replace(old.key().clone(), ());
+                Err(CreateError::AlreadyExists(path.clone()))
+            } else {
+                let id = self.inner.counter.fetch_add(1, Ordering::SeqCst);
                 Ok(id)
             }
-            Err(_) => Err(CreateError::System),
         }
     }
 
     pub fn unregister(&self, path: &ActorPath) {
-        let mut inner = self.inner.lock().unwrap();
-        inner.paths.remove(path);
+        self.inner.paths.remove(path);
     }
 }
 
