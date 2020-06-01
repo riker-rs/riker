@@ -109,7 +109,7 @@ fn channel_publish_subscribe_all() {
     // On Subscriber's pre_start it will subscribe to all topics on this channel.
     let topic = Topic::from("*");
     let sub = sys
-        .actor_of_args::<Subscriber, _>("sub-actor", (chan.clone(), topic.clone()))
+        .actor_of_args::<Subscriber, _>("sub-actor", (chan.clone(), topic))
         .unwrap();
 
     let (probe, listen) = probe();
