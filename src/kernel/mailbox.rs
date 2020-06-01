@@ -10,8 +10,8 @@ use crate::{
     actor::actor_cell::ExtendedCell,
     actor::*,
     kernel::{
-        kernel::Dock,
         queue::{queue, EnqueueResult, QueueEmpty, QueueReader, QueueWriter},
+        Dock,
     },
     system::ActorCreated,
     system::{ActorSystem, SystemEvent, SystemMsg},

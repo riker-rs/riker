@@ -8,7 +8,7 @@ use crate::system::system::LoggingSystem;
 use crate::{
     actor::actor_cell::{ActorCell, ExtendedCell},
     actor::*,
-    kernel::{kernel::kernel, mailbox::mailbox},
+    kernel::{kernel, mailbox::mailbox},
     system::{system::SysActors, ActorSystem, SystemMsg},
     validate::validate_name,
 };
