@@ -41,8 +41,6 @@ impl Actor for GpsActor {
 }
 
 impl Receive<PowerStatus> for GpsActor {
-    type Msg = GpsActorMsg;
-
     fn receive(&mut self, ctx: &Context<Self::Msg>, msg: PowerStatus, _sender: Sender) {
         println!("{}: -> got msg: {:?}", ctx.myself.name(), msg);
     }
@@ -82,8 +80,6 @@ impl Actor for NavigationActor {
 }
 
 impl Receive<PowerStatus> for NavigationActor {
-    type Msg = NavigationActorMsg;
-
     fn receive(&mut self, ctx: &Context<Self::Msg>, msg: PowerStatus, _sender: Sender) {
         println!("{}: -> got msg: {:?}", ctx.myself.name(), msg);
     }

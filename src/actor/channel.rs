@@ -74,8 +74,6 @@ impl<Msg> Receive<ChannelMsg<Msg>> for Channel<Msg>
 where
     Msg: Message,
 {
-    type Msg = ChannelMsg<Msg>;
-
     fn receive(&mut self, ctx: &ChannelCtx<Msg>, msg: Self::Msg, sender: Sender) {
         match msg {
             ChannelMsg::Publish(p) => self.receive(ctx, p, sender),
@@ -90,8 +88,6 @@ impl<Msg> Receive<Subscribe<Msg>> for Channel<Msg>
 where
     Msg: Message,
 {
-    type Msg = ChannelMsg<Msg>;
-
     fn receive(&mut self, ctx: &ChannelCtx<Msg>, msg: Subscribe<Msg>, sender: Sender) {
         let subs = self.subs.entry(msg.topic).or_default();
         subs.push(msg.actor);
@@ -102,8 +98,6 @@ impl<Msg> Receive<Unsubscribe<Msg>> for Channel<Msg>
 where
     Msg: Message,
 {
-    type Msg = ChannelMsg<Msg>;
-
     fn receive(&mut self, ctx: &ChannelCtx<Msg>, msg: Unsubscribe<Msg>, sender: Sender) {
         unsubscribe(&mut self.subs, &msg.topic, &msg.actor);
     }
@@ -113,8 +107,6 @@ impl<Msg> Receive<UnsubscribeAll<Msg>> for Channel<Msg>
 where
     Msg: Message,
 {
-    type Msg = ChannelMsg<Msg>;
-
     fn receive(&mut self, ctx: &ChannelCtx<Msg>, msg: UnsubscribeAll<Msg>, sender: Sender) {
         let subs = self.subs.clone();
 
@@ -128,8 +120,6 @@ impl<Msg> Receive<Publish<Msg>> for Channel<Msg>
 where
     Msg: Message,
 {
-    type Msg = ChannelMsg<Msg>;
-
     fn receive(&mut self, ctx: &ChannelCtx<Msg>, msg: Publish<Msg>, sender: Sender) {
         // send system event to actors subscribed to all topics
         if let Some(subs) = self.subs.get(&All.into()) {
@@ -187,8 +177,6 @@ impl Actor for EventsChannel {
 }
 
 impl Receive<ChannelMsg<SystemEvent>> for EventsChannel {
-    type Msg = ChannelMsg<SystemEvent>;
-
     fn receive(&mut self, ctx: &ChannelCtx<SystemEvent>, msg: Self::Msg, sender: Sender) {
         // Publish variant uses specialized EventsChannel Receive
         // All other variants use the wrapped Channel (self.0) Receive(s)
@@ -202,8 +190,6 @@ impl Receive<ChannelMsg<SystemEvent>> for EventsChannel {
 }
 
 impl Receive<Publish<SystemEvent>> for EventsChannel {
-    type Msg = ChannelMsg<SystemEvent>;
-
     fn receive(
         &mut self,
         ctx: &ChannelCtx<SystemEvent>,

@@ -38,8 +38,6 @@ impl Actor for PanicActor {
 }
 
 impl Receive<Panic> for PanicActor {
-    type Msg = PanicActorMsg;
-
     fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: Panic, _sender: Sender) {
         panic!("// TEST PANIC // TEST PANIC // TEST PANIC //");
     }

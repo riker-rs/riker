@@ -38,8 +38,6 @@ impl Actor for PanicActor {
 }
 
 impl Receive<Panic> for PanicActor {
-    type Msg = PanicActorMsg;
-
     fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: Panic, _sender: Sender) {
         panic!("// TEST PANIC // TEST PANIC // TEST PANIC //");
     }
@@ -69,8 +67,6 @@ impl Actor for RestartSup {
 }
 
 impl Receive<Panic> for RestartSup {
-    type Msg = RestartSupMsg;
-
     fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: Panic, _sender: Sender) {
         self.actor_to_fail.as_ref().unwrap().tell(Panic, None);
     }

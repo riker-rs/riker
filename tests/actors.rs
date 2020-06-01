@@ -29,16 +29,12 @@ impl Actor for Counter {
 }
 
 impl Receive<TestProbe> for Counter {
-    type Msg = CounterMsg;
-
     fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: TestProbe, _sender: Sender) {
         self.probe = Some(msg)
     }
 }
 
 impl Receive<Add> for Counter {
-    type Msg = CounterMsg;
-
     fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: Add, _sender: Sender) {
         self.count += 1;
         if self.count == 1_000_000 {

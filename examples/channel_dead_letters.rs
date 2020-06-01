@@ -19,8 +19,6 @@ impl Actor for DumbActor {
 }
 
 impl Receive<SomeMessage> for DumbActor {
-    type Msg = DumbActorMsg;
-
     fn receive(&mut self, ctx: &Context<Self::Msg>, msg: SomeMessage, _sender: Sender) {
         println!("{}: -> got msg: {:?} ", ctx.myself.name(), msg);
     }
@@ -55,8 +53,6 @@ impl Actor for DeadLetterActor {
 }
 
 impl Receive<DeadLetter> for DeadLetterActor {
-    type Msg = DeadLetterActorMsg;
-
     fn receive(&mut self, ctx: &Context<Self::Msg>, msg: DeadLetter, _sender: Sender) {
         println!("{}: -> got msg: {:?} ", ctx.myself.name(), msg);
     }

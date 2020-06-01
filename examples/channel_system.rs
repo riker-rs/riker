@@ -19,8 +19,6 @@ impl Actor for DumbActor {
 }
 
 impl Receive<Panic> for DumbActor {
-    type Msg = DumbActorMsg;
-
     fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: Panic, _sender: Sender) {
         panic!("// TEST PANIC // TEST PANIC // TEST PANIC //");
     }
@@ -65,8 +63,6 @@ impl Actor for SystemActor {
 }
 
 impl Receive<SystemEvent> for SystemActor {
-    type Msg = SystemActorMsg;
-
     fn receive(&mut self, ctx: &Context<Self::Msg>, msg: SystemEvent, _sender: Sender) {
         print!("{}: -> got system msg: {:?} ", ctx.myself.name(), msg);
         match msg {

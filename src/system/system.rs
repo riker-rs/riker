@@ -818,8 +818,6 @@ impl Actor for ShutdownActor {
 }
 
 impl Receive<ActorTerminated> for ShutdownActor {
-    type Msg = SystemEvent;
-
     fn receive(
         &mut self,
         ctx: &Context<Self::Msg>,

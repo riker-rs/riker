@@ -50,8 +50,6 @@ impl Actor for Subscriber {
 }
 
 impl Receive<TestProbe> for Subscriber {
-    type Msg = SubscriberMsg;
-
     fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: TestProbe, _sender: Sender) {
         msg.0.event(());
         self.probe = Some(msg);
@@ -59,8 +57,6 @@ impl Receive<TestProbe> for Subscriber {
 }
 
 impl Receive<SomeMessage> for Subscriber {
-    type Msg = SubscriberMsg;
-
     fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: SomeMessage, _sender: Sender) {
         self.probe.as_ref().unwrap().0.event(());
     }
@@ -167,16 +163,12 @@ impl Actor for DumbActor {
 }
 
 impl Receive<Panic> for DumbActor {
-    type Msg = DumbActorMsg;
-
     fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: Panic, _sender: Sender) {
         panic!("// TEST PANIC // TEST PANIC // TEST PANIC //");
     }
 }
 
 impl Receive<SomeMessage> for DumbActor {
-    type Msg = DumbActorMsg;
-
     fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: SomeMessage, _sender: Sender) {
 
         // Intentionally left blank
@@ -222,8 +214,6 @@ impl Actor for EventSubscriber {
 }
 
 impl Receive<TestProbe> for EventSubscriber {
-    type Msg = EventSubscriberMsg;
-
     fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: TestProbe, _sender: Sender) {
         msg.0.event(());
         self.probe = Some(msg);
@@ -231,8 +221,6 @@ impl Receive<TestProbe> for EventSubscriber {
 }
 
 impl Receive<SystemEvent> for EventSubscriber {
-    type Msg = EventSubscriberMsg;
-
     fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: SystemEvent, _sender: Sender) {
         match msg {
             SystemEvent::ActorCreated(created) => {
@@ -311,8 +299,6 @@ impl Actor for DeadLetterSub {
 }
 
 impl Receive<TestProbe> for DeadLetterSub {
-    type Msg = DeadLetterSubMsg;
-
     fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: TestProbe, _sender: Sender) {
         msg.0.event(());
         self.probe = Some(msg);
@@ -320,8 +306,6 @@ impl Receive<TestProbe> for DeadLetterSub {
 }
 
 impl Receive<DeadLetter> for DeadLetterSub {
-    type Msg = DeadLetterSubMsg;
-
     fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: DeadLetter, _sender: Sender) {
         self.probe.as_ref().unwrap().0.event(());
     }
