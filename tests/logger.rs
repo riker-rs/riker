@@ -1,6 +1,5 @@
 use futures::executor::block_on;
 
-use log;
 use riker::actors::*;
 use slog::{o, Fuse, Logger};
 
