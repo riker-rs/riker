@@ -4,12 +4,12 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use crate::system::system::LoggingSystem;
+use crate::system::LoggingSystem;
 use crate::{
     actor::actor_cell::{ActorCell, ExtendedCell},
     actor::*,
     kernel::{kernel, mailbox::mailbox},
-    system::{system::SysActors, ActorSystem, SystemMsg},
+    system::{ActorSystem, SysActors, SystemMsg},
     validate::validate_name,
 };
 
