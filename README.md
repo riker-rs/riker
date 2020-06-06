@@ -111,10 +111,10 @@ There are multiple ways to contribute:
 
 ### pre-commit
 
-[pre-commit](https://pre-commit.com/) used to validate the code during commit as git hook mechanism.
-Please do not skip git hooks as it many fail travis build anyway.
+Before you commit your code [pre-commit](https://pre-commit.com/) integrates as a git hook to automatically check your code.
+Please don't skip git hooks (even if you do TravisCI will automatically fail).
 
-You can use different 2 approaches to run pre-commit
+There are two different approaches you can use to run pre-commit
 
 #### direct approach
 
