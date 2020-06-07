@@ -1,0 +1,18 @@
+{
+  "name": "riker",
+  "private": true,
+  "scripts": {
+    "lint": "nopenv pre-commit run -a",
+    "test": "cargo test",
+    "install": "npip install"
+  },
+  "devDependencies": {
+    "nopy": "^0.2.7"
+  },
+  "python": {
+    "execPath": "python3",
+    "dependencies": {
+      "pre-commit": ">=2.0"
+    }
+  }
+}

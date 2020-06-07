@@ -1,9 +1,6 @@
 #![allow(unused_variables)]
 
-use std::{
-    collections::HashMap,
-    hash::Hash,
-};
+use std::{collections::HashMap, hash::Hash};
 
 use crate::{
     actor::{

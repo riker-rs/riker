@@ -1,7 +1,8 @@
 use futures::executor::block_on;
 
+use log;
 use riker::actors::*;
-use slog::{Logger, Fuse, o};
+use slog::{o, Fuse, Logger};
 
 mod common {
     use std::{fmt, result};
@@ -28,7 +29,6 @@ mod common {
             record: &Record,
             values: &OwnedKVList,
         ) -> result::Result<Self::Ok, Self::Err> {
-
             print!("{}", record.msg());
 
             record
@@ -45,9 +45,18 @@ mod common {
 
 #[test]
 fn system_create_with_slog() {
-    let log = Logger::root(Fuse(common::PrintlnDrain), o!("version" => "v1", "run_env" => "test"));
-    let sys = SystemBuilder::new()
-        .log(log)
-        .create().unwrap();
+    let log = Logger::root(
+        Fuse(common::PrintlnDrain),
+        o!("version" => "v1", "run_env" => "test"),
+    );
+    let sys = SystemBuilder::new().log(log).create().unwrap();
     block_on(sys.shutdown()).unwrap();
+}
+
+// a test that logging without slog using "log" crate works
+#[test]
+fn logging_stdlog() {
+    log::info!("before the system");
+    let _sys = ActorSystem::new().unwrap();
+    log::info!("system exists");
 }
