@@ -1,6 +1,5 @@
 use std::{
     fmt,
-    ops::Deref,
     sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
@@ -238,24 +237,24 @@ impl ActorSystem {
     }
 
     pub fn print_tree(&self) {
-        fn print_node(sys: &ActorSystem, node: BasicActorRef, indent: &str) {
+        fn print_node(sys: &ActorSystem, node: &BasicActorRef, indent: &str) {
             if node.is_root() {
                 println!("{}", sys.name());
 
                 for actor in node.children() {
-                    print_node(sys, actor, "");
+                    print_node(sys, &actor, "");
                 }
             } else {
                 println!("{}└─ {}", indent, node.name());
 
                 for actor in node.children() {
-                    print_node(sys, actor, &(indent.to_string() + "   "));
+                    print_node(sys, &actor, &(indent.to_string() + "   "));
                 }
             }
         }
 
-        let root = self.sys_actors.as_ref().unwrap().root.clone();
-        print_node(self, root, "");
+        let root = &self.sys_actors.as_ref().unwrap().root;
+        print_node(self, &root, "");
     }
 
     /// Returns the system root's actor reference
@@ -295,8 +294,8 @@ impl ActorSystem {
     }
 
     /// Returns the `Config` used by the system
-    pub fn config(&self) -> Config {
-        self.proto.config.clone()
+    pub fn config(&self) -> &Config {
+        &self.proto.config
     }
 
     pub(crate) fn sys_settings(&self) -> &SystemSettings {
@@ -481,7 +480,7 @@ impl ActorSelectionFactory for ActorSystem {
         let anchor = self.user_root();
         let (anchor, path_str) = if path.starts_with('/') {
             let anchor = self.user_root();
-            let anchor_path = format!("{}/", anchor.path().deref().clone());
+            let anchor_path = format!("{}/", anchor.path());
             let path = path.to_string().replace(&anchor_path, "");
 
             (anchor, path)
@@ -512,8 +511,7 @@ impl Run for ActorSystem {
         Fut: Future + Send + 'static,
         <Fut as Future>::Output: Send,
     {
-        let exec = self.exec.clone();
-        exec.spawn_with_handle(future)
+        self.exec.spawn_with_handle(future)
     }
 }
 

@@ -182,36 +182,36 @@ where
     (sender, sys_sender, mailbox)
 }
 
-pub fn run_mailbox<A>(mbox: Mailbox<A::Msg>, ctx: Context<A::Msg>, mut dock: Dock<A>)
+pub fn run_mailbox<A>(mbox: &Mailbox<A::Msg>, ctx: Context<A::Msg>, dock: &mut Dock<A>)
 where
     A: Actor,
 {
-    let _sen = Sentinel {
+    let sen = Sentinel {
         actor: ctx.myself().into(),
         parent: ctx.myself().parent(),
-        mbox: mbox.clone(),
+        mbox,
     };
 
     let mut actor = dock.actor.lock().unwrap().take();
     let cell = &mut dock.cell;
 
-    process_sys_msgs(&mbox, &ctx, cell, &mut actor);
+    process_sys_msgs(&sen.mbox, &ctx, cell, &mut actor);
 
-    if actor.is_some() && !mbox.is_suspended() {
-        process_msgs(&mbox, &ctx, cell, &mut actor);
+    if actor.is_some() && !sen.mbox.is_suspended() {
+        process_msgs(&sen.mbox, &ctx, cell, &mut actor);
     }
 
-    process_sys_msgs(&mbox, &ctx, cell, &mut actor);
+    process_sys_msgs(&sen.mbox, &ctx, cell, &mut actor);
 
     if actor.is_some() {
         let mut a = dock.actor.lock().unwrap();
         *a = actor;
     }
 
-    mbox.set_scheduled(false);
+    sen.mbox.set_scheduled(false);
 
-    let has_msgs = mbox.has_msgs() || mbox.has_sys_msgs();
-    if has_msgs && !mbox.is_scheduled() {
+    let has_msgs = sen.mbox.has_msgs() || sen.mbox.has_sys_msgs();
+    if has_msgs && !sen.mbox.is_scheduled() {
         ctx.kernel.schedule(&ctx.system);
     }
 }
@@ -263,7 +263,7 @@ fn process_sys_msgs<A>(
         sys_msgs.push(sys_msg);
     }
 
-    for msg in sys_msgs.into_iter() {
+    for msg in sys_msgs {
         match msg.msg {
             SystemMsg::ActorInit => handle_init(mbox, ctx, cell, actor),
             SystemMsg::Command(cmd) => cell.receive_cmd(cmd, actor),
@@ -327,13 +327,13 @@ fn handle_evt<A>(
     }
 }
 
-struct Sentinel<Msg: Message> {
+struct Sentinel<'a, Msg: Message> {
     parent: BasicActorRef,
     actor: BasicActorRef,
-    mbox: Mailbox<Msg>,
+    mbox: &'a Mailbox<Msg>,
 }
 
-impl<Msg> Drop for Sentinel<Msg>
+impl<'a, Msg> Drop for Sentinel<'a, Msg>
 where
     Msg: Message,
 {

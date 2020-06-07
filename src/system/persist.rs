@@ -39,8 +39,9 @@ impl<Evs: EventStore> Actor for EsManager<Evs> {
         if let ActorMsg::ES(msg) = msg {
             match msg {
                 ESMsg::Persist(evt, id, keyspace, og_sender) => {
-                    self.es.insert(&id, &keyspace, evt.clone());
-                    sender.unwrap().sys_tell(SystemMsg::Persisted(evt.msg, og_sender), None);
+                    let m = evt.msg;
+                    self.es.insert(&id, &keyspace, evt);
+                    sender.unwrap().sys_tell(SystemMsg::Persisted(m, og_sender), None);
                 }
                 ESMsg::Load(id, keyspace) => {
                     let result = self.es.load(&id, &keyspace);
@@ -95,7 +96,7 @@ impl<Msg: Message> EventStore for NoEventStore<Msg> {
 
     fn insert(&mut self, _: &String, _: &String, _: Evt<Msg>) {
         warn!("No event store configured");
-        
+
     }
 
     fn load(&self, _: &String, _: &String) -> Vec<Msg> {
@@ -137,14 +138,14 @@ impl<Msg: Message> Actor for EsQueryActor<Msg> {
     }
 
     fn receive(&mut self, _: &Context<Msg>, _: Msg, _: Option<ActorRef<Msg>>) {
-        
+
     }
 }
 
 // type QueryFuture<Msg> = Pin<Box<dyn Future<Output=Result<Vec<Msg>, Canceled>> + Send>>;
 
-pub fn query<Msg, Ctx>(id: &String,
-                        keyspace: &String,
+pub fn query<Msg, Ctx>(id: String,
+                        keyspace: String,
                         es: &ActorRef<Msg>,
                         ctx: &Ctx,
                         rec: ActorRef<Msg>)
@@ -152,5 +153,5 @@ pub fn query<Msg, Ctx>(id: &String,
 {
     let props = Props::new_args(EsQueryActor::actor, rec);
     let actor = ctx.tmp_actor_of(props).unwrap();
-    es.tell(ESMsg::Load(id.clone(), keyspace.clone()), Some(actor));
+    es.tell(ESMsg::Load(id, keyspace), Some(actor));
 }

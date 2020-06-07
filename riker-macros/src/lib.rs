@@ -38,7 +38,7 @@ impl Parse for MsgTypes {
         // caused "missing extern crate token" compile error
         // let vars = Punctuated::<Ident, Token![,]>::parse_terminated(input)?;
         let vars = Punctuated::<Ident, syn::token::Comma>::parse_terminated(input)?;
-        
+
         Ok(MsgTypes {
             types: vars.into_iter().map(|t| {
                 MsgVariant {
@@ -52,7 +52,7 @@ impl Parse for MsgTypes {
 
 fn get_name(ident: &Ident) -> Ident {
     let mut vname = format!("{}", ident.clone());
-    
+
     if let Some(c) = vname.get_mut(0..1) {
         c.make_ascii_uppercase();
     }
@@ -64,7 +64,7 @@ fn get_name(ident: &Ident) -> Ident {
 pub fn actor(attr: proc_macro::TokenStream,
                 input: proc_macro::TokenStream)
                 -> proc_macro::TokenStream {
-                    
+
     let i = input.clone();
     let ast = syn::parse_macro_input!(i as DeriveInput);
 
@@ -72,7 +72,7 @@ pub fn actor(attr: proc_macro::TokenStream,
     let name = syn::Ident::new(&name, ast.ident.span());
     let types = syn::parse_macro_input!(attr as MsgTypes);
 
-    let menum = types.enum_stream(&name); 
+    let menum = types.enum_stream(&name);
     let intos = intos(&name, &types);
     let rec = receive(&ast.ident, &name, &types);
 
@@ -81,7 +81,7 @@ pub fn actor(attr: proc_macro::TokenStream,
         #input
         #menum
         #intos
-        
+
         #rec
     };
 
@@ -116,7 +116,7 @@ fn receive(aname: &Ident,
                         sender: Option<BasicActorRef>) {
                 match msg {
                     #(#vars)*
-                }                
+                }
             }
         }
     }

@@ -115,7 +115,7 @@ impl ActorCell {
     }
 
     pub(crate) fn children<'a>(&'a self) -> Box<dyn Iterator<Item = BasicActorRef> + 'a> {
-        Box::new(self.inner.children.iter().clone())
+        Box::new(self.inner.children.iter())
     }
 
     pub(crate) fn user_root(&self) -> BasicActorRef {
@@ -152,7 +152,7 @@ impl ActorCell {
         self.inner.children.iter().any(|child| child == *actor)
     }
 
-    pub(crate) fn stop(&self, actor: BasicActorRef) {
+    pub(crate) fn stop(&self, actor: &BasicActorRef) {
         actor.sys_tell(SystemCmd::Stop.into());
     }
 
@@ -194,8 +194,8 @@ impl ActorCell {
             self.kernel().terminate(&self.inner.system);
             post_stop(actor);
         } else {
-            for child in Box::new(self.inner.children.iter().clone()) {
-                self.stop(child.clone());
+            for child in self.inner.children.iter() {
+                self.stop(&child);
             }
         }
     }
@@ -205,8 +205,8 @@ impl ActorCell {
             self.kernel().restart(&self.inner.system);
         } else {
             self.inner.is_restarting.store(true, Ordering::Relaxed);
-            for child in Box::new(self.inner.children.iter().clone()) {
-                self.stop(child.clone());
+            for child in self.inner.children.iter() {
+                self.stop(&child);
             }
         }
     }
@@ -233,13 +233,13 @@ impl ActorCell {
 
     pub fn handle_failure(&self, failed: BasicActorRef, strategy: Strategy) {
         match strategy {
-            Strategy::Stop => self.stop(failed),
-            Strategy::Restart => self.restart_child(failed),
+            Strategy::Stop => self.stop(&failed),
+            Strategy::Restart => self.restart_child(&failed),
             Strategy::Escalate => self.escalate_failure(),
         }
     }
 
-    pub fn restart_child(&self, actor: BasicActorRef) {
+    pub fn restart_child(&self, actor: &BasicActorRef) {
         actor.sys_tell(SystemCmd::Restart.into());
     }
 
@@ -574,7 +574,7 @@ where
     fn select(&self, path: &str) -> Result<ActorSelection, InvalidPath> {
         let (anchor, path_str) = if path.starts_with('/') {
             let anchor = self.system.user_root().clone();
-            let anchor_path = format!("{}/", anchor.path().deref().clone());
+            let anchor_path = format!("{}/", anchor.path());
             let path = path.to_string().replace(&anchor_path, "");
 
             (anchor, path)

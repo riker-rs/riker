@@ -36,8 +36,7 @@ impl KernelRef {
 
     fn send(&self, msg: KernelMsg, sys: &ActorSystem) {
         let mut tx = self.tx.clone();
-        let exec = sys.exec.clone();
-        exec.spawn(async move {
+        sys.exec.spawn(async move {
             drop(tx.send(msg).await);
         })
         .unwrap();
