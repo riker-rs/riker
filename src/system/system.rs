@@ -1,5 +1,6 @@
 use std::{
     fmt,
+    ops::Deref,
     sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
