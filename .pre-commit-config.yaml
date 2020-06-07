@@ -1,0 +1,14 @@
+files: "^(riker-macros/.*|config/.*|src/.*|tests/.*|examples/.*|[^/]*)$"
+repos:
+  - repo: https://github.com/doublify/pre-commit-rust
+    rev: 55f347186aec7f2a4ec13c31effdb4b26512f2bc
+    hooks:
+      - id: cargo-check
+        name: cargo check https://doc.rust-lang.org/cargo/commands/cargo-check.html .
+      - id: fmt
+        name: rustfmt https://github.com/rust-lang/rustfmt/blob/master/README.md .
+  - repo: https://github.com/prettier/prettier.git
+    rev: 2.0.5
+    hooks:
+      - id: prettier
+        name: prettier https://prettier.io/docs/en/ .

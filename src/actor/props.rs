@@ -115,7 +115,10 @@ impl Props {
     /// let actor = sys.actor_of_props("bank_account", props).unwrap();
     /// ```
     #[inline]
-    pub fn new_from_args<A, Args, F>(creator: F, args: Args) -> Arc<Mutex<impl ActorProducer<Actor = A>>>
+    pub fn new_from_args<A, Args, F>(
+        creator: F,
+        args: Args,
+    ) -> Arc<Mutex<impl ActorProducer<Actor = A>>>
     where
         A: Actor + Send + 'static,
         Args: ActorArgs,
@@ -180,7 +183,6 @@ impl Props {
     {
         Self::new_from(A::create)
     }
-
 
     /// Creates an `ActorProducer` from a type which implements ActorFactoryArgs with one or more factory method parameters.
     ///

@@ -4,6 +4,8 @@
 [![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 [![crates.io](https://meritbadge.herokuapp.com/riker)](https://crates.io/crates/riker)
 [![Released API docs](https://docs.rs/riker/badge.svg)](https://docs.rs/riker)
+[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
+[![code style: prettier](https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square)](https://github.com/prettier/prettier)
 
 ## Overview
 
@@ -107,4 +109,27 @@ There are multiple ways to contribute:
 - Additions to Riker code base. Whether small or big, your Pull Request could make a difference.
 - Patterns, data storage and other supporting crates. We are happy to link to and provide full credit to external projects that provide support for databases in Riker's event storage model or implementations of common actor patterns.
 
+### pre-commit
 
+[pre-commit](https://pre-commit.com/) used to validate the code during commit as git hook mechanism.
+Please do not skip git hooks as it many fail travis build anyway.
+
+You can use different 2 approaches to run pre-commit
+
+#### direct approach
+
+```bash
+pre-commit run -a
+```
+
+#### with yarn or npm
+
+```bash
+yarn
+yarn lint
+```
+
+```bash
+npm run install
+npn run lint
+```

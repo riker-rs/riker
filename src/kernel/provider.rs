@@ -4,6 +4,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use crate::system::system::LoggingSystem;
 use crate::{
     actor::actor_cell::{ActorCell, ExtendedCell},
     actor::*,
@@ -11,12 +12,11 @@ use crate::{
     system::{system::SysActors, ActorSystem, SystemMsg},
     validate::validate_name,
 };
-use slog::Logger;
 
 #[derive(Clone)]
 pub struct Provider {
     inner: Arc<Mutex<ProviderInner>>,
-    log: Logger,
+    log: LoggingSystem,
 }
 
 struct ProviderInner {
@@ -25,7 +25,7 @@ struct ProviderInner {
 }
 
 impl Provider {
-    pub fn new(log: Logger) -> Self {
+    pub fn new(log: LoggingSystem) -> Self {
         let inner = ProviderInner {
             paths: HashSet::new(),
             counter: 100, // ActorIds start at 100
@@ -151,7 +151,8 @@ fn root(sys: &ActorSystem) -> BasicActorRef {
     let bigbang = BasicActorRef::new(bb_cell);
 
     // root
-    let props: BoxActorProd<Guardian> = Props::new_args::<Guardian, _>(("root".to_string(), sys.log()));
+    let props: BoxActorProd<Guardian> =
+        Props::new_args::<Guardian, _>(("root".to_string(), sys.log()));
     let (sender, sys_sender, mb) = mailbox::<SystemMsg>(100);
 
     let cell = ExtendedCell::new(
@@ -186,7 +187,8 @@ fn guardian(
         host: Arc::new("localhost".to_string()),
     };
 
-    let props: BoxActorProd<Guardian> = Props::new_args::<Guardian, _>((name.to_string(), sys.log()));
+    let props: BoxActorProd<Guardian> =
+        Props::new_args::<Guardian, _>((name.to_string(), sys.log()));
     let (sender, sys_sender, mb) = mailbox::<SystemMsg>(100);
 
     let cell = ExtendedCell::new(
@@ -211,11 +213,11 @@ fn guardian(
 
 struct Guardian {
     name: String,
-    log: Logger,
+    log: LoggingSystem,
 }
 
-impl ActorFactoryArgs<(String, Logger)> for Guardian {
-    fn create_args((name, log): (String, Logger)) -> Self {
+impl ActorFactoryArgs<(String, LoggingSystem)> for Guardian {
+    fn create_args((name, log): (String, LoggingSystem)) -> Self {
         Guardian { name, log }
     }
 }

@@ -66,7 +66,7 @@ where
                         kernel: akr.clone(),
                     };
 
-                    let _ = std::panic::catch_unwind(AssertUnwindSafe(|| run_mailbox(&mailbox, ctx, &mut dock))); //.unwrap();
+                    let _ = std::panic::catch_unwind(AssertUnwindSafe(|| run_mailbox(&mailbox, ctx, &mut dock)));
                 }
                 KernelMsg::RestartActor => {
                     restart_actor(&dock, actor_ref.clone().into(), &props, &asys);
