@@ -108,8 +108,6 @@ fn receive(aname: &Ident, name: &Ident, types: &MsgTypes) -> TokenStream {
     });
     quote! {
         impl Receive<#name> for #aname {
-            type Msg = #name;
-
             fn receive(&mut self,
                         ctx: &Context<Self::Msg>,
                         msg: #name,
