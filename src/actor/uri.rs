@@ -1,9 +1,10 @@
 use std::{
     fmt,
     hash::{Hash, Hasher},
-    sync::Arc,
+    sync::{atomic::AtomicUsize, Arc},
 };
 
+pub type AtomicActorId = AtomicUsize;
 pub type ActorId = usize;
 pub struct ActorPath(Arc<String>);
 
