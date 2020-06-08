@@ -1,15 +1,15 @@
 use std::{
-    collections::HashMap,
     fmt,
     ops::Deref,
     sync::{
         atomic::{AtomicBool, AtomicUsize, Ordering},
-        Arc, RwLock,
+        Arc,
     },
     time::{Duration, Instant},
 };
 
 use chrono::prelude::*;
+use dashmap::{DashMap, Iter};
 use futures::{future::RemoteHandle, task::SpawnError, Future};
 use uuid::Uuid;
 
@@ -115,7 +115,7 @@ impl ActorCell {
     }
 
     pub(crate) fn children<'a>(&'a self) -> Box<dyn Iterator<Item = BasicActorRef> + 'a> {
-        Box::new(self.inner.children.iter().clone())
+        Box::new(self.inner.children.iter())
     }
 
     pub(crate) fn user_root(&self) -> BasicActorRef {
@@ -194,7 +194,7 @@ impl ActorCell {
             self.kernel().terminate(&self.inner.system);
             post_stop(actor);
         } else {
-            for child in Box::new(self.inner.children.iter().clone()) {
+            for child in self.inner.children.iter() {
                 self.stop(child.clone());
             }
         }
@@ -205,7 +205,7 @@ impl ActorCell {
             self.kernel().restart(&self.inner.system);
         } else {
             self.inner.is_restarting.store(true, Ordering::Relaxed);
-            for child in Box::new(self.inner.children.iter().clone()) {
+            for child in self.inner.children.iter() {
                 self.stop(child.clone());
             }
         }
@@ -699,52 +699,43 @@ where
 
 #[derive(Clone)]
 pub struct Children {
-    actors: Arc<RwLock<HashMap<String, BasicActorRef>>>,
+    actors: Arc<DashMap<String, BasicActorRef>>,
 }
 
 impl Children {
     pub fn new() -> Children {
         Children {
-            actors: Arc::new(RwLock::new(HashMap::new())),
+            actors: Arc::new(DashMap::new()),
         }
     }
 
     pub fn add(&self, actor: BasicActorRef) {
-        self.actors
-            .write()
-            .unwrap()
-            .insert(actor.name().to_string(), actor);
+        self.actors.insert(actor.name().to_string(), actor);
     }
 
     pub fn remove(&self, actor: &BasicActorRef) {
-        self.actors.write().unwrap().remove(actor.name());
+        self.actors.remove(actor.name());
     }
 
     pub fn len(&self) -> usize {
-        self.actors.read().unwrap().len()
+        self.actors.len()
     }
 
     pub fn iter(&self) -> ChildrenIterator {
         ChildrenIterator {
-            children: self,
-            position: 0,
+            children: self.actors.iter(),
         }
     }
 }
 
-#[derive(Clone)]
-pub struct ChildrenIterator<'a> {
-    children: &'a Children,
-    position: usize,
+pub struct ChildrenIterator {
+    children: Iter<String, BasicActorRef>,
 }
 
-impl<'a> Iterator for ChildrenIterator<'a> {
+impl Iterator for ChildrenIterator {
     type Item = BasicActorRef;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let actors = self.children.actors.read().unwrap();
-        let actor = actors.values().nth(self.position);
-        self.position += 1;
-        actor.cloned()
+        self.children.next().map(|e| e.value().clone())
     }
 }
