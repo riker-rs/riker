@@ -132,12 +132,12 @@ impl BasicTimer {
             .partition(|j| Instant::now() >= j.send_at);
 
         // send those messages where the 'send_at' time has been reached or elapsed
-        for job in send.into_iter() {
+        for job in send {
             job.send();
         }
 
         // for those messages that are not to be sent yet, just put them back on the vec
-        for job in keep.into_iter() {
+        for job in keep {
             self.once_jobs.push(job);
         }
     }

@@ -109,10 +109,10 @@ pub fn create_root(sys: &ActorSystem) -> SysActors {
     let root = root(sys);
 
     SysActors {
-        root: root.clone(),
         user: guardian(1, "user", "/user", &root, sys),
         sysm: guardian(2, "system", "/system", &root, sys),
         temp: guardian(3, "temp", "/temp", &root, sys),
+        root,
     }
 }
 

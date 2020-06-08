@@ -44,13 +44,12 @@ where
     let (tx, mut rx) = channel::<KernelMsg>(1000); // todo config?
     let kr = KernelRef { tx };
 
-    let sys = sys.clone();
     let mut asys = sys.clone();
     let akr = kr.clone();
     let actor = start_actor(&props)?;
     let cell = cell.init(&kr);
 
-    let dock = Dock {
+    let mut dock = Dock {
         actor: Arc::new(Mutex::new(Some(actor))),
         cell: cell.clone(),
     };
@@ -67,11 +66,9 @@ where
                         kernel: akr.clone(),
                     };
 
-                    let mb = mailbox.clone();
-                    let d = dock.clone();
-
-                    let _ = std::panic::catch_unwind(AssertUnwindSafe(|| run_mailbox(mb, ctx, d)));
-                    //.unwrap();
+                    let _ = std::panic::catch_unwind(AssertUnwindSafe(|| {
+                        run_mailbox(&mailbox, ctx, &mut dock)
+                    })); //.unwrap();
                 }
                 KernelMsg::RestartActor => {
                     restart_actor(&dock, actor_ref.clone().into(), &props, &asys);

@@ -133,7 +133,7 @@ impl Actor for SelectTest2 {
         let sel = ctx.select("/user/select-actor/child_a").unwrap();
         sel.try_tell(msg.clone(), None);
 
-        // // absolute all: /user/select-actor/*
+        // absolute all: /user/select-actor/*
         let sel = ctx.select("/user/select-actor/*").unwrap();
         sel.try_tell(msg.clone(), None);
 
