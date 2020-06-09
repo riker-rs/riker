@@ -1,3 +1,18 @@
+pub(crate) mod kernel_ref;
+pub(crate) mod mailbox;
+pub(crate) mod provider;
+pub(crate) mod queue;
+
+use crate::system::ActorSystem;
+
+#[allow(dead_code)]
+#[derive(Debug)]
+pub enum KernelMsg {
+    TerminateActor,
+    RestartActor,
+    RunActor,
+    Sys(ActorSystem),
+}
 use std::{
     panic::{catch_unwind, AssertUnwindSafe},
     sync::{Arc, Mutex},
@@ -12,9 +27,8 @@ use crate::{
     kernel::{
         kernel_ref::KernelRef,
         mailbox::{flush_to_deadletters, run_mailbox, Mailbox},
-        KernelMsg,
     },
-    system::{ActorRestarted, ActorSystem, ActorTerminated, SystemMsg},
+    system::{ActorRestarted, ActorTerminated, SystemMsg},
     Message,
 };
 
