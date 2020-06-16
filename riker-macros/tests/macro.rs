@@ -10,7 +10,6 @@ fn impls_test() {
     let _actor = ActorRef::<NewActorMsg> { x: PhantomData };
 }
 
-
 #[actor(String, u32)]
 #[derive(Clone, Default)]
 struct NewActor;
@@ -67,7 +66,12 @@ trait Actor: Send + 'static {
 
     fn sys_receive(&mut self, _msg: Self::Msg) {}
 
-    fn handle(&mut self, _ctx: &Context<Self::Msg>, _msg: Self::Msg, _sender: Option<BasicActorRef>);
+    fn handle(
+        &mut self,
+        _ctx: &Context<Self::Msg>,
+        _msg: Self::Msg,
+        _sender: Option<BasicActorRef>,
+    );
 }
 
 trait Receive<Msg: Message> {
@@ -108,4 +112,3 @@ impl<T: Debug + Clone + Send + 'static> Message for T {}
 struct ActorRef<T: Message> {
     x: PhantomData<T>,
 }
-
