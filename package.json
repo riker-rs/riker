@@ -7,7 +7,17 @@
     "install": "npip install"
   },
   "devDependencies": {
+    "husky": "^4.2.5",
+    "lint-staged": "^10.2.10",
     "nopy": "^0.2.7"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
+  },
+  "lint-staged": {
+    "*": "nopenv pre-commit run --files"
   },
   "python": {
     "execPath": "python3",
