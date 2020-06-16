@@ -6,9 +6,8 @@ use riker_macros::actor;
 
 #[test]
 fn impls_test() {
-    let en = NewActorMsg::U32(1);
-
-    let actor = ActorRef::<NewActorMsg> { x: PhantomData };
+    let _en = NewActorMsg::U32(1);
+    let _actor = ActorRef::<NewActorMsg> { x: PhantomData };
 }
 
 
@@ -28,7 +27,7 @@ impl Actor for NewActor {
 impl Receive<u32> for NewActor {
     type Msg = NewActorMsg;
 
-    fn receive(&mut self, ctx: &Context<Self::Msg>, msg: u32, sender: Option<BasicActorRef>) {
+    fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: u32, _sender: Option<BasicActorRef>) {
         println!("u32");
     }
 }
@@ -36,7 +35,7 @@ impl Receive<u32> for NewActor {
 impl Receive<String> for NewActor {
     type Msg = NewActorMsg;
 
-    fn receive(&mut self, ctx: &Context<Self::Msg>, msg: String, sender: Option<BasicActorRef>) {
+    fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: String, _sender: Option<BasicActorRef>) {
         println!("String");
     }
 }
@@ -66,9 +65,9 @@ trait Actor: Send + 'static {
     /// Invoked after an actor has been stopped.
     fn post_stop(&mut self) {}
 
-    fn sys_receive(&mut self, msg: Self::Msg) {}
+    fn sys_receive(&mut self, _msg: Self::Msg) {}
 
-    fn handle(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Option<BasicActorRef>);
+    fn handle(&mut self, _ctx: &Context<Self::Msg>, _msg: Self::Msg, _sender: Option<BasicActorRef>);
 }
 
 trait Receive<Msg: Message> {
@@ -110,9 +109,3 @@ struct ActorRef<T: Message> {
     x: PhantomData<T>,
 }
 
-impl<T: Message> ActorRef<T> {
-    fn send_msg(&self, msg: T, sender: Option<BasicActorRef>) {
-        let a = NewActor::default();
-        // a.receive(msg);
-    }
-}
