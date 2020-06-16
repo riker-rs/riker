@@ -2,7 +2,7 @@ use crate::actor::{
     Actor, ActorFactoryArgs, ActorRef, All, BasicActorRef, ChannelMsg, Context, DeadLetter,
     Subscribe, Tell,
 };
-use crate::system::system::LoggingSystem;
+use crate::system::LoggingSystem;
 use config::Config;
 use slog::{info, o, Drain, Level, Logger, Never, OwnedKVList, Record};
 use std::str::FromStr;

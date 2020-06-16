@@ -3,12 +3,13 @@ use slog::trace;
 
 use std::sync::{atomic::Ordering, Arc};
 
-use crate::system::system::LoggingSystem;
+use crate::system::LoggingSystem;
 use crate::{
     actor::actor_cell::{ActorCell, ExtendedCell},
     actor::*,
-    kernel::{kernel::kernel, mailbox::mailbox},
-    system::{system::SysActors, ActorSystem, SystemMsg},
+    kernel::kernel,
+    kernel::mailbox::mailbox,
+    system::{ActorSystem, SysActors, SystemMsg},
     validate::validate_name,
 };
 
