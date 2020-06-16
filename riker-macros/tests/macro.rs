@@ -2,22 +2,15 @@ use std::fmt;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 
-use riker_macros::{actor, actor_msg};
+use riker_macros::actor;
 
 #[test]
 fn impls_test() {
     let en = NewActorMsg::U32(1);
 
     let actor = ActorRef::<NewActorMsg> { x: PhantomData };
-
-    // actor.tell(5, None);
 }
 
-// #[derive(Clone, Debug)]
-// enum NewActorMsg {
-//     U32(u32),
-//     String(String),
-// }
 
 #[actor(String, u32)]
 #[derive(Clone, Default)]
@@ -26,7 +19,7 @@ struct NewActor;
 impl Actor for NewActor {
     type Msg = NewActorMsg;
 
-    fn handle(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: BasicActorRef) {
+    fn handle(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Option<BasicActorRef>) {
         println!("handling..");
         self.receive(ctx, msg, sender);
     }
@@ -35,7 +28,7 @@ impl Actor for NewActor {
 impl Receive<u32> for NewActor {
     type Msg = NewActorMsg;
 
-    fn receive(&mut self, ctx: &Context<Self::Msg>, msg: u32, sender: BasicActorRef) {
+    fn receive(&mut self, ctx: &Context<Self::Msg>, msg: u32, sender: Option<BasicActorRef>) {
         println!("u32");
     }
 }
@@ -43,7 +36,7 @@ impl Receive<u32> for NewActor {
 impl Receive<String> for NewActor {
     type Msg = NewActorMsg;
 
-    fn receive(&mut self, ctx: &Context<Self::Msg>, msg: String, sender: BasicActorRef) {
+    fn receive(&mut self, ctx: &Context<Self::Msg>, msg: String, sender: Option<BasicActorRef>) {
         println!("String");
     }
 }
@@ -75,13 +68,13 @@ trait Actor: Send + 'static {
 
     fn sys_receive(&mut self, msg: Self::Msg) {}
 
-    fn handle(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: BasicActorRef);
+    fn handle(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Option<BasicActorRef>);
 }
 
 trait Receive<Msg: Message> {
     type Msg: Message;
 
-    fn receive(&mut self, ctx: &Context<Self::Msg>, msg: Msg, sender: BasicActorRef);
+    fn receive(&mut self, ctx: &Context<Self::Msg>, msg: Msg, sender: Option<BasicActorRef>);
 }
 
 type BoxedTell<T> = Box<dyn Tell<T> + Send + 'static>;
