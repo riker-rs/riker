@@ -57,7 +57,7 @@ pub trait ActorReference {
 pub type BoxedTell<T> = Box<dyn Tell<T> + Send + 'static>;
 
 pub trait Tell<T>: ActorReference + Send + 'static {
-    fn tell(&self, msg: T, sender: Option<BasicActorRef>);
+    fn tell(&self, msg: T, sender: Sender);
     fn box_clone(&self) -> BoxedTell<T>;
 }
 
