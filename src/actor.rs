@@ -231,7 +231,7 @@ impl<A: Actor + ?Sized> Actor for Box<A> {
         (**self).supervisor_strategy()
     }
 
-    fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Option<BasicActorRef>) {
+    fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender) {
         (**self).recv(ctx, msg, sender)
     }
 }
@@ -301,7 +301,7 @@ pub trait Receive<Msg: Message> {
     ///
     /// It is guaranteed that only one message in the actor's mailbox is processed
     /// at any one time, including `receive`, `other_receive` and `system_receive`.
-    fn receive(&mut self, ctx: &Context<Self::Msg>, msg: Msg, sender: Option<BasicActorRef>);
+    fn receive(&mut self, ctx: &Context<Self::Msg>, msg: Msg, sender: Sender);
 }
 
 /// The actor trait object
