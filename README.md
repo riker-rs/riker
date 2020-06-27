@@ -20,7 +20,6 @@ Riker provides:
 - Publish/Subscribe messaging via actor channels
 - Message scheduling
 - Out-of-the-box, configurable, non-blocking logging
-- Persistent actors using Event Sourcing
 - Command Query Responsibility Segregation (CQRS)
 - Easily run futures
 
