@@ -15,6 +15,8 @@ use crate::{
 
 pub type TimerRef = mpsc::Sender<Job>;
 
+pub type ScheduleId = Uuid;
+
 pub trait Timer {
     fn schedule<T, M>(
         &self,
@@ -23,7 +25,7 @@ pub trait Timer {
         receiver: ActorRef<M>,
         sender: Sender,
         msg: T,
-    ) -> Uuid
+    ) -> ScheduleId
     where
         T: Message + Into<M>,
         M: Message;
@@ -34,7 +36,7 @@ pub trait Timer {
         receiver: ActorRef<M>,
         sender: Sender,
         msg: T,
-    ) -> Uuid
+    ) -> ScheduleId
     where
         T: Message + Into<M>,
         M: Message;
@@ -45,7 +47,7 @@ pub trait Timer {
         receiver: ActorRef<M>,
         sender: Sender,
         msg: T,
-    ) -> Uuid
+    ) -> ScheduleId
     where
         T: Message + Into<M>,
         M: Message;

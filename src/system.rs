@@ -6,7 +6,7 @@ use std::{error::Error, fmt};
 use crate::actor::BasicActorRef;
 
 // Public riker::system API (plus the pub data types in this file)
-pub use self::timer::{BasicTimer, Timer};
+pub use self::timer::{BasicTimer, Timer, ScheduleId};
 
 #[derive(Clone, Debug)]
 pub enum SystemMsg {
@@ -713,7 +713,7 @@ impl Timer for ActorSystem {
         receiver: ActorRef<M>,
         sender: Sender,
         msg: T,
-    ) -> Uuid
+    ) -> ScheduleId
     where
         T: Message + Into<M>,
         M: Message,
@@ -740,7 +740,7 @@ impl Timer for ActorSystem {
         receiver: ActorRef<M>,
         sender: Sender,
         msg: T,
-    ) -> Uuid
+    ) -> ScheduleId
     where
         T: Message + Into<M>,
         M: Message,
@@ -766,7 +766,7 @@ impl Timer for ActorSystem {
         receiver: ActorRef<M>,
         sender: Sender,
         msg: T,
-    ) -> Uuid
+    ) -> ScheduleId
     where
         T: Message + Into<M>,
         M: Message,
