@@ -8,7 +8,6 @@ use riker_testkit::probe::{Probe, ProbeReceive};
 
 use chrono::{Duration as CDuration, Utc};
 use std::time::Duration;
-use uuid::Uuid;
 
 #[derive(Clone, Debug)]
 pub struct TestProbe(ChannelProbe<(), ()>);
@@ -81,7 +80,7 @@ fn schedule_at_time() {
 struct ScheduleRepeat {
     probe: Option<TestProbe>,
     counter: u32,
-    schedule_id: Option<Uuid>,
+    schedule_id: Option<ScheduleId>,
 }
 
 impl Actor for ScheduleRepeat {

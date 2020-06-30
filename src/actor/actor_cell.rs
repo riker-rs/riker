@@ -20,7 +20,7 @@ use crate::{
         mailbox::{AnySender, MailboxSender},
     },
     system::{
-        timer::{Job, OnceJob, RepeatJob, Timer},
+        timer::{Job, OnceJob, RepeatJob, Timer, ScheduleId},
         ActorSystem, Run, SystemCmd, SystemMsg,
     },
     validate::InvalidPath,
@@ -550,7 +550,7 @@ where
         receiver: ActorRef<M>,
         sender: Sender,
         msg: T,
-    ) -> Uuid
+    ) -> ScheduleId
     where
         T: Message + Into<M>,
         M: Message,
@@ -577,7 +577,7 @@ where
         receiver: ActorRef<M>,
         sender: Sender,
         msg: T,
-    ) -> Uuid
+    ) -> ScheduleId
     where
         T: Message + Into<M>,
         M: Message,
@@ -603,7 +603,7 @@ where
         receiver: ActorRef<M>,
         sender: Sender,
         msg: T,
-    ) -> Uuid
+    ) -> ScheduleId
     where
         T: Message + Into<M>,
         M: Message,
