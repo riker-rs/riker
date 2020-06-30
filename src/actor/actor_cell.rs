@@ -41,7 +41,6 @@ struct ActorCellInner {
     is_remote: bool,
     is_terminating: Arc<AtomicBool>,
     is_restarting: Arc<AtomicBool>,
-    // persistence: Persistence,
     status: Arc<AtomicUsize>,
     kernel: Option<KernelRef>,
     system: ActorSystem,
@@ -56,7 +55,6 @@ impl ActorCell {
         uri: ActorUri,
         parent: Option<BasicActorRef>,
         system: &ActorSystem,
-        // perconf: Option<PersistenceConf>,
         mailbox: Arc<dyn AnySender>,
         sys_mailbox: MailboxSender<SystemMsg>,
     ) -> ActorCell {
@@ -69,11 +67,6 @@ impl ActorCell {
                 is_remote: false,
                 is_terminating: Arc::new(AtomicBool::new(false)),
                 is_restarting: Arc::new(AtomicBool::new(false)),
-                // persistence: Persistence {
-                //     // event_store: system.event_store.clone(),
-                //     is_persisting: Arc::new(AtomicBool::new(false)),
-                //     persistence_conf: perconf,
-                // },
                 status: Arc::new(AtomicUsize::new(0)),
                 kernel: None,
                 system: system.clone(),
@@ -155,18 +148,6 @@ impl ActorCell {
     pub(crate) fn stop(&self, actor: &BasicActorRef) {
         actor.sys_tell(SystemCmd::Stop.into());
     }
-
-    // pub(crate) fn persistence_conf(&self) -> Option<PersistenceConf> {
-    //     self.inner.persistence.persistence_conf.clone()
-    // }
-
-    // pub fn is_persisting(&self) -> bool {
-    //     self.inner.persistence.is_persisting.load(Ordering::Relaxed)
-    // }
-
-    // pub fn set_persisting(&self, b: bool) {
-    //     self.inner.persistence.is_persisting.store(b, Ordering::Relaxed);
-    // }
 
     pub fn add_child(&self, actor: BasicActorRef) {
         self.inner.children.add(actor);
@@ -250,44 +231,6 @@ impl ActorCell {
             .unwrap()
             .sys_tell(SystemMsg::Failed(self.myself()));
     }
-
-    // pub fn load_events<A: Actor>(&self, actor: &mut Option<A>) -> bool {
-    //     let event_store = &self.inner.persistence.event_store;
-    //     let perconf = &self.inner.persistence.persistence_conf;
-
-    //     match (actor, event_store, perconf) {
-    //         (Some(_), Some(es), Some(perconf)) => {
-    //             let myself = self.myself();
-    //             // query(&perconf.id,
-    //             //         &perconf.keyspace,
-    //             //         &es,
-    //             //         self,
-    //             //         myself); // todo implement
-
-    //             false
-    //         }
-    //         (Some(_), None, Some(_)) => {
-    //             warn!("Can't load actor events. No event store configured");
-    //             true
-    //         }
-    //         _ => {
-    //             // anything else either the actor is None or there's no persistence configured
-    //             true
-    //         }
-    //     }
-    //     unimplemented!()
-    // }
-
-    // pub fn replay<A: Actor>(&self,
-    //             ctx: &Context<A::Msg>,
-    //             evts: Vec<A::Msg>,
-    //             actor: &mut Option<A>) {
-    //     if let Some(actor) = actor.as_mut() {
-    //         for event in evts.iter() {
-    //             actor.replay_event(ctx, event.clone());
-    //         }
-    //     }
-    // }
 }
 
 impl<Msg: Message> From<ExtendedCell<Msg>> for ActorCell {
@@ -359,7 +302,6 @@ where
         uri: ActorUri,
         parent: Option<BasicActorRef>,
         system: &ActorSystem,
-        // perconf: Option<PersistenceConf>,
         any_mailbox: Arc<dyn AnySender>,
         sys_mailbox: MailboxSender<SystemMsg>,
         mailbox: MailboxSender<Msg>,
@@ -373,11 +315,6 @@ where
                 is_remote: false,
                 is_terminating: Arc::new(AtomicBool::new(false)),
                 is_restarting: Arc::new(AtomicBool::new(false)),
-                // persistence: Persistence {
-                //     // event_store: system.event_store.clone(),
-                //     is_persisting: Arc::new(AtomicBool::new(false)),
-                //     persistence_conf: perconf,
-                // },
                 status: Arc::new(AtomicUsize::new(0)),
                 kernel: None,
                 system: system.clone(),
@@ -499,16 +436,13 @@ fn post_stop<A: Actor>(actor: &mut Option<A>) {
 /// Operations performed are in most cases done so from the
 /// actor's perspective. For example, creating a child actor
 /// using `ctx.actor_of` will create the child under the current
-/// actor within the heirarchy. In a similar manner, persistence
-/// operations such as `persist_event` use the current actor's
-/// persistence configuration.
+/// actor within the heirarchy.
 ///
 /// Since `Context` is specific to an actor and its functions
 /// it is not cloneable.
 pub struct Context<Msg: Message> {
     pub myself: ActorRef<Msg>,
     pub system: ActorSystem,
-    // pub persistence: Persistence,
     pub(crate) kernel: KernelRef,
 }
 

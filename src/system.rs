@@ -266,8 +266,8 @@ impl Deref for LoggingSystem {
 /// The actor runtime and common services coordinator
 ///
 /// The `ActorSystem` provides a runtime on which actors are executed.
-/// It also provides common services such as channels, persistence
-/// and scheduling. The `ActorSystem` is the heart of a Riker application,
+/// It also provides common services such as channels and scheduling.
+/// The `ActorSystem` is the heart of a Riker application,
 /// starting several threads when it is created. Create only one instance
 /// of `ActorSystem` per application.
 #[allow(dead_code)]

@@ -293,10 +293,6 @@ fn handle_init<A>(
         );
     }
 
-    // if persistence is not configured then set as not suspended
-    // if cell.load_events(actor) {
-    //     mbox.set_suspended(false);
-    // }
     actor.as_mut().unwrap().post_start(ctx);
 }
 
