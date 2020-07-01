@@ -4,7 +4,7 @@ use proc_macro2::{Ident, TokenStream};
 use quote::quote;
 use syn::parse::{Parse, ParseStream, Result};
 use syn::punctuated::Punctuated;
-use syn::DeriveInput;
+use syn::{Generics, DeriveInput};
 
 struct MsgTypes {
     types: Vec<MsgVariant>,
@@ -75,7 +75,7 @@ pub fn actor(
 
     let menum = types.enum_stream(&name);
     let intos = intos(&name, &types);
-    let rec = receive(&ast.ident, &name, &types);
+    let rec = receive(&ast.ident, &ast.generics, &name);
 
     let input: TokenStream = input.into();
     let gen = quote! {
@@ -99,24 +99,18 @@ fn intos(name: &Ident, types: &MsgTypes) -> TokenStream {
     }
 }
 
-fn receive(aname: &Ident, name: &Ident, types: &MsgTypes) -> TokenStream {
-    let vars = types.types.iter().map(|t| {
-        let vname = &t.name;
-        quote! {
-            #name::#vname(msg) => <#aname>::receive(self, ctx, msg, sender),
-        }
-    });
+fn receive(aname: &Ident, gen: &Generics, name: &Ident) -> TokenStream {
+    let (impl_generics, ty_generics, where_clause) = gen.split_for_impl();
+
     quote! {
-        impl Receive<#name> for #aname {
+        impl #impl_generics Receive<#name> for #aname #ty_generics #where_clause {
             type Msg = #name;
 
             fn receive(&mut self,
                         ctx: &Context<Self::Msg>,
                         msg: #name,
                         sender: Option<BasicActorRef>) {
-                match msg {
-                    #(#vars)*
-                }
+                <#aname #ty_generics>::receive(self, ctx, msg, sender);
             }
         }
     }
