@@ -117,7 +117,7 @@ impl Error for CreateError {
 
 impl fmt::Display for CreateError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Debug::fmt(self,f)
+        fmt::Debug::fmt(self, f)
     }
 }
 

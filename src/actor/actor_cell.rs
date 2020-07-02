@@ -20,7 +20,7 @@ use crate::{
         mailbox::{AnySender, MailboxSender},
     },
     system::{
-        timer::{Job, OnceJob, RepeatJob, Timer, ScheduleId},
+        timer::{Job, OnceJob, RepeatJob, ScheduleId, Timer},
         ActorSystem, Run, SystemCmd, SystemMsg,
     },
     validate::InvalidPath,
