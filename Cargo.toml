@@ -31,3 +31,8 @@ dashmap = "4.0.0-rc5"
 [dev-dependencies]
 riker-testkit = "0.1.0"
 log = "0.4"
+
+[workspace]
+members = [
+	"riker-macros"
+]
