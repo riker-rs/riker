@@ -20,4 +20,3 @@ proc-macro2 = "0.4.4"
 
 [dev-dependencies]
 riker = { path = ".." }
-
