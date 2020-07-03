@@ -4,7 +4,7 @@ use proc_macro2::{Ident, TokenStream};
 use quote::quote;
 use syn::parse::{Parse, ParseStream, Result};
 use syn::punctuated::Punctuated;
-use syn::{Generics, DeriveInput};
+use syn::{DeriveInput, Generics};
 
 struct MsgTypes {
     types: Vec<MsgVariant>,

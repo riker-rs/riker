@@ -52,7 +52,8 @@ fn run_derived_actor() {
 #[actor(String)]
 #[derive(Clone, Default)]
 struct GenericActor<A: Send + 'static, B>
-    where B: Send + 'static,
+where
+    B: Send + 'static,
 {
     a: A,
     b: B,
