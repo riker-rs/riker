@@ -1,7 +1,7 @@
 use dashmap::DashMap;
 use slog::trace;
 
-use std::sync::{atomic::Ordering, Arc};
+use std::sync::Arc;
 
 use crate::system::LoggingSystem;
 use crate::{
@@ -20,15 +20,12 @@ pub struct Provider {
 }
 
 struct ProviderInner {
-    counter: AtomicActorId,
     paths: DashMap<ActorPath, ()>,
 }
 
 impl Provider {
     pub fn new(log: LoggingSystem) -> Self {
         let inner = ProviderInner {
-            // ActorIds start at 100
-            counter: AtomicActorId::new(100),
             paths: DashMap::new(),
         };
 
@@ -53,10 +50,9 @@ impl Provider {
         let path = ActorPath::new(&format!("{}/{}", parent.path(), name));
         trace!(sys.log(), "Attempting to create actor at: {}", path);
 
-        let uid = self.register(&path)?;
+        self.register(&path)?;
 
         let uri = ActorUri {
-            uid,
             path,
             name: Arc::new(name.into()),
             host: sys.host(),
@@ -65,7 +61,6 @@ impl Provider {
         let (sender, sys_sender, mb) = mailbox::<A::Msg>(sys.sys_settings().msg_process_limit);
 
         let cell = ExtendedCell::new(
-            uri.uid,
             uri,
             Some(parent.clone()),
             sys,
@@ -86,7 +81,7 @@ impl Provider {
         Ok(actor)
     }
 
-    fn register(&self, path: &ActorPath) -> Result<ActorId, CreateError> {
+    fn register(&self, path: &ActorPath) -> Result<(), CreateError> {
         if self.inner.paths.contains_key(path) {
             Err(CreateError::AlreadyExists(path.clone()))
         } else {
@@ -95,8 +90,8 @@ impl Provider {
                 self.inner.paths.replace(old.key().clone(), ());
                 Err(CreateError::AlreadyExists(path.clone()))
             } else {
-                let id = self.inner.counter.fetch_add(1, Ordering::SeqCst);
-                Ok(id)
+                // let id = self.inner.counter.fetch_add(1, Ordering::SeqCst);
+                Ok(())
             }
         }
     }
@@ -110,16 +105,15 @@ pub fn create_root(sys: &ActorSystem) -> SysActors {
     let root = root(sys);
 
     SysActors {
-        user: guardian(1, "user", "/user", &root, sys),
-        sysm: guardian(2, "system", "/system", &root, sys),
-        temp: guardian(3, "temp", "/temp", &root, sys),
+        user: guardian("user", "/user", &root, sys),
+        sysm: guardian("system", "/system", &root, sys),
+        temp: guardian("temp", "/temp", &root, sys),
         root,
     }
 }
 
 fn root(sys: &ActorSystem) -> BasicActorRef {
     let uri = ActorUri {
-        uid: 0,
         name: Arc::new("root".to_string()),
         path: ActorPath::new("/"),
         host: Arc::new("localhost".to_string()),
@@ -137,7 +131,6 @@ fn root(sys: &ActorSystem) -> BasicActorRef {
     // };
 
     let bb_cell = ActorCell::new(
-        0,
         uri.clone(),
         None,
         sys,
@@ -154,7 +147,6 @@ fn root(sys: &ActorSystem) -> BasicActorRef {
     let (sender, sys_sender, mb) = mailbox::<SystemMsg>(100);
 
     let cell = ExtendedCell::new(
-        uri.uid,
         uri,
         Some(bigbang),
         sys,
@@ -172,14 +164,12 @@ fn root(sys: &ActorSystem) -> BasicActorRef {
 }
 
 fn guardian(
-    uid: ActorId,
     name: &str,
     path: &str,
     root: &BasicActorRef,
     sys: &ActorSystem,
 ) -> BasicActorRef {
     let uri = ActorUri {
-        uid,
         name: Arc::new(name.to_string()),
         path: ActorPath::new(path),
         host: Arc::new("localhost".to_string()),
@@ -190,7 +180,6 @@ fn guardian(
     let (sender, sys_sender, mb) = mailbox::<SystemMsg>(100);
 
     let cell = ExtendedCell::new(
-        uri.uid,
         uri,
         Some(root.clone()),
         sys,

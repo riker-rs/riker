@@ -1,11 +1,9 @@
 use std::{
     fmt,
     hash::{Hash, Hasher},
-    sync::{atomic::AtomicUsize, Arc},
+    sync::Arc,
 };
 
-pub type AtomicActorId = AtomicUsize;
-pub type ActorId = usize;
 pub struct ActorPath(Arc<String>);
 
 impl ActorPath {
@@ -59,7 +57,6 @@ impl Clone for ActorPath {
 /// networking and clustering are introduced.
 #[derive(Clone)]
 pub struct ActorUri {
-    pub uid: ActorId,
     pub name: Arc<String>,
     pub path: ActorPath,
     pub host: Arc<String>,
@@ -87,6 +84,6 @@ impl fmt::Display for ActorUri {
 
 impl fmt::Debug for ActorUri {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}://{}#{}", self.host, self.path, self.uid)
+        write!(f, "{}://{}", self.host, self.path)
     }
 }
