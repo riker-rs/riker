@@ -162,12 +162,7 @@ fn root(sys: &ActorSystem) -> BasicActorRef {
     BasicActorRef::from(actor_ref)
 }
 
-fn guardian(
-    name: &str,
-    path: &str,
-    root: &BasicActorRef,
-    sys: &ActorSystem,
-) -> BasicActorRef {
+fn guardian(name: &str, path: &str, root: &BasicActorRef, sys: &ActorSystem) -> BasicActorRef {
     let uri = ActorUri {
         name: Arc::new(name.to_string()),
         path: ActorPath::new(path),
