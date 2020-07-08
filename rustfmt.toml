@@ -1,5 +1,5 @@
 hard_tabs = false
 tab_spaces = 4
-newline_style = "Unix"
+newline_style = "Native"
 max_width = 100
 edition = "2018"
