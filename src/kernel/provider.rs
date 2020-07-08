@@ -88,7 +88,7 @@ impl Provider {
 
     fn register(&self, path: &ActorPath) -> Result<ActorId, CreateError> {
         let old = self.inner.paths.replace(path.clone(), ());
-        if let Some(_) = old {
+        if old.is_some() {
             Err(CreateError::AlreadyExists(path.clone()))
         } else {
             let id = self.inner.counter.fetch_add(1, Ordering::SeqCst);
