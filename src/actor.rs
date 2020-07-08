@@ -25,7 +25,7 @@ pub use self::{
     macros::actor,
     props::{ActorArgs, ActorFactory, ActorFactoryArgs, ActorProducer, BoxActorProd, Props},
     selection::{ActorSelection, ActorSelectionFactory},
-    uri::{ActorId, ActorPath, ActorUri, AtomicActorId},
+    uri::{ActorPath, ActorUri},
 };
 
 use crate::{system::SystemMsg, Message};

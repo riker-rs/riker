@@ -34,7 +34,6 @@ pub struct ActorCell {
 
 #[derive(Clone)]
 struct ActorCellInner {
-    uid: ActorId,
     uri: ActorUri,
     parent: Option<BasicActorRef>,
     children: Children,
@@ -51,7 +50,6 @@ struct ActorCellInner {
 impl ActorCell {
     /// Constructs a new `ActorCell`
     pub(crate) fn new(
-        uid: ActorId,
         uri: ActorUri,
         parent: Option<BasicActorRef>,
         system: &ActorSystem,
@@ -60,7 +58,6 @@ impl ActorCell {
     ) -> ActorCell {
         ActorCell {
             inner: Arc::new(ActorCellInner {
-                uid,
                 uri,
                 parent,
                 children: Children::new(),
@@ -116,7 +113,7 @@ impl ActorCell {
     }
 
     pub(crate) fn is_root(&self) -> bool {
-        self.inner.uid == 0
+        self.myself().path() == "/"
     }
 
     pub fn is_user(&self) -> bool {
@@ -298,7 +295,6 @@ where
     Msg: Message,
 {
     pub(crate) fn new(
-        uid: ActorId,
         uri: ActorUri,
         parent: Option<BasicActorRef>,
         system: &ActorSystem,
@@ -308,7 +304,6 @@ where
     ) -> Self {
         let cell = ActorCell {
             inner: Arc::new(ActorCellInner {
-                uid,
                 uri,
                 parent,
                 children: Children::new(),
