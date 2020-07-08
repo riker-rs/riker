@@ -87,17 +87,12 @@ impl Provider {
     }
 
     fn register(&self, path: &ActorPath) -> Result<ActorId, CreateError> {
-        if self.inner.paths.contains_key(path) {
+        let old = self.inner.paths.replace(path.clone(), ());
+        if old.is_some() {
             Err(CreateError::AlreadyExists(path.clone()))
         } else {
-            let old = self.inner.paths.replace(path.clone(), ());
-            if let Some(old) = old {
-                self.inner.paths.replace(old.key().clone(), ());
-                Err(CreateError::AlreadyExists(path.clone()))
-            } else {
-                let id = self.inner.counter.fetch_add(1, Ordering::SeqCst);
-                Ok(id)
-            }
+            let id = self.inner.counter.fetch_add(1, Ordering::SeqCst);
+            Ok(id)
         }
     }
 
