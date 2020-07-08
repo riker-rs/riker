@@ -90,7 +90,6 @@ impl Provider {
                 self.inner.paths.replace(old.key().clone(), ());
                 Err(CreateError::AlreadyExists(path.clone()))
             } else {
-                // let id = self.inner.counter.fetch_add(1, Ordering::SeqCst);
                 Ok(())
             }
         }
