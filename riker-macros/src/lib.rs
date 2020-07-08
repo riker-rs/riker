@@ -4,7 +4,7 @@ use proc_macro2::{Ident, TokenStream};
 use quote::quote;
 use syn::parse::{Parse, ParseStream, Result};
 use syn::punctuated::Punctuated;
-use syn::DeriveInput;
+use syn::{DeriveInput, Generics};
 
 struct MsgTypes {
     types: Vec<MsgVariant>,
@@ -35,8 +35,6 @@ impl MsgTypes {
 
 impl Parse for MsgTypes {
     fn parse(input: ParseStream) -> Result<Self> {
-        // caused "missing extern crate token" compile error
-        // let vars = Punctuated::<Ident, Token![,]>::parse_terminated(input)?;
         let vars = Punctuated::<Ident, syn::token::Comma>::parse_terminated(input)?;
 
         Ok(MsgTypes {
@@ -75,7 +73,7 @@ pub fn actor(
 
     let menum = types.enum_stream(&name);
     let intos = intos(&name, &types);
-    let rec = receive(&ast.ident, &name, &types);
+    let rec = receive(&ast.ident, &ast.generics, &name, &types);
 
     let input: TokenStream = input.into();
     let gen = quote! {
@@ -99,20 +97,23 @@ fn intos(name: &Ident, types: &MsgTypes) -> TokenStream {
     }
 }
 
-fn receive(aname: &Ident, name: &Ident, types: &MsgTypes) -> TokenStream {
+fn receive(aname: &Ident, gen: &Generics, name: &Ident, types: &MsgTypes) -> TokenStream {
+    let (impl_generics, ty_generics, where_clause) = gen.split_for_impl();
+
     let vars = types.types.iter().map(|t| {
         let vname = &t.name;
+        let tname = &t.mtype;
         quote! {
-            #name::#vname(msg) => <#aname>::receive(self, ctx, msg, sender),
+            #name::#vname(msg) => <#aname #ty_generics as Receive<#tname>>::receive(self, ctx, msg, sender),
         }
     });
-    quote! {
-        impl Receive<#name> for #aname {
-            type Msg = #name;
 
+    quote! {
+        impl #impl_generics Receive<#name> for #aname #ty_generics #where_clause {
+            type Msg = #name;
             fn receive(&mut self,
                         ctx: &Context<Self::Msg>,
-                        msg: #name,
+                        msg: Self::Msg,
                         sender: Option<BasicActorRef>) {
                 match msg {
                     #(#vars)*

@@ -81,17 +81,13 @@ impl Provider {
         Ok(actor)
     }
 
+
     fn register(&self, path: &ActorPath) -> Result<(), CreateError> {
-        if self.inner.paths.contains_key(path) {
+        let old = self.inner.paths.replace(path.clone(), ());
+        if old.is_some() {
             Err(CreateError::AlreadyExists(path.clone()))
         } else {
-            let old = self.inner.paths.replace(path.clone(), ());
-            if let Some(old) = old {
-                self.inner.paths.replace(old.key().clone(), ());
-                Err(CreateError::AlreadyExists(path.clone()))
-            } else {
-                Ok(())
-            }
+            Ok(())
         }
     }
 
