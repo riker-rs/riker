@@ -90,9 +90,9 @@ impl Provider {
         if self.inner.paths.contains_key(path) {
             Err(CreateError::AlreadyExists(path.clone()))
         } else {
-            let old = self.inner.paths.replace(path.clone(), ());
+            let old = self.inner.paths.insert(path.clone(), ());
             if let Some(old) = old {
-                self.inner.paths.replace(old.key().clone(), ());
+                self.inner.paths.insert(path.clone(), old);
                 Err(CreateError::AlreadyExists(path.clone()))
             } else {
                 let id = self.inner.counter.fetch_add(1, Ordering::SeqCst);
