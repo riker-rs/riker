@@ -81,7 +81,6 @@ impl Provider {
         Ok(actor)
     }
 
-
     fn register(&self, path: &ActorPath) -> Result<(), CreateError> {
         let old = self.inner.paths.replace(path.clone(), ());
         if old.is_some() {
