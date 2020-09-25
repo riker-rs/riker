@@ -101,7 +101,7 @@ impl ActorCell {
     }
 
     pub fn has_children(&self) -> bool {
-        self.inner.children.len() > 0
+        !self.inner.children.is_empty()
     }
 
     pub(crate) fn children<'a>(&'a self) -> Box<dyn Iterator<Item = BasicActorRef> + 'a> {
@@ -648,6 +648,10 @@ impl Children {
 
     pub fn len(&self) -> usize {
         self.actors.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.actors.read().unwrap().is_empty()
     }
 
     pub fn iter(&self) -> ChildrenIterator {
