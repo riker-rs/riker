@@ -9,7 +9,7 @@ use std::{
 };
 
 use chrono::prelude::*;
-use dashmap::{DashMap};
+use dashmap::DashMap;
 use futures::{future::RemoteHandle, task::SpawnError, Future};
 use uuid::Uuid;
 
