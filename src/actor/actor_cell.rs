@@ -1,7 +1,6 @@
 use std::{
     fmt,
     ops::Deref,
-    rc::Rc,
     sync::{
         atomic::{AtomicBool, AtomicUsize, Ordering},
         Arc,
@@ -10,7 +9,7 @@ use std::{
 };
 
 use chrono::prelude::*;
-use dashmap::{DashMap, iter::Iter};
+use dashmap::{DashMap};
 use futures::{future::RemoteHandle, task::SpawnError, Future};
 use uuid::Uuid;
 
