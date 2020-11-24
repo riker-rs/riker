@@ -9,7 +9,7 @@ use std::{
 };
 
 use chrono::prelude::*;
-use dashmap::{DashMap, Iter};
+use dashmap::DashMap;
 use futures::{future::RemoteHandle, task::SpawnError, Future};
 use uuid::Uuid;
 
@@ -650,21 +650,7 @@ impl Children {
         self.actors.len()
     }
 
-    pub fn iter(&self) -> ChildrenIterator {
-        ChildrenIterator {
-            children: self.actors.iter(),
-        }
-    }
-}
-
-pub struct ChildrenIterator {
-    children: Iter<String, BasicActorRef>,
-}
-
-impl Iterator for ChildrenIterator {
-    type Item = BasicActorRef;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.children.next().map(|e| e.value().clone())
+    pub fn iter(&self) -> impl Iterator<Item = BasicActorRef> + '_ {
+        self.actors.iter().map(|e| e.value().clone())
     }
 }

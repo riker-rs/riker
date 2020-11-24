@@ -26,7 +26,8 @@ slog = "2.5"
 slog-stdlog = "4.0"
 slog-scope = "4.3.0"
 num_cpus = "1.13.0"
-dashmap = "4.0.0-rc5"
+dashmap = "3"
+
 
 [dev-dependencies]
 riker-testkit = "0.1.0"

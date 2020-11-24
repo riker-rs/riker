@@ -82,7 +82,7 @@ impl Provider {
     }
 
     fn register(&self, path: &ActorPath) -> Result<(), CreateError> {
-        let old = self.inner.paths.replace(path.clone(), ());
+        let old = self.inner.paths.insert(path.clone(), ());
         if old.is_some() {
             Err(CreateError::AlreadyExists(path.clone()))
         } else {
