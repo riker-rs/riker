@@ -4,6 +4,8 @@
 // #![deny(clippy::nursery)]
 #![allow(clippy::new_ret_no_self)]
 #![allow(clippy::large_enum_variant)]
+#![allow(clippy::rc_buffer)]
+#![allow(clippy::to_string_in_display)]
 
 mod validate;
 
