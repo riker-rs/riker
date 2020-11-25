@@ -3,11 +3,10 @@ name: Clippy
 on:
   push:
     branches:
-      - main
+      - master
   pull_request:
     branches:
-      - main
-      - dev
+      - master
 
 jobs:
   clippy:
