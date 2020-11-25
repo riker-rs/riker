@@ -15,7 +15,6 @@ jobs:
       max-parallel: 1
       matrix:
         rust:
-          - 1.47.0
           - stable
     steps:
       - uses: actions/checkout@v2
