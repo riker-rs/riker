@@ -12,6 +12,7 @@ jobs:
   pre-commit:
     runs-on: ubuntu-latest
     strategy:
+      max-parallel: 2
       matrix:
         rust:
           - stable
