@@ -1,0 +1,33 @@
+name: Clippy
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+      - dev
+
+jobs:
+  clippy:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [./, ./riker-macros/]
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install clippy with stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+            profile: minimal
+            toolchain: stable
+            override: true
+            components: clippy
+      - uses: actions-rs/clippy-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --manifest-path=${{ matrix.project }}Cargo.toml --all-targets --all-features -- -D warnings
+          name: clippy-${{ matrix.project }}
