@@ -3,10 +3,10 @@ name: Clippy
 on:
   push:
     branches:
-      - master
+      - disabled 
   pull_request:
     branches:
-      - master
+      - disabled
 
 jobs:
   clippy:
