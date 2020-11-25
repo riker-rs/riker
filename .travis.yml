@@ -13,7 +13,7 @@ jobs:
         - cd riker-macros; cargo test --no-default-features -- --nocapture; cd ..
     - name: "pre-commit"
       before_install:
-        - curl -sL https://deb.nodesource.com/setup_10.x | sudo -E bash -
+        - curl -sL https://deb.nodesource.com/setup_12.x | sudo -E bash -
         - sudo apt-get update
         - sudo apt-get install -y nodejs
         - sudo pip install --upgrade pip
