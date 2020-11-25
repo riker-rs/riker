@@ -10,6 +10,7 @@ repos:
     rev: v1.0
     hooks:
       - id: clippy
+        args: ["--all-targets", "--all-features", "--", "-D", "warnings"]
         name: cargo clippy https://github.com/rust-lang/rust-clippy/blob/master/README.md .
       - id: cargo-check
         name: cargo check https://doc.rust-lang.org/cargo/commands/cargo-check.html .
