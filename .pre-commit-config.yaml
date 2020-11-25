@@ -7,7 +7,7 @@ repos:
         language: system
         entry: sh -c 'touch src/lib.rs'
   - repo: https://github.com/doublify/pre-commit-rust
-    rev: 14b3e118cfc36fb87d8d9cbd1305a2238fd85868
+    rev: v1.0
     hooks:
       - id: clippy
         name: cargo clippy https://github.com/rust-lang/rust-clippy/blob/master/README.md .
@@ -15,8 +15,8 @@ repos:
         name: cargo check https://doc.rust-lang.org/cargo/commands/cargo-check.html .
       - id: fmt
         name: rustfmt https://github.com/rust-lang/rustfmt/blob/master/README.md .
-  - repo: https://github.com/prettier/prettier.git
-    rev: 2.1.1
+  - repo: https://github.com/pre-commit/mirrors-prettier.git
+    rev: v2.2.0
     hooks:
       - id: prettier
         name: prettier https://prettier.io/docs/en/ .
