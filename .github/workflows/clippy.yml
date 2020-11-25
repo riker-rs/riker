@@ -13,8 +13,6 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix:
-        project: [./, ./riker-macros/]
 
     steps:
       - uses: actions/checkout@v2
@@ -28,5 +26,5 @@ jobs:
       - uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --manifest-path=${{ matrix.project }}Cargo.toml --all-targets --all-features -- -D warnings
-          name: clippy-${{ matrix.project }}
+          args: --manifest-path=Cargo.toml --all-targets --all-features -- -D warnings
+          name: clippy

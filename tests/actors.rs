@@ -154,5 +154,5 @@ fn actor_stop() {
     listen.recv();
 
     system.stop(&parent);
-    p_assert_eq!(listen, ())
+    p_assert_eq!(listen, ());
 }
