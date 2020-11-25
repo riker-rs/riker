@@ -1,6 +1,6 @@
 # Riker
 
-[![Build Status](https://travis-ci.org/riker-rs/riker.svg?branch=master)](https://travis-ci.org/riker-rs/riker)
+[![Build status](https://github.com/nothingismagick/riker/workflows/Build%20and%20run%20tests/badge.svg)](https://github.com/nothingismagick/riker/actions?query=workflow%3A%22Build+and+run+tests%22)
 [![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 [![crates.io](https://meritbadge.herokuapp.com/riker)](https://crates.io/crates/riker)
 [![Released API docs](https://docs.rs/riker/badge.svg)](https://docs.rs/riker)
