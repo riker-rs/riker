@@ -11,7 +11,7 @@ on:
       - "**/Cargo.toml"
   pull_request:
     branches:
-      - main
+      - master
     paths:
       - "**/Cargo.lock"
       - "**/Cargo.toml"
