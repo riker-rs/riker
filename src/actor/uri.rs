@@ -4,11 +4,11 @@ use std::{
     sync::Arc,
 };
 
-pub struct ActorPath(Arc<String>);
+pub struct ActorPath(Arc<str>);
 
 impl ActorPath {
     pub fn new(path: &str) -> Self {
-        ActorPath(Arc::new(path.to_string()))
+        ActorPath(Arc::from(path))
     }
 }
 
@@ -20,7 +20,7 @@ impl PartialEq for ActorPath {
 
 impl PartialEq<str> for ActorPath {
     fn eq(&self, other: &str) -> bool {
-        *self.0 == other
+        *self.0 == *other
     }
 }
 
@@ -57,9 +57,9 @@ impl Clone for ActorPath {
 /// networking and clustering are introduced.
 #[derive(Clone)]
 pub struct ActorUri {
-    pub name: Arc<String>,
+    pub name: Arc<str>,
     pub path: ActorPath,
-    pub host: Arc<String>,
+    pub host: Arc<str>,
 }
 
 impl PartialEq for ActorUri {

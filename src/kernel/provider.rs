@@ -54,7 +54,7 @@ impl Provider {
 
         let uri = ActorUri {
             path,
-            name: Arc::new(name.into()),
+            name: Arc::from(name),
             host: sys.host(),
         };
 
@@ -108,9 +108,9 @@ pub fn create_root(sys: &ActorSystem) -> SysActors {
 
 fn root(sys: &ActorSystem) -> BasicActorRef {
     let uri = ActorUri {
-        name: Arc::new("root".to_string()),
+        name: Arc::from("root"),
         path: ActorPath::new("/"),
-        host: Arc::new("localhost".to_string()),
+        host: Arc::from("localhost"),
     };
     let (sender, sys_sender, _mb) = mailbox::<SystemMsg>(100);
 
@@ -159,9 +159,9 @@ fn root(sys: &ActorSystem) -> BasicActorRef {
 
 fn guardian(name: &str, path: &str, root: &BasicActorRef, sys: &ActorSystem) -> BasicActorRef {
     let uri = ActorUri {
-        name: Arc::new(name.to_string()),
+        name: Arc::from(name),
         path: ActorPath::new(path),
-        host: Arc::new("localhost".to_string()),
+        host: Arc::from("localhost"),
     };
 
     let props: BoxActorProd<Guardian> =
