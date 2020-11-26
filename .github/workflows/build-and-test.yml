@@ -39,7 +39,7 @@ jobs:
       with:
         path: ~/.cargo/registry
         # Add date to the cache to keep it up to date
-        key: ${{ matrix.project }}-${{ matrix.os }}-${{ matrix.rust }}-cargo-registry-${{ hashFiles('**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
+        key: ${{ matrix.project }}-${{ matrix.os }}-cargo-registry-${{ hashFiles('**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
         # Restore from outdated cache for speed
         restore-keys: |
           ${{ matrix.project }}-${{ matrix.os }}-${{ matrix.rust }}-cargo-registry-${{ hashFiles('**/Cargo.toml') }}

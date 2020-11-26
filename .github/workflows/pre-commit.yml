@@ -24,6 +24,5 @@ jobs:
           profile: minimal
           toolchain: ${{ matrix.rust }}
           override: true
-      - run: rustup component add clippy
-      - run: rustup component add rustfmt
+          components: clippy, rustfmt
       - uses: pre-commit/action@v2.0.0
