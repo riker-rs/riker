@@ -177,7 +177,7 @@ use slog::{debug, Logger};
 pub struct ProtoSystem {
     id: Uuid,
     name: String,
-    pub host: Arc<String>,
+    pub host: Arc<str>,
     config: Config,
     pub(crate) sys_settings: SystemSettings,
     started_at: DateTime<Utc>,
@@ -336,7 +336,7 @@ impl ActorSystem {
         let proto = ProtoSystem {
             id: Uuid::new_v4(),
             name: name.to_string(),
-            host: Arc::new("localhost".to_string()),
+            host: Arc::from("localhost"),
             config: cfg.clone(),
             sys_settings: SystemSettings::from(&cfg),
             started_at: Utc::now(),
@@ -399,7 +399,7 @@ impl ActorSystem {
     /// The host is used in actor addressing.
     ///
     /// Currently not used, but will be once system clustering is introduced.
-    pub fn host(&self) -> Arc<String> {
+    pub fn host(&self) -> Arc<str> {
         self.proto.host.clone()
     }
 

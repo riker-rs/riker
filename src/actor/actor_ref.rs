@@ -213,7 +213,7 @@ impl ActorReference for BasicActorRef {
     ///
     /// Unique among siblings.
     fn name(&self) -> &str {
-        self.cell.uri().name.as_str()
+        self.cell.uri().name.as_ref()
     }
 
     fn uri(&self) -> &ActorUri {
@@ -264,7 +264,7 @@ impl ActorReference for &BasicActorRef {
     ///
     /// Unique among siblings.
     fn name(&self) -> &str {
-        self.cell.uri().name.as_str()
+        self.cell.uri().name.as_ref()
     }
 
     fn uri(&self) -> &ActorUri {
@@ -392,7 +392,7 @@ impl<Msg: Message> ActorReference for ActorRef<Msg> {
     ///
     /// Unique among siblings.
     fn name(&self) -> &str {
-        self.cell.uri().name.as_str()
+        self.cell.uri().name.as_ref()
     }
 
     fn uri(&self) -> &ActorUri {
@@ -443,7 +443,7 @@ impl<Msg: Message> ActorReference for &ActorRef<Msg> {
     ///
     /// Unique among siblings.
     fn name(&self) -> &str {
-        self.cell.uri().name.as_str()
+        self.cell.uri().name.as_ref()
     }
 
     fn uri(&self) -> &ActorUri {
