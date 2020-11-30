@@ -26,13 +26,7 @@ impl Actor for GpsActor {
 
         println!("{}: pre_start subscribe to {:?}", ctx.myself.name(), topic);
         let sub = Box::new(ctx.myself());
-        self.chan.tell(
-            Subscribe {
-                actor: sub.clone(),
-                topic,
-            },
-            None,
-        );
+        self.chan.tell(Subscribe { actor: sub, topic }, None);
     }
 
     fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender) {
@@ -67,13 +61,7 @@ impl Actor for NavigationActor {
 
         println!("{}: pre_start subscribe to {:?}", ctx.myself.name(), topic);
         let sub = Box::new(ctx.myself());
-        self.chan.tell(
-            Subscribe {
-                actor: sub.clone(),
-                topic,
-            },
-            None,
-        );
+        self.chan.tell(Subscribe { actor: sub, topic }, None);
     }
 
     fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender) {
