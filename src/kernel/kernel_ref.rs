@@ -1,8 +1,6 @@
 use std::sync::Arc;
 
 use futures::{channel::mpsc::Sender, SinkExt};
-#[cfg(not(feature = "tokio_executor"))]
-use futures::task::SpawnExt;
 
 use crate::{
     actor::{MsgError, MsgResult},
@@ -38,10 +36,13 @@ impl KernelRef {
 
     fn send(&self, msg: KernelMsg, sys: &ActorSystem) {
         let mut tx = self.tx.clone();
-        sys.run(async move {
+        let res = sys.run(async move {
                 drop(tx.send(msg).await);
-            })
-            .unwrap();
+            });
+        #[cfg(not(feature="tokio_executor"))]
+        res.unwrap().forget();
+        #[cfg(feature="tokio_executor")]
+        res.unwrap();
     }
 }
 

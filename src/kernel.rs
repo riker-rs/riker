@@ -19,8 +19,6 @@ use std::{
 };
 
 use futures::{channel::mpsc::channel, StreamExt};
-#[cfg(not(feature = "tokio_executor"))]
-use futures::task::SpawnExt;
 use slog::warn;
 
 use crate::{
@@ -100,6 +98,9 @@ where
         }
     };
 
+    #[cfg(not(feature="tokio_executor"))]
+    sys.run(f).unwrap().forget();
+    #[cfg(feature="tokio_executor")]
     sys.run(f).unwrap();
     Ok(kr)
 }
