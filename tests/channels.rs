@@ -5,6 +5,7 @@ use riker::actors::*;
 
 use riker_testkit::probe::channel::{probe, ChannelProbe};
 use riker_testkit::probe::{Probe, ProbeReceive};
+use riker_testkit::test_fn;
 
 #[derive(Clone, Debug)]
 pub struct TestProbe(ChannelProbe<(), ()>);
@@ -66,89 +67,97 @@ impl Receive<SomeMessage> for Subscriber {
     }
 }
 
-#[test]
-fn channel_publish() {
-    let sys = ActorSystem::new().unwrap();
-
-    // Create the channel we'll be using
-    let chan: ChannelRef<SomeMessage> = channel("my-chan", &sys).unwrap();
-
-    // The topic we'll be publishing to. Endow our subscriber test actor with this.
-    // On Subscriber's pre_start it will subscribe to this channel+topic
-    let topic = Topic::from("my-topic");
-    let sub = sys
-        .actor_of_args::<Subscriber, _>("sub-actor", (chan.clone(), topic.clone()))
-        .unwrap();
-
-    let (probe, listen) = probe();
-    sub.tell(TestProbe(probe), None);
-
-    // wait for the probe to arrive at the actor before publishing message
-    listen.recv();
-
-    // Publish a test message
-    chan.tell(
-        Publish {
-            msg: SomeMessage,
-            topic,
-        },
-        None,
-    );
-
-    p_assert_eq!(listen, ());
+test_fn!{
+    fn channel_publish() {
+        let sys = ActorSystem::new().unwrap();
+    
+        // Create the channel we'll be using
+        let chan: ChannelRef<SomeMessage> = channel("my-chan", &sys).unwrap();
+    
+        // The topic we'll be publishing to. Endow our subscriber test actor with this.
+        // On Subscriber's pre_start it will subscribe to this channel+topic
+        let topic = Topic::from("my-topic");
+        let sub = sys
+            .actor_of_args::<Subscriber, _>("sub-actor", (chan.clone(), topic.clone()))
+            .unwrap();
+    
+        let (probe, mut listen) = probe();
+        sub.tell(TestProbe(probe), None);
+    
+        // wait for the probe to arrive at the actor before publishing message
+        #[cfg(feature = "tokio_executor")]
+        listen.recv().await;
+        #[cfg(not(feature = "tokio_executor"))]
+        listen.recv();
+    
+        // Publish a test message
+        chan.tell(
+            Publish {
+                msg: SomeMessage,
+                topic,
+            },
+            None,
+        );
+    
+        p_assert_eq!(listen, ());
+    }
 }
 
-#[test]
-fn channel_publish_subscribe_all() {
-    let sys = ActorSystem::new().unwrap();
-
-    // Create the channel we'll be using
-    let chan: ChannelRef<SomeMessage> = channel("my-chan", &sys).unwrap();
-
-    // The '*' All topic. Endow our subscriber test actor with this.
-    // On Subscriber's pre_start it will subscribe to all topics on this channel.
-    let topic = Topic::from("*");
-    let sub = sys
-        .actor_of_args::<Subscriber, _>("sub-actor", (chan.clone(), topic))
-        .unwrap();
-
-    let (probe, listen) = probe();
-    sub.tell(TestProbe(probe), None);
-
-    // wait for the probe to arrive at the actor before publishing message
-    listen.recv();
-
-    // Publish a test message to topic "topic-1"
-    chan.tell(
-        Publish {
-            msg: SomeMessage,
-            topic: "topic-1".into(),
-        },
-        None,
-    );
-
-    // Publish a test message to topic "topic-2"
-    chan.tell(
-        Publish {
-            msg: SomeMessage,
-            topic: "topic-2".into(),
-        },
-        None,
-    );
-
-    // Publish a test message to topic "topic-3"
-    chan.tell(
-        Publish {
-            msg: SomeMessage,
-            topic: "topic-3".into(),
-        },
-        None,
-    );
-
-    // Expecting three probe events
-    p_assert_eq!(listen, ());
-    p_assert_eq!(listen, ());
-    p_assert_eq!(listen, ());
+test_fn!{
+    fn channel_publish_subscribe_all() {
+        let sys = ActorSystem::new().unwrap();
+    
+        // Create the channel we'll be using
+        let chan: ChannelRef<SomeMessage> = channel("my-chan", &sys).unwrap();
+    
+        // The '*' All topic. Endow our subscriber test actor with this.
+        // On Subscriber's pre_start it will subscribe to all topics on this channel.
+        let topic = Topic::from("*");
+        let sub = sys
+            .actor_of_args::<Subscriber, _>("sub-actor", (chan.clone(), topic))
+            .unwrap();
+    
+        let (probe, mut listen) = probe();
+        sub.tell(TestProbe(probe), None);
+    
+        // wait for the probe to arrive at the actor before publishing message
+        #[cfg(feature = "tokio_executor")]
+        listen.recv().await;
+        #[cfg(not(feature = "tokio_executor"))]
+        listen.recv();
+    
+        // Publish a test message to topic "topic-1"
+        chan.tell(
+            Publish {
+                msg: SomeMessage,
+                topic: "topic-1".into(),
+            },
+            None,
+        );
+    
+        // Publish a test message to topic "topic-2"
+        chan.tell(
+            Publish {
+                msg: SomeMessage,
+                topic: "topic-2".into(),
+            },
+            None,
+        );
+    
+        // Publish a test message to topic "topic-3"
+        chan.tell(
+            Publish {
+                msg: SomeMessage,
+                topic: "topic-3".into(),
+            },
+            None,
+        );
+    
+        // Expecting three probe events
+        p_assert_eq!(listen, ());
+        p_assert_eq!(listen, ());
+        p_assert_eq!(listen, ());
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -237,50 +246,54 @@ impl Receive<SystemEvent> for EventSubscriber {
         match msg {
             SystemEvent::ActorCreated(created) => {
                 if created.actor.path() == "/user/dumb-actor" {
-                    self.probe.as_ref().unwrap().0.event(())
+                    self.probe.as_ref().unwrap().0.event(());
                 }
             }
             SystemEvent::ActorRestarted(restarted) => {
                 if restarted.actor.path() == "/user/dumb-actor" {
-                    self.probe.as_ref().unwrap().0.event(())
+                    self.probe.as_ref().unwrap().0.event(());
                 }
             }
             SystemEvent::ActorTerminated(terminated) => {
                 if terminated.actor.path() == "/user/dumb-actor" {
-                    self.probe.as_ref().unwrap().0.event(())
+                    self.probe.as_ref().unwrap().0.event(());
                 }
             }
         }
     }
 }
 
-#[test]
-fn channel_system_events() {
-    let sys = ActorSystem::new().unwrap();
-
-    let actor = sys.actor_of::<EventSubscriber>("event-sub").unwrap();
-
-    let (probe, listen) = probe();
-    actor.tell(TestProbe(probe), None);
-
-    // wait for the probe to arrive at the actor before attempting
-    // create, restart and stop
-    listen.recv();
-
-    // Create an actor
-    let dumb = sys.actor_of::<DumbActor>("dumb-actor").unwrap();
-    // ActorCreated event was received
-    p_assert_eq!(listen, ());
-
-    // Force restart of actor
-    dumb.tell(Panic, None);
-    // ActorRestarted event was received
-    p_assert_eq!(listen, ());
-
-    // Terminate actor
-    sys.stop(&dumb);
-    // ActorTerminated event was receive
-    p_assert_eq!(listen, ());
+test_fn!{
+    fn channel_system_events() {
+        let sys = ActorSystem::new().unwrap();
+    
+        let actor = sys.actor_of::<EventSubscriber>("event-sub").unwrap();
+    
+        let (probe, mut listen) = probe();
+        actor.tell(TestProbe(probe), None);
+    
+        // wait for the probe to arrive at the actor before attempting
+        // create, restart and stop
+        #[cfg(feature = "tokio_executor")]
+        listen.recv().await;
+        #[cfg(not(feature = "tokio_executor"))]
+        listen.recv();
+    
+        // Create an actor
+        let dumb = sys.actor_of::<DumbActor>("dumb-actor").unwrap();
+        // ActorCreated event was received
+        p_assert_eq!(listen, ());
+    
+        // Force restart of actor
+        dumb.tell(Panic, None);
+        // ActorRestarted event was received
+        p_assert_eq!(listen, ());
+    
+        // Terminate actor
+        sys.stop(&dumb);
+        // ActorTerminated event was receive
+        p_assert_eq!(listen, ());
+    }
 }
 
 // *** Dead letters test ***
@@ -327,23 +340,27 @@ impl Receive<DeadLetter> for DeadLetterSub {
     }
 }
 
-#[test]
-fn channel_dead_letters() {
-    let sys = ActorSystem::new().unwrap();
-    let actor = sys.actor_of::<DeadLetterSub>("dl-subscriber").unwrap();
-
-    let (probe, listen) = probe();
-    actor.tell(TestProbe(probe), None);
-
-    // wait for the probe to arrive at the actor before attempting to stop the actor
-    listen.recv();
-
-    let dumb = sys.actor_of::<DumbActor>("dumb-actor").unwrap();
-
-    // immediately stop the actor and attempt to send a message
-    sys.stop(&dumb);
-    std::thread::sleep(std::time::Duration::from_secs(1));
-    dumb.tell(SomeMessage, None);
-
-    p_assert_eq!(listen, ());
+test_fn!{
+    fn channel_dead_letters() {
+        let sys = ActorSystem::new().unwrap();
+        let actor = sys.actor_of::<DeadLetterSub>("dl-subscriber").unwrap();
+    
+        let (probe, mut listen) = probe();
+        actor.tell(TestProbe(probe), None);
+    
+        // wait for the probe to arrive at the actor before attempting to stop the actor
+        #[cfg(feature = "tokio_executor")]
+        listen.recv().await;
+        #[cfg(not(feature = "tokio_executor"))]
+        listen.recv();
+    
+        let dumb = sys.actor_of::<DumbActor>("dumb-actor").unwrap();
+    
+        // immediately stop the actor and attempt to send a message
+        sys.stop(&dumb);
+        std::thread::sleep(std::time::Duration::from_secs(1));
+        dumb.tell(SomeMessage, None);
+    
+        p_assert_eq!(listen, ());
+    }
 }

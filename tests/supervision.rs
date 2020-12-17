@@ -5,6 +5,7 @@ use riker::actors::*;
 
 use riker_testkit::probe::channel::{probe, ChannelProbe};
 use riker_testkit::probe::{Probe, ProbeReceive};
+use riker_testkit::test_fn;
 
 #[derive(Clone, Debug)]
 pub struct Panic;
@@ -98,21 +99,22 @@ impl Receive<Panic> for RestartSup {
     }
 }
 
-#[test]
-fn supervision_restart_failed_actor() {
-    let sys = ActorSystem::new().unwrap();
-
-    for i in 0..100 {
-        let sup = sys
-            .actor_of::<RestartSup>(&format!("supervisor_{}", i))
-            .unwrap();
-
-        // Make the test actor panic
-        sup.tell(Panic, None);
-
-        let (probe, listen) = probe::<()>();
-        sup.tell(TestProbe(probe), None);
-        p_assert_eq!(listen, ());
+test_fn!{
+    fn supervision_restart_failed_actor() {
+        let sys = ActorSystem::new().unwrap();
+    
+        for i in 0..100 {
+            let sup = sys
+                .actor_of::<RestartSup>(&format!("supervisor_{}", i))
+                .unwrap();
+    
+            // Make the test actor panic
+            sup.tell(Panic, None);
+    
+            let (probe, mut listen) = probe::<()>();
+            sup.tell(TestProbe(probe), None);
+            p_assert_eq!(listen, ());
+        }
     }
 }
 
@@ -203,18 +205,19 @@ impl Receive<Panic> for EscRestartSup {
     }
 }
 
-#[test]
-fn supervision_escalate_failed_actor() {
-    let sys = ActorSystem::new().unwrap();
-
-    let sup = sys.actor_of::<EscRestartSup>("supervisor").unwrap();
-
-    // Make the test actor panic
-    sup.tell(Panic, None);
-
-    let (probe, listen) = probe::<()>();
-    std::thread::sleep(std::time::Duration::from_millis(2000));
-    sup.tell(TestProbe(probe), None);
-    p_assert_eq!(listen, ());
-    sys.print_tree();
+test_fn!{
+    fn supervision_escalate_failed_actor() {
+        let sys = ActorSystem::new().unwrap();
+    
+        let sup = sys.actor_of::<EscRestartSup>("supervisor").unwrap();
+    
+        // Make the test actor panic
+        sup.tell(Panic, None);
+    
+        let (probe, mut listen) = probe::<()>();
+        std::thread::sleep(std::time::Duration::from_millis(2000));
+        sup.tell(TestProbe(probe), None);
+        p_assert_eq!(listen, ());
+        sys.print_tree();
+    }
 }

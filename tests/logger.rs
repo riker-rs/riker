@@ -2,6 +2,7 @@ use futures::executor::block_on;
 
 use riker::actors::*;
 use slog::{o, Fuse, Logger};
+use riker_testkit::test_fn;
 
 mod common {
     use std::{fmt, result};
@@ -42,20 +43,22 @@ mod common {
     }
 }
 
-#[test]
-fn system_create_with_slog() {
-    let log = Logger::root(
-        Fuse(common::PrintlnDrain),
-        o!("version" => "v1", "run_env" => "test"),
-    );
-    let sys = SystemBuilder::new().log(log).create().unwrap();
-    block_on(sys.shutdown()).unwrap();
+test_fn!{
+    fn system_create_with_slog() {
+        let log = Logger::root(
+            Fuse(common::PrintlnDrain),
+            o!("version" => "v1", "run_env" => "test"),
+        );
+        let sys = SystemBuilder::new().log(log).create().unwrap();
+        block_on(sys.shutdown()).unwrap();
+    }
 }
 
 // a test that logging without slog using "log" crate works
-#[test]
-fn logging_stdlog() {
-    log::info!("before the system");
-    let _sys = ActorSystem::new().unwrap();
-    log::info!("system exists");
+test_fn!{
+    fn logging_stdlog() {
+        log::info!("before the system");
+        let _sys = ActorSystem::new().unwrap();
+        log::info!("system exists");
+    }
 }

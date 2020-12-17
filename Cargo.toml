@@ -14,7 +14,7 @@ keywords = ["actors", "actor-model", "async", "cqrs", "event_sourcing"]
 travis-ci = { repository = "riker-rs/riker" }
 
 [features]
-tokio_executor = ["tokio"]
+tokio_executor = ["tokio", "riker-testkit/tokio_executor"]
 
 [dependencies]
 riker-macros = { path = "riker-macros", version = "0.2.0" }
@@ -34,5 +34,5 @@ tokio = { version = "0.3.6", features = ["rt", "rt-multi-thread", "macros"], opt
 
 
 [dev-dependencies]
-riker-testkit = "0.1.0"
 log = "0.4"
+riker-testkit = { path = "../riker-testkit" }
