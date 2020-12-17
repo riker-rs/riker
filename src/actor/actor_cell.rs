@@ -10,7 +10,9 @@ use std::{
 
 use chrono::prelude::*;
 use dashmap::DashMap;
-use futures::{future::RemoteHandle, task::SpawnError, Future};
+use futures::Future;
+#[cfg(not(feature = "tokio_executor"))]
+use futures::{future::RemoteHandle, task::SpawnError};
 use uuid::Uuid;
 
 use crate::{
@@ -525,7 +527,16 @@ impl<Msg> Run for Context<Msg>
 where
     Msg: Message,
 {
+    #[cfg(not(feature = "tokio_executor"))]
     fn run<Fut>(&self, future: Fut) -> Result<RemoteHandle<<Fut as Future>::Output>, SpawnError>
+    where
+        Fut: Future + Send + 'static,
+        <Fut as Future>::Output: Send,
+    {
+        self.system.run(future)
+    }
+    #[cfg(feature = "tokio_executor")]
+    fn run<Fut>(&self, future: Fut) -> Result<tokio::task::JoinHandle<<Fut as Future>::Output>, std::convert::Infallible>
     where
         Fut: Future + Send + 'static,
         <Fut as Future>::Output: Send,

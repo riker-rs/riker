@@ -141,10 +141,13 @@ use chrono::prelude::*;
 use config::Config;
 use futures::{
     channel::oneshot,
+    Future,
+};
+#[cfg(not(feature = "tokio_executor"))]
+use futures::{
     executor::{ThreadPool, ThreadPoolBuilder},
     future::RemoteHandle,
     task::{SpawnError, SpawnExt},
-    Future,
 };
 
 use uuid::Uuid;
@@ -172,12 +175,17 @@ pub struct ProtoSystem {
     started_at: DateTime<Utc>,
 }
 
+#[cfg(feature = "tokio_executor")]
+type Exec = tokio::runtime::Handle;
+#[cfg(not(feature = "tokio_executor"))]
+type Exec = ThreadPool;
+
 #[derive(Default)]
 pub struct SystemBuilder {
     name: Option<String>,
     cfg: Option<Config>,
     log: Option<Logger>,
-    exec: Option<ThreadPool>,
+    exec: Option<Exec>,
 }
 
 impl SystemBuilder {
@@ -211,7 +219,7 @@ impl SystemBuilder {
         }
     }
 
-    pub fn exec(self, exec: ThreadPool) -> Self {
+    pub fn exec(self, exec: Exec) -> Self {
         SystemBuilder {
             exec: Some(exec),
             ..self
@@ -252,6 +260,21 @@ impl Deref for LoggingSystem {
     }
 }
 
+#[cfg(feature = "tokio_executor")]
+fn default_exec(_: &Config) -> tokio::runtime::Handle {
+    tokio::runtime::Handle::current()
+}
+#[cfg(not(feature = "tokio_executor"))]
+fn default_exec(cfg: &Config) -> ThreadPool {
+    let exec_cfg = ThreadPoolConfig::from(cfg);
+    ThreadPoolBuilder::new()
+        .pool_size(exec_cfg.pool_size)
+        .stack_size(exec_cfg.stack_size)
+        .name_prefix("pool-thread-#")
+        .create()
+        .unwrap()
+}
+
 /// The actor runtime and common services coordinator
 ///
 /// The `ActorSystem` provides a runtime on which actors are executed.
@@ -266,7 +289,7 @@ pub struct ActorSystem {
     sys_actors: Option<SysActors>,
     log: LoggingSystem,
     debug: bool,
-    pub exec: ThreadPool,
+    pub exec: Exec,
     pub timer: TimerRef,
     pub sys_channels: Option<SysChannels>,
     pub(crate) provider: Provider,
@@ -305,7 +328,7 @@ impl ActorSystem {
 
     fn create(
         name: &str,
-        exec: ThreadPool,
+        exec: Exec,
         log: LoggingSystem,
         cfg: Config,
     ) -> Result<ActorSystem, SystemError> {
@@ -662,23 +685,40 @@ impl ActorSelectionFactory for ActorSystem {
         )
     }
 }
+#[cfg(feature = "tokio_executor")]
+use std::convert::Infallible;
 
 // futures::task::Spawn::spawn requires &mut self so
 // we'll create a wrapper trait that requires only &self.
 pub trait Run {
+    #[cfg(not(feature = "tokio_executor"))]
     fn run<Fut>(&self, future: Fut) -> Result<RemoteHandle<<Fut as Future>::Output>, SpawnError>
+    where
+        Fut: Future + Send + 'static,
+        <Fut as Future>::Output: Send;
+    #[cfg(feature = "tokio_executor")]
+    fn run<Fut>(&self, future: Fut) -> Result<tokio::task::JoinHandle<<Fut as Future>::Output>, Infallible>
     where
         Fut: Future + Send + 'static,
         <Fut as Future>::Output: Send;
 }
 
 impl Run for ActorSystem {
+    #[cfg(not(feature = "tokio_executor"))]
     fn run<Fut>(&self, future: Fut) -> Result<RemoteHandle<<Fut as Future>::Output>, SpawnError>
     where
         Fut: Future + Send + 'static,
         <Fut as Future>::Output: Send,
     {
         self.exec.spawn_with_handle(future)
+    }
+    #[cfg(feature = "tokio_executor")]
+    fn run<Fut>(&self, future: Fut) -> Result<tokio::task::JoinHandle<<Fut as Future>::Output>, Infallible>
+    where
+        Fut: Future + Send + 'static,
+        <Fut as Future>::Output: Send,
+    {
+        Ok(self.exec.spawn(future))
     }
 }
 
@@ -867,15 +907,6 @@ impl<'a> From<&'a Config> for ThreadPoolConfig {
     }
 }
 
-fn default_exec(cfg: &Config) -> ThreadPool {
-    let exec_cfg = ThreadPoolConfig::from(cfg);
-    ThreadPoolBuilder::new()
-        .pool_size(exec_cfg.pool_size)
-        .stack_size(exec_cfg.stack_size)
-        .name_prefix("pool-thread-#")
-        .create()
-        .unwrap()
-}
 
 #[derive(Clone)]
 pub struct SysActors {

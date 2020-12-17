@@ -18,7 +18,9 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use futures::{channel::mpsc::channel, task::SpawnExt, StreamExt};
+use futures::{channel::mpsc::channel, StreamExt};
+#[cfg(not(feature = "tokio_executor"))]
+use futures::task::SpawnExt;
 use slog::warn;
 
 use crate::{
@@ -28,7 +30,7 @@ use crate::{
         kernel_ref::KernelRef,
         mailbox::{flush_to_deadletters, run_mailbox, Mailbox},
     },
-    system::{ActorRestarted, ActorTerminated, SystemMsg},
+    system::{ActorRestarted, ActorTerminated, SystemMsg, Run},
     Message,
 };
 
@@ -98,7 +100,7 @@ where
         }
     };
 
-    sys.exec.spawn(f).unwrap();
+    sys.run(f).unwrap();
     Ok(kr)
 }
 
