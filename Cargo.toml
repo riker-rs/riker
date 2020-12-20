@@ -30,7 +30,7 @@ slog-stdlog = "4.0"
 slog-scope = "4.3.0"
 num_cpus = "1.13.0"
 dashmap = "3"
-tokio = { version = "0.3.6", features = ["rt", "rt-multi-thread", "macros"], optional = true }
+tokio = { version = "^0.2", features = ["rt-threaded", "macros"], optional = true }
 
 
 [dev-dependencies]
