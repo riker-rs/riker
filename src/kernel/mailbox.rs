@@ -24,8 +24,17 @@ pub trait MailboxSchedule {
     fn is_scheduled(&self) -> bool;
 }
 
+#[derive(Debug)]
+pub struct AnyEnqueueError;
+
+impl From<()> for AnyEnqueueError {
+    fn from(_: ()) -> AnyEnqueueError {
+        AnyEnqueueError
+    }
+}
+
 pub trait AnySender: Send + Sync {
-    fn try_any_enqueue(&self, msg: &mut AnyMessage, sender: Sender) -> Result<(), ()>;
+    fn try_any_enqueue(&self, msg: &mut AnyMessage, sender: Sender) -> Result<(), AnyEnqueueError>;
 
     fn set_sched(&self, b: bool);
 
@@ -64,13 +73,13 @@ impl<Msg> AnySender for MailboxSender<Msg>
 where
     Msg: Message,
 {
-    fn try_any_enqueue(&self, msg: &mut AnyMessage, sender: Sender) -> Result<(), ()> {
-        let actual = msg.take()?;
+    fn try_any_enqueue(&self, msg: &mut AnyMessage, sender: Sender) -> Result<(), AnyEnqueueError> {
+        let actual = msg.take().map_err(|_| AnyEnqueueError)?;
         let msg = Envelope {
             msg: actual,
             sender,
         };
-        self.try_enqueue(msg).map_err(|_| ())
+        self.try_enqueue(msg).map_err(|_| AnyEnqueueError)
     }
 
     fn set_sched(&self, b: bool) {

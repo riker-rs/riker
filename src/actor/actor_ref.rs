@@ -6,6 +6,7 @@ use crate::{
         props::{ActorArgs, ActorFactory, ActorFactoryArgs},
         Actor, ActorPath, ActorUri, BoxActorProd, CreateError,
     },
+    kernel::mailbox::AnyEnqueueError,
     system::{ActorSystem, SystemMsg},
     AnyMessage, Envelope, Message,
 };
@@ -192,7 +193,7 @@ impl BasicActorRef {
         &self,
         msg: Msg,
         sender: impl Into<Option<BasicActorRef>>,
-    ) -> Result<(), ()>
+    ) -> Result<(), AnyEnqueueError>
     where
         Msg: Message + Send,
     {
@@ -203,7 +204,7 @@ impl BasicActorRef {
         &self,
         msg: &mut AnyMessage,
         sender: impl Into<Option<BasicActorRef>>,
-    ) -> Result<(), ()> {
+    ) -> Result<(), AnyEnqueueError> {
         self.cell.send_any_msg(msg, sender.into())
     }
 }

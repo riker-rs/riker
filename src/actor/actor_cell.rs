@@ -17,7 +17,7 @@ use crate::{
     actor::{props::ActorFactory, *},
     kernel::{
         kernel_ref::{dispatch, dispatch_any, KernelRef},
-        mailbox::{AnySender, MailboxSender},
+        mailbox::{AnyEnqueueError, AnySender, MailboxSender},
     },
     system::{
         timer::{Job, OnceJob, RepeatJob, ScheduleId, Timer},
@@ -124,7 +124,7 @@ impl ActorCell {
         &self,
         msg: &mut AnyMessage,
         sender: crate::actor::Sender,
-    ) -> Result<(), ()> {
+    ) -> Result<(), AnyEnqueueError> {
         let mb = &self.inner.mailbox;
         let k = self.kernel();
 
@@ -603,7 +603,7 @@ where
         T: Message + Into<M>,
         M: Message,
     {
-        let delay = std::cmp::max(time.timestamp() - Utc::now().timestamp(), 0 as i64);
+        let delay = std::cmp::max(time.timestamp() - Utc::now().timestamp(), 0_i64);
         let delay = Duration::from_secs(delay as u64);
 
         let id = Uuid::new_v4();
