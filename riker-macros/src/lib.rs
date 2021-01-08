@@ -4,7 +4,7 @@ use proc_macro2::{Ident, TokenStream};
 use quote::quote;
 use syn::parse::{Parse, ParseStream, Result};
 use syn::punctuated::Punctuated;
-use syn::{DeriveInput, Generics};
+use syn::{DeriveInput, Generics, PathSegment};
 
 struct MsgTypes {
     types: Vec<MsgVariant>,
@@ -12,7 +12,7 @@ struct MsgTypes {
 
 struct MsgVariant {
     name: Ident,
-    mtype: Ident,
+    mtype: PathSegment,
 }
 
 impl MsgTypes {
@@ -35,13 +35,13 @@ impl MsgTypes {
 
 impl Parse for MsgTypes {
     fn parse(input: ParseStream) -> Result<Self> {
-        let vars = Punctuated::<Ident, syn::token::Comma>::parse_terminated(input)?;
+        let vars = Punctuated::<PathSegment, syn::token::Comma>::parse_terminated(input)?;
 
         Ok(MsgTypes {
             types: vars
                 .into_iter()
                 .map(|t| MsgVariant {
-                    name: get_name(&t),
+                    name: get_name(&t.ident),
                     mtype: t,
                 })
                 .collect::<Vec<_>>(),
@@ -123,7 +123,7 @@ fn receive(aname: &Ident, gen: &Generics, name: &Ident, types: &MsgTypes) -> Tok
     }
 }
 
-fn impl_into(name: &Ident, vname: &Ident, ty: &Ident) -> TokenStream {
+fn impl_into(name: &Ident, vname: &Ident, ty: &PathSegment) -> TokenStream {
     quote! {
         impl Into<#name> for #ty {
             fn into(self) -> #name {
