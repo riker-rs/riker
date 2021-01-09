@@ -1,7 +1,7 @@
 pub(crate) mod logger;
 pub(crate) mod timer;
 
-use std::{error::Error, fmt};
+use std::fmt;
 
 use crate::actor::BasicActorRef;
 
@@ -111,28 +111,17 @@ pub enum SystemError {
     InvalidName(String),
 }
 
-impl Error for SystemError {
-    fn description(&self) -> &str {
-        match *self {
-            SystemError::ModuleFailed(_) => {
-                "Failed to create actor system. Cause: Sub module failed to start"
-            }
-            SystemError::InvalidName(_) => {
-                "Failed to create actor system. Cause: Invalid actor system name"
-            }
-        }
-    }
-}
-
 impl fmt::Display for SystemError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            SystemError::ModuleFailed(ref m) => {
-                f.write_str(&format!("{} ({})", self.to_string(), m))
-            }
-            SystemError::InvalidName(ref name) => {
-                f.write_str(&format!("{} ({})", self.to_string(), name))
-            }
+            SystemError::ModuleFailed(ref m) => f.write_str(&format!(
+                "Failed to create actor system. Cause: Sub module failed to start ({})",
+                m
+            )),
+            SystemError::InvalidName(ref name) => f.write_str(&format!(
+                "Failed to create actor system. Cause: Invalid actor system name ({})",
+                name
+            )),
         }
     }
 }
@@ -771,7 +760,7 @@ impl Timer for ActorSystem {
         T: Message + Into<M>,
         M: Message,
     {
-        let delay = std::cmp::max(time.timestamp() - Utc::now().timestamp(), 0 as i64);
+        let delay = std::cmp::max(time.timestamp() - Utc::now().timestamp(), 0_i64);
         let delay = Duration::from_secs(delay as u64);
 
         let id = Uuid::new_v4();

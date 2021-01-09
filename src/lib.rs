@@ -4,7 +4,6 @@
 // #![deny(clippy::nursery)]
 #![allow(clippy::new_ret_no_self)]
 #![allow(clippy::large_enum_variant)]
-#![allow(clippy::to_string_in_display)]
 
 mod validate;
 
@@ -65,6 +64,8 @@ pub struct AnyMessage {
     pub msg: Option<Box<dyn Any + Send>>,
 }
 
+pub struct DowncastAnyMessageError;
+
 impl AnyMessage {
     pub fn new<T>(msg: T, one_time: bool) -> Self
     where
@@ -76,7 +77,7 @@ impl AnyMessage {
         }
     }
 
-    pub fn take<T>(&mut self) -> Result<T, ()>
+    pub fn take<T>(&mut self) -> Result<T, DowncastAnyMessageError>
     where
         T: Any + Message,
     {
@@ -86,16 +87,16 @@ impl AnyMessage {
                     if m.is::<T>() {
                         Ok(*m.downcast::<T>().unwrap())
                     } else {
-                        Err(())
+                        Err(DowncastAnyMessageError)
                     }
                 }
-                None => Err(()),
+                None => Err(DowncastAnyMessageError),
             }
         } else {
             match self.msg.as_ref() {
                 Some(m) if m.is::<T>() => Ok(m.downcast_ref::<T>().cloned().unwrap()),
-                Some(_) => Err(()),
-                None => Err(()),
+                Some(_) => Err(DowncastAnyMessageError),
+                None => Err(DowncastAnyMessageError),
             }
         }
     }

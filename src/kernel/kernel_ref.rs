@@ -5,7 +5,7 @@ use futures::{channel::mpsc::Sender, task::SpawnExt, SinkExt};
 use crate::{
     actor::{MsgError, MsgResult},
     kernel::{
-        mailbox::{AnySender, MailboxSchedule, MailboxSender},
+        mailbox::{AnyEnqueueError, AnySender, MailboxSchedule, MailboxSender},
         KernelMsg,
     },
     system::ActorSystem,
@@ -72,18 +72,13 @@ pub fn dispatch_any(
     mbox: &Arc<dyn AnySender>,
     kernel: &KernelRef,
     sys: &ActorSystem,
-) -> Result<(), ()> {
-    match mbox.try_any_enqueue(msg, sender) {
-        Ok(_) => {
-            if !mbox.is_sched() {
-                mbox.set_sched(true);
-                kernel.schedule(sys);
-            }
-
-            Ok(())
+) -> Result<(), AnyEnqueueError> {
+    mbox.try_any_enqueue(msg, sender).map(|_| {
+        if !mbox.is_sched() {
+            mbox.set_sched(true);
+            kernel.schedule(sys);
         }
-        Err(_) => Err(()),
-    }
+    })
 }
 
 unsafe impl Send for KernelRef {}
