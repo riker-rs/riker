@@ -4,7 +4,9 @@ use proc_macro2::{Ident, TokenStream};
 use quote::quote;
 use syn::parse::{Parse, ParseStream, Result};
 use syn::punctuated::Punctuated;
-use syn::{DeriveInput, Generics};
+use syn::spanned::Spanned;
+use syn::token::{Colon2, Comma};
+use syn::{DeriveInput, Generics, PathSegment, TypePath};
 
 struct MsgTypes {
     types: Vec<MsgVariant>,
@@ -12,7 +14,7 @@ struct MsgTypes {
 
 struct MsgVariant {
     name: Ident,
-    mtype: Ident,
+    mtype: TypePath,
 }
 
 impl MsgTypes {
@@ -35,13 +37,13 @@ impl MsgTypes {
 
 impl Parse for MsgTypes {
     fn parse(input: ParseStream) -> Result<Self> {
-        let vars = Punctuated::<Ident, syn::token::Comma>::parse_terminated(input)?;
+        let vars = Punctuated::<TypePath, Comma>::parse_terminated(input)?;
 
         Ok(MsgTypes {
             types: vars
                 .into_iter()
                 .map(|t| MsgVariant {
-                    name: get_name(&t),
+                    name: get_name(&t.path.segments),
                     mtype: t,
                 })
                 .collect::<Vec<_>>(),
@@ -49,14 +51,24 @@ impl Parse for MsgTypes {
     }
 }
 
-fn get_name(ident: &Ident) -> Ident {
-    let mut vname = format!("{}", ident.clone());
-
-    if let Some(c) = vname.get_mut(0..1) {
-        c.make_ascii_uppercase();
-    }
-
-    syn::Ident::new(&vname, ident.span())
+fn get_name(segments: &Punctuated<PathSegment, Colon2>) -> Ident {
+    let vname = segments
+        .iter()
+        .map(|seg| {
+            let ident = format!("{}", seg.ident);
+            ident
+                .split('_')
+                .map(|s| {
+                    let mut s = s.to_string();
+                    if let Some(c) = s.get_mut(0..1) {
+                        c.make_ascii_uppercase();
+                    }
+                    s
+                })
+                .collect::<String>()
+        })
+        .collect::<String>();
+    syn::Ident::new(&vname, segments.span())
 }
 
 #[proc_macro_attribute]
@@ -123,7 +135,7 @@ fn receive(aname: &Ident, gen: &Generics, name: &Ident, types: &MsgTypes) -> Tok
     }
 }
 
-fn impl_into(name: &Ident, vname: &Ident, ty: &Ident) -> TokenStream {
+fn impl_into(name: &Ident, vname: &Ident, ty: &TypePath) -> TokenStream {
     quote! {
         impl Into<#name> for #ty {
             fn into(self) -> #name {
