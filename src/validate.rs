@@ -1,5 +1,4 @@
 use regex::Regex;
-use std::error::Error;
 use std::fmt;
 
 pub fn validate_name(name: &str) -> Result<(), InvalidName> {
@@ -15,21 +14,18 @@ pub struct InvalidName {
     pub name: String,
 }
 
-impl Error for InvalidName {
-    fn description(&self) -> &str {
-        "Invalid name. Must contain only a-Z, 0-9, _, or -"
-    }
-}
-
 impl fmt::Display for InvalidName {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(&format!("\"{}\". {}", self.name, self.to_string()))
+        f.write_str(&format!(
+            "\"{}\". Invalid name. Must contain only a-Z, 0-9, _, or -",
+            self.name
+        ))
     }
 }
 
 impl fmt::Debug for InvalidName {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(&format!("\"{}\". {}", self.name, self.to_string()))
+        f.write_str(&self.to_string())
     }
 }
 
@@ -46,20 +42,17 @@ pub struct InvalidPath {
     path: String,
 }
 
-impl Error for InvalidPath {
-    fn description(&self) -> &str {
-        "Invalid path. Must contain only a-Z, 0-9, /, _, .., - or *"
-    }
-}
-
 impl fmt::Display for InvalidPath {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(&format!("\"{}\". {}", self.path, self.to_string()))
+        f.write_str(&format!(
+            "\"{}\". Invalid path. Must contain only a-Z, 0-9, /, _, .., - or *",
+            self.path
+        ))
     }
 }
 
 impl fmt::Debug for InvalidPath {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(&format!("\"{}\". {}", self.path, self.to_string()))
+        f.write_str(&self.to_string())
     }
 }

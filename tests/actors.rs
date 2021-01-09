@@ -53,7 +53,23 @@ fn actor_create() {
 
     assert!(sys.actor_of::<Counter>("valid-name").is_ok());
 
-    assert!(sys.actor_of::<Counter>("/").is_err());
+    match sys.actor_of::<Counter>("/") {
+        Ok(_) => panic!("test should not reach here"),
+        Err(e) => {
+            // test Display
+            assert_eq!(
+                e.to_string(),
+                "Failed to create actor. Cause: Invalid actor name (/)"
+            );
+            assert_eq!(
+                format!("{}", e),
+                "Failed to create actor. Cause: Invalid actor name (/)"
+            );
+            // test Debug
+            assert_eq!(format!("{:?}", e), "InvalidName(\"/\")");
+            assert_eq!(format!("{:#?}", e), "InvalidName(\n    \"/\",\n)");
+        }
+    }
     assert!(sys.actor_of::<Counter>("*").is_err());
     assert!(sys.actor_of::<Counter>("/a/b/c").is_err());
     assert!(sys.actor_of::<Counter>("@").is_err());
