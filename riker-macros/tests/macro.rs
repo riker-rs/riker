@@ -148,3 +148,77 @@ fn run_generic_message_actor() {
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
 }
+
+mod test_mod {
+    #[derive(Clone, Debug)]
+    pub struct GenericMessage<T> {
+        pub inner: T,
+    }
+
+    #[derive(Clone, Debug)]
+    pub struct Message;
+}
+
+#[actor(test_mod::GenericMessage<String>, test_mod::Message)]
+#[derive(Clone, Default)]
+struct PathMsgActor;
+
+impl Actor for PathMsgActor {
+    type Msg = PathMsgActorMsg;
+
+    fn supervisor_strategy(&self) -> Strategy {
+        Strategy::Stop
+    }
+
+    fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender) {
+        self.receive(ctx, msg, sender);
+        ctx.stop(&ctx.myself);
+    }
+}
+
+impl Receive<test_mod::GenericMessage<String>> for PathMsgActor {
+    type Msg = PathMsgActorMsg;
+
+    fn receive(
+        &mut self,
+        _ctx: &Context<Self::Msg>,
+        msg: test_mod::GenericMessage<String>,
+        _sender: Option<BasicActorRef>,
+    ) {
+        println!("{}", msg.inner);
+    }
+}
+
+impl Receive<test_mod::Message> for PathMsgActor {
+    type Msg = PathMsgActorMsg;
+
+    fn receive(
+        &mut self,
+        _ctx: &Context<Self::Msg>,
+        _msg: test_mod::Message,
+        _sender: Option<BasicActorRef>,
+    ) {
+        println!("message");
+    }
+}
+
+#[test]
+fn run_path_message_actor() {
+    let sys = ActorSystem::new().unwrap();
+
+    let act = sys.actor_of::<PathMsgActor>("act").unwrap();
+
+    let msg = PathMsgActorMsg::TestModMessage(test_mod::Message);
+    act.tell(msg, None);
+
+    let generic_msg = PathMsgActorMsg::TestModGenericMessage(test_mod::GenericMessage {
+        inner: "test".to_string(),
+    });
+    act.tell(generic_msg, None);
+
+    // wait until all direct children of the user root are terminated
+    while sys.user_root().has_children() {
+        // in order to lower cpu usage, sleep here
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+}
