@@ -760,7 +760,7 @@ impl Timer for ActorSystem {
         T: Message + Into<M>,
         M: Message,
     {
-        let delay = std::cmp::max(time.timestamp() - Utc::now().timestamp(), 0 as i64);
+        let delay = std::cmp::max(time.timestamp() - Utc::now().timestamp(), 0_i64);
         let delay = Duration::from_secs(delay as u64);
 
         let id = Uuid::new_v4();
