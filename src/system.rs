@@ -893,6 +893,7 @@ impl<'a> From<&'a Config> for SystemSettings {
     }
 }
 
+#[allow(unused)]
 struct ThreadPoolConfig {
     pool_size: usize,
     stack_size: usize,
