@@ -36,6 +36,6 @@ tokio = { version = "^0.2", features = ["rt-threaded", "macros"], optional = tru
 [dev-dependencies]
 log = "0.4"
 
-[dev-dependencies.riker-testkit]
+[dependencies.riker-testkit]
 git = "https://github.com/mankinskin/riker-testkit"
 branch = "tokio_executor"
