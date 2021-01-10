@@ -99,18 +99,18 @@ impl Receive<Panic> for RestartSup {
     }
 }
 
-test_fn!{
+test_fn! {
     fn supervision_restart_failed_actor() {
         let sys = ActorSystem::new().unwrap();
-    
+
         for i in 0..100 {
             let sup = sys
                 .actor_of::<RestartSup>(&format!("supervisor_{}", i))
                 .unwrap();
-    
+
             // Make the test actor panic
             sup.tell(Panic, None);
-    
+
             let (probe, mut listen) = probe::<()>();
             sup.tell(TestProbe(probe), None);
             p_assert_eq!(listen, ());
@@ -205,15 +205,15 @@ impl Receive<Panic> for EscRestartSup {
     }
 }
 
-test_fn!{
+test_fn! {
     fn supervision_escalate_failed_actor() {
         let sys = ActorSystem::new().unwrap();
-    
+
         let sup = sys.actor_of::<EscRestartSup>("supervisor").unwrap();
-    
+
         // Make the test actor panic
         sup.tell(Panic, None);
-    
+
         let (probe, mut listen) = probe::<()>();
         std::thread::sleep(std::time::Duration::from_millis(2000));
         sup.tell(TestProbe(probe), None);

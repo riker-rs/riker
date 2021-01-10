@@ -139,10 +139,7 @@ use std::{
 
 use chrono::prelude::*;
 use config::Config;
-use futures::{
-    channel::oneshot,
-    Future,
-};
+use futures::{channel::oneshot, Future};
 #[cfg(not(feature = "tokio_executor"))]
 use futures::{
     executor::{ThreadPool, ThreadPoolBuilder},
@@ -697,7 +694,10 @@ pub trait Run {
         Fut: Future + Send + 'static,
         <Fut as Future>::Output: Send;
     #[cfg(feature = "tokio_executor")]
-    fn run<Fut>(&self, future: Fut) -> Result<tokio::task::JoinHandle<<Fut as Future>::Output>, Infallible>
+    fn run<Fut>(
+        &self,
+        future: Fut,
+    ) -> Result<tokio::task::JoinHandle<<Fut as Future>::Output>, Infallible>
     where
         Fut: Future + Send + 'static,
         <Fut as Future>::Output: Send;
@@ -713,7 +713,10 @@ impl Run for ActorSystem {
         self.exec.spawn_with_handle(future)
     }
     #[cfg(feature = "tokio_executor")]
-    fn run<Fut>(&self, future: Fut) -> Result<tokio::task::JoinHandle<<Fut as Future>::Output>, Infallible>
+    fn run<Fut>(
+        &self,
+        future: Fut,
+    ) -> Result<tokio::task::JoinHandle<<Fut as Future>::Output>, Infallible>
     where
         Fut: Future + Send + 'static,
         <Fut as Future>::Output: Send,
@@ -907,7 +910,6 @@ impl<'a> From<&'a Config> for ThreadPoolConfig {
         }
     }
 }
-
 
 #[derive(Clone)]
 pub struct SysActors {

@@ -28,7 +28,7 @@ use crate::{
         kernel_ref::KernelRef,
         mailbox::{flush_to_deadletters, run_mailbox, Mailbox},
     },
-    system::{ActorRestarted, ActorTerminated, SystemMsg, Run},
+    system::{ActorRestarted, ActorTerminated, Run, SystemMsg},
     Message,
 };
 
@@ -98,9 +98,9 @@ where
         }
     };
 
-    #[cfg(not(feature="tokio_executor"))]
+    #[cfg(not(feature = "tokio_executor"))]
     sys.run(f).unwrap().forget();
-    #[cfg(feature="tokio_executor")]
+    #[cfg(feature = "tokio_executor")]
     sys.run(f).unwrap();
     Ok(kr)
 }

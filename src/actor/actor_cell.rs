@@ -536,7 +536,10 @@ where
         self.system.run(future)
     }
     #[cfg(feature = "tokio_executor")]
-    fn run<Fut>(&self, future: Fut) -> Result<tokio::task::JoinHandle<<Fut as Future>::Output>, std::convert::Infallible>
+    fn run<Fut>(
+        &self,
+        future: Fut,
+    ) -> Result<tokio::task::JoinHandle<<Fut as Future>::Output>, std::convert::Infallible>
     where
         Fut: Future + Send + 'static,
         <Fut as Future>::Output: Send,

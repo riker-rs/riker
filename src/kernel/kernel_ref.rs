@@ -37,11 +37,11 @@ impl KernelRef {
     fn send(&self, msg: KernelMsg, sys: &ActorSystem) {
         let mut tx = self.tx.clone();
         let res = sys.run(async move {
-                drop(tx.send(msg).await);
-            });
-        #[cfg(not(feature="tokio_executor"))]
+            drop(tx.send(msg).await);
+        });
+        #[cfg(not(feature = "tokio_executor"))]
         res.unwrap().forget();
-        #[cfg(feature="tokio_executor")]
+        #[cfg(feature = "tokio_executor")]
         res.unwrap();
     }
 }

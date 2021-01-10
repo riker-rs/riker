@@ -42,68 +42,68 @@ impl Actor for SelectTest {
     }
 }
 
-test_fn!{
+test_fn! {
     fn select_child() {
         let sys = ActorSystem::new().unwrap();
-    
+
         sys.actor_of::<SelectTest>("select-actor").unwrap();
-    
+
         let (probe, mut listen) = probe();
-    
+
         // select test actors through actor selection: /root/user/select-actor/*
         let sel = sys.select("select-actor").unwrap();
-    
+
         sel.try_tell(TestProbe(probe), None);
-    
+
         p_assert_eq!(listen, ());
     }
 }
 
-test_fn!{
+test_fn! {
     fn select_child_of_child() {
         let sys = ActorSystem::new().unwrap();
-    
+
         sys.actor_of::<SelectTest>("select-actor").unwrap();
-    
+
         // delay to allow 'select-actor' pre_start to create 'child_a' and 'child_b'
         // Direct messaging on the actor_ref doesn't have this same issue
         std::thread::sleep(std::time::Duration::from_millis(500));
-    
+
         let (probe, mut listen) = probe();
-    
+
         // select test actors through actor selection: /root/user/select-actor/*
         let sel = sys.select("select-actor/child_a").unwrap();
         sel.try_tell(TestProbe(probe), None);
-    
+
         // actors 'child_a' should fire a probe event
         p_assert_eq!(listen, ());
     }
 }
 
-test_fn!{
+test_fn! {
     fn select_all_children_of_child() {
         let sys = ActorSystem::new().unwrap();
-    
+
         sys.actor_of::<SelectTest>("select-actor").unwrap();
-    
+
         // delay to allow 'select-actor' pre_start to create 'child_a' and 'child_b'
         // Direct messaging on the actor_ref doesn't have this same issue
         std::thread::sleep(std::time::Duration::from_millis(500));
-    
+
         let (probe, mut listen) = probe();
-    
+
         // select relative test actors through actor selection: /root/user/select-actor/*
         let sel = sys.select("select-actor/*").unwrap();
         sel.try_tell(TestProbe(probe.clone()), None);
-    
+
         // actors 'child_a' and 'child_b' should both fire a probe event
         p_assert_eq!(listen, ());
         p_assert_eq!(listen, ());
-    
+
         // select absolute test actors through actor selection: /root/user/select-actor/*
         let sel = sys.select("/user/select-actor/*").unwrap();
         sel.try_tell(TestProbe(probe), None);
-    
+
         // actors 'child_a' and 'child_b' should both fire a probe event
         p_assert_eq!(listen, ());
         p_assert_eq!(listen, ());
@@ -147,15 +147,15 @@ impl Actor for SelectTest2 {
     }
 }
 
-test_fn!{
+test_fn! {
     fn select_from_context() {
         let sys = ActorSystem::new().unwrap();
-    
+
         let actor = sys.actor_of::<SelectTest2>("select-actor").unwrap();
-    
+
         let (probe, mut listen) = probe();
         actor.tell(TestProbe(probe), None);
-    
+
         // seven events back expected:
         p_assert_eq!(listen, ());
         p_assert_eq!(listen, ());
@@ -167,10 +167,10 @@ test_fn!{
     }
 }
 
-test_fn!{
+test_fn! {
     fn select_paths() {
         let sys = ActorSystem::new().unwrap();
-    
+
         assert!(sys.select("foo/").is_ok());
         assert!(sys.select("/foo/").is_ok());
         assert!(sys.select("/foo").is_ok());
@@ -178,7 +178,7 @@ test_fn!{
         assert!(sys.select("../foo/").is_ok());
         assert!(sys.select("/foo/*").is_ok());
         assert!(sys.select("*").is_ok());
-    
+
         assert!(sys.select("foo/`").is_err());
         assert!(sys.select("foo/@").is_err());
         assert!(sys.select("!").is_err());
