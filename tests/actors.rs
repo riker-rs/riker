@@ -1,6 +1,3 @@
-#[macro_use]
-extern crate riker_testkit;
-
 use riker::actors::*;
 
 use riker_testkit::probe::channel::{probe, ChannelProbe};
