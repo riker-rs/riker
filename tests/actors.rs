@@ -1,7 +1,7 @@
 use riker::actors::*;
 
 use riker_testkit::probe::channel::{probe, ChannelProbe};
-use riker_testkit::probe::{Probe, ProbeReceive};
+use riker_testkit::probe::Probe;
 use riker_testkit::test_fn;
 
 #[derive(Clone, Debug)]
@@ -82,7 +82,7 @@ test_fn! {
 
         let actor = sys.actor_of::<Counter>("me").unwrap();
 
-        let (probe, listen) = probe();
+        let (probe, _listen) = probe();
         actor.tell(TestProbe(probe), None);
 
         for _ in 0..1_000_000 {
@@ -100,7 +100,7 @@ test_fn! {
         let actor = sys.actor_of::<Counter>("me").unwrap();
         let actor: BasicActorRef = actor.into();
 
-        let (probe, listen) = probe();
+        let (probe, _listen) = probe();
         actor
             .try_tell(CounterMsg::TestProbe(TestProbe(probe)), None)
             .unwrap();
@@ -162,7 +162,7 @@ test_fn! {
 
         let parent = system.actor_of::<Parent>("parent").unwrap();
 
-        let (probe, listen) = probe();
+        let (probe, _listen) = probe();
         parent.tell(TestProbe(probe), None);
         system.print_tree();
 

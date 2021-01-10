@@ -111,7 +111,11 @@ test_fn! {
             // Make the test actor panic
             sup.tell(Panic, None);
 
+            #[cfg(feature = "tokio_executor")]
             let (probe, mut listen) = probe::<()>();
+            #[cfg(not(feature = "tokio_executor"))]
+            let (probe, listen) = probe::<()>();
+
             sup.tell(TestProbe(probe), None);
             p_assert_eq!(listen, ());
         }
@@ -214,7 +218,11 @@ test_fn! {
         // Make the test actor panic
         sup.tell(Panic, None);
 
+        #[cfg(feature = "tokio_executor")]
         let (probe, mut listen) = probe::<()>();
+        #[cfg(not(feature = "tokio_executor"))]
+        let (probe, listen) = probe::<()>();
+
         std::thread::sleep(std::time::Duration::from_millis(2000));
         sup.tell(TestProbe(probe), None);
         p_assert_eq!(listen, ());

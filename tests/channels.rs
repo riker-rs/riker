@@ -81,7 +81,11 @@ test_fn! {
             .actor_of_args::<Subscriber, _>("sub-actor", (chan.clone(), topic.clone()))
             .unwrap();
 
+        #[cfg(feature = "tokio_executor")]
         let (probe, mut listen) = probe();
+        #[cfg(not(feature = "tokio_executor"))]
+        let (probe, listen) = probe();
+
         sub.tell(TestProbe(probe), None);
 
         // wait for the probe to arrive at the actor before publishing message
@@ -117,7 +121,11 @@ test_fn! {
             .actor_of_args::<Subscriber, _>("sub-actor", (chan.clone(), topic))
             .unwrap();
 
+        #[cfg(feature = "tokio_executor")]
         let (probe, mut listen) = probe();
+        #[cfg(not(feature = "tokio_executor"))]
+        let (probe, listen) = probe();
+
         sub.tell(TestProbe(probe), None);
 
         // wait for the probe to arrive at the actor before publishing message
@@ -269,7 +277,11 @@ test_fn! {
 
         let actor = sys.actor_of::<EventSubscriber>("event-sub").unwrap();
 
+        #[cfg(feature = "tokio_executor")]
         let (probe, mut listen) = probe();
+        #[cfg(not(feature = "tokio_executor"))]
+        let (probe, listen) = probe();
+
         actor.tell(TestProbe(probe), None);
 
         // wait for the probe to arrive at the actor before attempting
@@ -345,7 +357,11 @@ test_fn! {
         let sys = ActorSystem::new().unwrap();
         let actor = sys.actor_of::<DeadLetterSub>("dl-subscriber").unwrap();
 
+        #[cfg(feature = "tokio_executor")]
         let (probe, mut listen) = probe();
+        #[cfg(not(feature = "tokio_executor"))]
+        let (probe, listen) = probe();
+
         actor.tell(TestProbe(probe), None);
 
         // wait for the probe to arrive at the actor before attempting to stop the actor
