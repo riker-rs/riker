@@ -1,20 +1,16 @@
-use futures::executor::block_on;
 use riker::actors::*;
 
-use riker_testkit::test_fn;
+#[tokio::test]
+async fn system_create() {
+    assert!(ActorSystem::new().is_ok());
+    assert!(ActorSystem::with_name("valid-name").is_ok());
 
-test_fn! {
-    fn system_create() {
-        assert!(ActorSystem::new().is_ok());
-        assert!(ActorSystem::with_name("valid-name").is_ok());
-
-        assert!(ActorSystem::with_name("/").is_err());
-        assert!(ActorSystem::with_name("*").is_err());
-        assert!(ActorSystem::with_name("/a/b/c").is_err());
-        assert!(ActorSystem::with_name("@").is_err());
-        assert!(ActorSystem::with_name("#").is_err());
-        assert!(ActorSystem::with_name("abc*").is_err());
-    }
+    assert!(ActorSystem::with_name("/").is_err());
+    assert!(ActorSystem::with_name("*").is_err());
+    assert!(ActorSystem::with_name("/a/b/c").is_err());
+    assert!(ActorSystem::with_name("@").is_err());
+    assert!(ActorSystem::with_name("#").is_err());
+    assert!(ActorSystem::with_name("abc*").is_err());
 }
 
 struct ShutdownTest {
@@ -43,65 +39,60 @@ impl Actor for ShutdownTest {
     fn recv(&mut self, _: &Context<Self::Msg>, _: Self::Msg, _: Sender) {}
 }
 
-test_fn! {
-    #[allow(dead_code)]
-    fn system_shutdown() {
-        let sys = ActorSystem::new().unwrap();
+#[tokio::test]
+#[allow(dead_code)]
+async fn system_shutdown() {
+    let sys = ActorSystem::new().unwrap();
 
+    let _ = sys
+        .actor_of_args::<ShutdownTest, _>("test-actor-1", 1)
+        .unwrap();
+
+    sys.shutdown().await.unwrap();
+}
+
+#[tokio::test]
+async fn system_futures_exec() {
+    let sys = ActorSystem::new().unwrap();
+
+    for i in 0..100 {
+        let f = sys.run(async move { format!("some_val_{}", i) }).unwrap();
+
+        assert_eq!(f.await.unwrap(), format!("some_val_{}", i));
+    }
+}
+
+#[tokio::test]
+async fn system_futures_panic() {
+    let sys = ActorSystem::new().unwrap();
+
+    for _ in 0..100 {
         let _ = sys
-            .actor_of_args::<ShutdownTest, _>("test-actor-1", 1)
+            .run(async move {
+                panic!("// TEST PANIC // TEST PANIC // TEST PANIC //");
+            })
             .unwrap();
+    }
 
-        block_on(sys.shutdown()).unwrap();
+    for i in 0..100 {
+        let f = sys.run(async move { format!("some_val_{}", i) }).unwrap();
+
+        assert_eq!(f.await.unwrap(), format!("some_val_{}", i));
     }
 }
 
-test_fn! {
-    fn system_futures_exec() {
-        let sys = ActorSystem::new().unwrap();
+#[tokio::test]
+async fn system_load_app_config() {
+    let sys = ActorSystem::new().unwrap();
 
-        for i in 0..100 {
-            let f = sys.run(async move { format!("some_val_{}", i) }).unwrap();
-
-            assert_eq!(block_on(f).unwrap(), format!("some_val_{}", i));
-        }
-    }
+    assert_eq!(sys.config().get_int("app.some_setting").unwrap() as i64, 1);
 }
 
-test_fn! {
-    fn system_futures_panic() {
-        let sys = ActorSystem::new().unwrap();
+#[tokio::test]
+async fn system_builder() {
+    let sys = SystemBuilder::new().create().unwrap();
+    sys.shutdown().await.unwrap();
 
-        for _ in 0..100 {
-            let _ = sys
-                .run(async move {
-                    panic!("// TEST PANIC // TEST PANIC // TEST PANIC //");
-                })
-                .unwrap();
-        }
-
-        for i in 0..100 {
-            let f = sys.run(async move { format!("some_val_{}", i) }).unwrap();
-
-            assert_eq!(block_on(f).unwrap(), format!("some_val_{}", i));
-        }
-    }
-}
-
-test_fn! {
-    fn system_load_app_config() {
-        let sys = ActorSystem::new().unwrap();
-
-        assert_eq!(sys.config().get_int("app.some_setting").unwrap() as i64, 1);
-    }
-}
-
-test_fn! {
-    fn system_builder() {
-        let sys = SystemBuilder::new().create().unwrap();
-        block_on(sys.shutdown()).unwrap();
-
-        let sys = SystemBuilder::new().name("my-sys").create().unwrap();
-        block_on(sys.shutdown()).unwrap();
-    }
+    let sys = SystemBuilder::new().name("my-sys").create().unwrap();
+    sys.shutdown().await.unwrap();
 }

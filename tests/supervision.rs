@@ -206,20 +206,19 @@ impl Receive<Panic> for EscRestartSup {
     }
 }
 
-test_fn! {
-    fn supervision_escalate_failed_actor() {
-        let sys = ActorSystem::new().unwrap();
+#[tokio::test]
+async fn supervision_escalate_failed_actor() {
+    let sys = ActorSystem::new().unwrap();
 
-        let sup = sys.actor_of::<EscRestartSup>("supervisor").unwrap();
+    let sup = sys.actor_of::<EscRestartSup>("supervisor").unwrap();
 
-        // Make the test actor panic
-        sup.tell(Panic, None);
+    // Make the test actor panic
+    sup.tell(Panic, None);
 
-        let (probe, mut listen) = probe::<()>();
+    let (probe, mut listen) = probe::<()>();
 
-        std::thread::sleep(std::time::Duration::from_millis(2000));
-        sup.tell(TestProbe(probe), None);
-        p_assert_eq!(listen, ());
-        sys.print_tree();
-    }
+    tokio::time::sleep(std::time::Duration::from_millis(2000)).await;
+    sup.tell(TestProbe(probe), None);
+    p_assert_eq!(listen, ());
+    sys.print_tree();
 }
