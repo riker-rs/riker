@@ -54,10 +54,7 @@ test_fn! {
 
         let actor = sys.actor_of::<ScheduleOnce>("schedule-once").unwrap();
 
-        #[cfg(feature = "tokio_executor")]
         let (probe, mut listen) = probe();
-        #[cfg(not(feature = "tokio_executor"))]
-        let (probe, listen) = probe();
 
         // use scheduler to set up probe
         sys.schedule_once(Duration::from_millis(200), actor, None, TestProbe(probe));
@@ -71,10 +68,7 @@ test_fn! {
 
         let actor = sys.actor_of::<ScheduleOnce>("schedule-once").unwrap();
 
-        #[cfg(feature = "tokio_executor")]
         let (probe, mut listen) = probe();
-        #[cfg(not(feature = "tokio_executor"))]
-        let (probe, listen) = probe();
 
         // use scheduler to set up probe at a specific time
         let schedule_at = Utc::now() + CDuration::milliseconds(200);
@@ -137,10 +131,7 @@ test_fn! {
 
         let actor = sys.actor_of::<ScheduleRepeat>("schedule-repeat").unwrap();
 
-        #[cfg(feature = "tokio_executor")]
         let (probe, mut listen) = probe();
-        #[cfg(not(feature = "tokio_executor"))]
-        let (probe, listen) = probe();
 
         actor.tell(TestProbe(probe), None);
 

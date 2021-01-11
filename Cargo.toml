@@ -13,9 +13,6 @@ keywords = ["actors", "actor-model", "async", "cqrs", "event_sourcing"]
 [badges]
 travis-ci = { repository = "riker-rs/riker" }
 
-[features]
-tokio_executor = ["tokio", "riker-testkit/tokio_executor"]
-
 [dependencies]
 riker-macros = { path = "riker-macros", version = "0.2.0" }
 chrono = "0.4"
@@ -30,7 +27,7 @@ slog-stdlog = "4.0"
 slog-scope = "4.3.0"
 num_cpus = "1.13.0"
 dashmap = "3"
-tokio = { version = "^1", features = ["rt-multi-thread", "macros"], optional = true }
+tokio = { version = "^1", features = ["rt-multi-thread", "macros"] }
 
 
 [dev-dependencies]

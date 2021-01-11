@@ -98,9 +98,6 @@ where
         }
     };
 
-    #[cfg(not(feature = "tokio_executor"))]
-    sys.run(f).unwrap().forget();
-    #[cfg(feature = "tokio_executor")]
     sys.run(f).unwrap();
     Ok(kr)
 }

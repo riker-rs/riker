@@ -48,10 +48,7 @@ test_fn! {
 
         sys.actor_of::<SelectTest>("select-actor").unwrap();
 
-        #[cfg(feature = "tokio_executor")]
         let (probe, mut listen) = probe();
-        #[cfg(not(feature = "tokio_executor"))]
-        let (probe, listen) = probe();
 
         // select test actors through actor selection: /root/user/select-actor/*
         let sel = sys.select("select-actor").unwrap();
@@ -72,10 +69,7 @@ test_fn! {
         // Direct messaging on the actor_ref doesn't have this same issue
         std::thread::sleep(std::time::Duration::from_millis(500));
 
-        #[cfg(feature = "tokio_executor")]
         let (probe, mut listen) = probe();
-        #[cfg(not(feature = "tokio_executor"))]
-        let (probe, listen) = probe();
 
         // select test actors through actor selection: /root/user/select-actor/*
         let sel = sys.select("select-actor/child_a").unwrap();
@@ -96,10 +90,7 @@ test_fn! {
         // Direct messaging on the actor_ref doesn't have this same issue
         std::thread::sleep(std::time::Duration::from_millis(500));
 
-        #[cfg(feature = "tokio_executor")]
         let (probe, mut listen) = probe();
-        #[cfg(not(feature = "tokio_executor"))]
-        let (probe, listen) = probe();
 
         // select relative test actors through actor selection: /root/user/select-actor/*
         let sel = sys.select("select-actor/*").unwrap();
@@ -162,10 +153,7 @@ test_fn! {
 
         let actor = sys.actor_of::<SelectTest2>("select-actor").unwrap();
 
-        #[cfg(feature = "tokio_executor")]
         let (probe, mut listen) = probe();
-        #[cfg(not(feature = "tokio_executor"))]
-        let (probe, listen) = probe();
 
         actor.tell(TestProbe(probe), None);
 

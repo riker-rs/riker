@@ -39,9 +39,6 @@ impl KernelRef {
         let res = sys.run(async move {
             drop(tx.send(msg).await);
         });
-        #[cfg(not(feature = "tokio_executor"))]
-        res.unwrap().forget();
-        #[cfg(feature = "tokio_executor")]
         res.unwrap();
     }
 }

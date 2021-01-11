@@ -63,9 +63,6 @@ test_fn! {
         for i in 0..100 {
             let f = sys.run(async move { format!("some_val_{}", i) }).unwrap();
 
-            #[cfg(not(feature = "tokio_executor"))]
-            assert_eq!(block_on(f), format!("some_val_{}", i));
-            #[cfg(feature = "tokio_executor")]
             assert_eq!(block_on(f).unwrap(), format!("some_val_{}", i));
         }
     }
@@ -86,9 +83,6 @@ test_fn! {
         for i in 0..100 {
             let f = sys.run(async move { format!("some_val_{}", i) }).unwrap();
 
-            #[cfg(not(feature = "tokio_executor"))]
-            assert_eq!(block_on(f), format!("some_val_{}", i));
-            #[cfg(feature = "tokio_executor")]
             assert_eq!(block_on(f).unwrap(), format!("some_val_{}", i));
         }
     }
