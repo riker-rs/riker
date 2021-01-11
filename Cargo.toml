@@ -20,7 +20,7 @@ config = "0.10.1"
 futures = { version = "0.3.4", features = ["thread-pool"] }
 rand = "0.7"
 regex = "1"
-uuid = { version = "0.8.1", features = ["v4"] }
+uuid = { package = "uuid", version = "0.8.1", features = ["v4"] }
 pin-utils = "0.1.0"
 slog = "2.5"
 slog-stdlog = "4.0"
@@ -32,3 +32,7 @@ dashmap = "3"
 [dev-dependencies]
 riker-testkit = "0.1.0"
 log = "0.4"
+
+[features]
+default = []
+wasm = ["uuid/wasm-bindgen"]
