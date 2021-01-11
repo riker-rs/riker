@@ -3,12 +3,8 @@ use riker::actors::*;
 use riker_testkit::{
     p_assert_eq,
     probe::{
-        Probe,
-        ProbeReceive,
-        channel::{
-            ChannelProbe,
-            probe,
-        },
+        channel::{probe, ChannelProbe},
+        Probe, ProbeReceive,
     },
 };
 

@@ -3,12 +3,8 @@ use riker::actors::*;
 use riker_testkit::{
     p_assert_eq,
     probe::{
-        Probe,
-        ProbeReceive,
-        channel::{
-            ChannelProbe,
-            probe,
-        },
+        channel::{probe, ChannelProbe},
+        Probe, ProbeReceive,
     },
 };
 
@@ -291,7 +287,6 @@ async fn channel_system_events() {
     // ActorTerminated event was receive
     p_assert_eq!(listen, ());
 }
-
 
 // *** Dead letters test ***
 #[actor(TestProbe, DeadLetter)]
