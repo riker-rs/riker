@@ -5,8 +5,11 @@ use quote::quote;
 use syn::parse::{Parse, ParseStream, Result};
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
-use syn::token::{Colon2, Comma};
-use syn::{DeriveInput, Generics, PathSegment, TypePath};
+use syn::token::Comma;
+use syn::{
+    DeriveInput, Generics, QSelf, Type, TypeArray, TypeGroup, TypeParen, TypePath, TypePtr,
+    TypeReference, TypeSlice, TypeTuple,
+};
 
 struct MsgTypes {
     types: Vec<MsgVariant>,
@@ -43,7 +46,7 @@ impl Parse for MsgTypes {
             types: vars
                 .into_iter()
                 .map(|t| MsgVariant {
-                    name: get_name(&t.path.segments),
+                    name: Ident::new(&get_path_name(&t), t.span()),
                     mtype: t,
                 })
                 .collect::<Vec<_>>(),
@@ -51,24 +54,52 @@ impl Parse for MsgTypes {
     }
 }
 
-fn get_name(segments: &Punctuated<PathSegment, Colon2>) -> Ident {
-    let vname = segments
-        .iter()
-        .map(|seg| {
-            let ident = format!("{}", seg.ident);
-            ident
-                .split('_')
-                .map(|s| {
-                    let mut s = s.to_string();
-                    if let Some(c) = s.get_mut(0..1) {
-                        c.make_ascii_uppercase();
-                    }
-                    s
-                })
-                .collect::<String>()
-        })
-        .collect::<String>();
-    syn::Ident::new(&vname, segments.span())
+fn get_type_name(ty: &Type) -> String {
+    match ty {
+        Type::Path(path) => get_path_name(path),
+        Type::Array(TypeArray { elem, .. })
+        | Type::Group(TypeGroup { elem, .. })
+        | Type::Paren(TypeParen { elem, .. })
+        | Type::Ptr(TypePtr { elem, .. })
+        | Type::Reference(TypeReference { elem, .. })
+        | Type::Slice(TypeSlice { elem, .. }) => get_type_name(elem.as_ref()),
+        Type::Tuple(TypeTuple { elems, .. }) => {
+            elems.iter().fold(String::new(), |mut acc, curr| {
+                acc.push_str(&get_type_name(&curr));
+                acc
+            })
+        }
+        _ => String::new(),
+    }
+}
+
+fn get_path_name(type_path: &TypePath) -> String {
+    let mut vname = if let Some(QSelf { ty, .. }) = &type_path.qself {
+        get_type_name(ty.as_ref())
+    } else {
+        String::new()
+    };
+    vname.push_str(
+        &type_path
+            .path
+            .segments
+            .iter()
+            .map(|seg| {
+                let ident = format!("{}", seg.ident);
+                ident
+                    .split('_')
+                    .map(|s| {
+                        let mut s = s.to_string();
+                        if let Some(c) = s.get_mut(0..1) {
+                            c.make_ascii_uppercase();
+                        }
+                        s
+                    })
+                    .collect::<String>()
+            })
+            .collect::<String>(),
+    );
+    vname
 }
 
 #[proc_macro_attribute]

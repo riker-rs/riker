@@ -149,7 +149,13 @@ fn run_generic_message_actor() {
     }
 }
 
+pub trait TestTrait {
+    type TraitType;
+}
+
 mod test_mod {
+    use super::TestTrait;
+
     #[derive(Clone, Debug)]
     pub struct GenericMessage<T> {
         pub inner: T,
@@ -157,9 +163,13 @@ mod test_mod {
 
     #[derive(Clone, Debug)]
     pub struct Message;
+
+    impl TestTrait for Message {
+        type TraitType = String;
+    }
 }
 
-#[actor(test_mod::GenericMessage<String>, test_mod::Message)]
+#[actor(test_mod::GenericMessage<String>, <test_mod::Message as TestTrait>::TraitType)]
 #[derive(Clone, Default)]
 struct PathMsgActor;
 
@@ -189,13 +199,13 @@ impl Receive<test_mod::GenericMessage<String>> for PathMsgActor {
     }
 }
 
-impl Receive<test_mod::Message> for PathMsgActor {
+impl Receive<<test_mod::Message as TestTrait>::TraitType> for PathMsgActor {
     type Msg = PathMsgActorMsg;
 
     fn receive(
         &mut self,
         _ctx: &Context<Self::Msg>,
-        _msg: test_mod::Message,
+        _msg: <test_mod::Message as TestTrait>::TraitType,
         _sender: Option<BasicActorRef>,
     ) {
         println!("message");
@@ -208,7 +218,7 @@ fn run_path_message_actor() {
 
     let act = sys.actor_of::<PathMsgActor>("act").unwrap();
 
-    let msg = PathMsgActorMsg::TestModMessage(test_mod::Message);
+    let msg = PathMsgActorMsg::TestModMessageTestTraitTraitType(String::from("test"));
     act.tell(msg, None);
 
     let generic_msg = PathMsgActorMsg::TestModGenericMessage(test_mod::GenericMessage {
