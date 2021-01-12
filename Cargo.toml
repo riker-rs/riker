@@ -32,3 +32,7 @@ dashmap = "3"
 [dev-dependencies]
 riker-testkit = "0.1.0"
 log = "0.4"
+
+[features]
+default = []
+wasm = ["uuid/wasm-bindgen"]
