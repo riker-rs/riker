@@ -69,7 +69,7 @@ fn get_type_name(ty: &Type) -> String {
                 acc
             })
         }
-        _ => String::new(),
+        _ => unreachable!(),
     }
 }
 
