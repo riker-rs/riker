@@ -22,6 +22,7 @@ Riker provides:
 - Out-of-the-box, configurable, non-blocking logging
 - Command Query Responsibility Segregation (CQRS)
 - Easily run futures
+- Can be used with wasm (Just set `wasm` feature flag)
 
 [Website](https://riker.rs) | [API Docs](https://docs.rs/riker)
 
