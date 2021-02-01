@@ -1,4 +1,5 @@
 use riker::actors::*;
+use riker::Message;
 
 #[actor(String, u32)]
 #[derive(Clone, Default)]
@@ -97,11 +98,11 @@ fn run_derived_generic_actor() {
 }
 
 #[derive(Clone, Debug)]
-pub struct Message<T> {
+pub struct GenericMessage<T> {
     inner: T,
 }
 
-#[actor(Message<String>)]
+#[actor(GenericMessage<String>)]
 #[derive(Clone, Default)]
 struct GenericMsgActor;
 
@@ -118,13 +119,13 @@ impl Actor for GenericMsgActor {
     }
 }
 
-impl Receive<Message<String>> for GenericMsgActor {
+impl Receive<GenericMessage<String>> for GenericMsgActor {
     type Msg = GenericMsgActorMsg;
 
     fn receive(
         &mut self,
         _ctx: &Context<Self::Msg>,
-        msg: Message<String>,
+        msg: GenericMessage<String>,
         _sender: Option<BasicActorRef>,
     ) {
         println!("{}", msg.inner);
@@ -137,9 +138,9 @@ fn run_generic_message_actor() {
 
     let act = sys.actor_of::<GenericMsgActor>("act").unwrap();
 
-    let msg = GenericMsgActorMsg::Message(Message {
+    let msg = GenericMessage {
         inner: "test".to_string(),
-    });
+    };
     act.tell(msg, None);
 
     // wait until all direct children of the user root are terminated
@@ -216,6 +217,84 @@ fn run_path_message_actor() {
     });
     act.tell(generic_msg, None);
 
+    // wait until all direct children of the user root are terminated
+    while sys.user_root().has_children() {
+        // in order to lower cpu usage, sleep here
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct KnownMessageType;
+
+#[derive(Clone, Debug)]
+struct GenericStruct<T>
+where
+    T: Message + From<KnownMessageType>,
+{
+    actor: ActorRef<T>,
+}
+
+impl<T> GenericStruct<T>
+where
+    T: Message + From<KnownMessageType>,
+{
+    fn msg_actor(&self, msg: KnownMessageType) {
+        self.actor.tell(msg, None)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct OtherMessageType;
+
+#[actor(KnownMessageType, OtherMessageType)]
+#[derive(Clone, Debug, Default)]
+struct AnyActor;
+
+impl Actor for AnyActor {
+    type Msg = AnyActorMsg;
+
+    fn supervisor_strategy(&self) -> Strategy {
+        Strategy::Stop
+    }
+
+    fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender) {
+        self.receive(ctx, msg, sender);
+        ctx.stop(&ctx.myself);
+    }
+}
+
+impl Receive<KnownMessageType> for AnyActor {
+    type Msg = AnyActorMsg;
+
+    fn receive(
+        &mut self,
+        _ctx: &Context<Self::Msg>,
+        msg: KnownMessageType,
+        _sender: Option<BasicActorRef>,
+    ) {
+        println!("Received {:?}", msg);
+    }
+}
+
+impl Receive<OtherMessageType> for AnyActor {
+    type Msg = AnyActorMsg;
+
+    fn receive(
+        &mut self,
+        _ctx: &Context<Self::Msg>,
+        _msg: OtherMessageType,
+        _sender: Option<BasicActorRef>,
+    ) {
+    }
+}
+
+#[test]
+fn tell_generic_actor_ref() {
+    let sys = ActorSystem::new().unwrap();
+    let actor = sys.actor_of::<AnyActor>("any").unwrap();
+    let some_struct = GenericStruct { actor };
+    some_struct.msg_actor(KnownMessageType);
     // wait until all direct children of the user root are terminated
     while sys.user_root().has_children() {
         // in order to lower cpu usage, sleep here
