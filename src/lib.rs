@@ -10,6 +10,7 @@ mod validate;
 pub mod actor;
 pub mod kernel;
 pub mod system;
+pub mod executor;
 
 use std::any::Any;
 use std::env;

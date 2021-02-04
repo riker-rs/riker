@@ -23,6 +23,7 @@ use crate::{
         timer::{Job, OnceJob, RepeatJob, ScheduleId, Timer},
         ActorSystem, Run, SystemCmd, SystemMsg,
     },
+    executor::TaskHandle,
     validate::InvalidPath,
     AnyMessage, Envelope, Message,
 };
@@ -528,7 +529,7 @@ where
     fn run<Fut>(
         &self,
         future: Fut,
-    ) -> Result<tokio::task::JoinHandle<<Fut as Future>::Output>, std::convert::Infallible>
+    ) -> Result<TaskHandle<<Fut as Future>::Output>, Box<dyn std::error::Error>>
     where
         Fut: Future + Send + 'static,
         <Fut as Future>::Output: Send,

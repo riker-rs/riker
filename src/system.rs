@@ -139,7 +139,7 @@ use std::{
 
 use chrono::prelude::*;
 use config::Config;
-use futures::{channel::oneshot, Future};
+use futures::{channel::oneshot, Future, FutureExt};
 
 use uuid::Uuid;
 
@@ -165,8 +165,6 @@ pub struct ProtoSystem {
     pub(crate) sys_settings: SystemSettings,
     started_at: DateTime<Utc>,
 }
-
-type Exec = tokio::runtime::Handle;
 
 #[derive(Default)]
 pub struct SystemBuilder {
@@ -248,10 +246,16 @@ impl Deref for LoggingSystem {
     }
 }
 
-fn default_exec(_: &Config) -> tokio::runtime::Handle {
-    tokio::runtime::Handle::current()
+use crate::executor::{
+    TaskHandle,
+    TaskExecutor,
+    get_executor_handle,
+    ExecutorHandle,
+};
+pub type Exec = Arc<dyn TaskExecutor>;
+pub fn default_exec(_: &Config) -> ExecutorHandle {
+    get_executor_handle()
 }
-
 /// The actor runtime and common services coordinator
 ///
 /// The `ActorSystem` provides a runtime on which actors are executed.
@@ -266,12 +270,11 @@ pub struct ActorSystem {
     sys_actors: Option<SysActors>,
     log: LoggingSystem,
     debug: bool,
-    pub exec: Exec,
+    pub exec: ExecutorHandle,
     pub timer: TimerRef,
     pub sys_channels: Option<SysChannels>,
     pub(crate) provider: Provider,
 }
-
 impl ActorSystem {
     /// Create a new `ActorSystem` instance
     ///
@@ -282,6 +285,16 @@ impl ActorSystem {
         let log = default_log(&cfg);
 
         ActorSystem::create("riker", exec, log, cfg)
+    }
+    /// Create a new `ActorSystem` instance
+    ///
+    /// Requires a type that implements the `Model` trait.
+    pub fn with_executor(exec: impl TaskExecutor + 'static) -> Result<ActorSystem, SystemError> {
+        let cfg = load_config();
+        //let exec = default_exec(&cfg);
+        let log = default_log(&cfg);
+
+        ActorSystem::create("riker", Arc::new(exec), log, cfg)
     }
 
     /// Create a new `ActorSystem` instance with provided name
@@ -305,7 +318,7 @@ impl ActorSystem {
 
     fn create(
         name: &str,
-        exec: Exec,
+        exec: ExecutorHandle,
         log: LoggingSystem,
         cfg: Config,
     ) -> Result<ActorSystem, SystemError> {
@@ -662,15 +675,15 @@ impl ActorSelectionFactory for ActorSystem {
         )
     }
 }
-use std::convert::Infallible;
 
+use std::error::Error;
 // futures::task::Spawn::spawn requires &mut self so
 // we'll create a wrapper trait that requires only &self.
 pub trait Run {
     fn run<Fut>(
         &self,
         future: Fut,
-    ) -> Result<tokio::task::JoinHandle<<Fut as Future>::Output>, Infallible>
+    ) -> Result<TaskHandle<<Fut as Future>::Output>, Box<dyn Error>>
     where
         Fut: Future + Send + 'static,
         <Fut as Future>::Output: Send;
@@ -680,12 +693,20 @@ impl Run for ActorSystem {
     fn run<Fut>(
         &self,
         future: Fut,
-    ) -> Result<tokio::task::JoinHandle<<Fut as Future>::Output>, Infallible>
+    ) -> Result<TaskHandle<<Fut as Future>::Output>, Box<dyn Error>>
     where
         Fut: Future + Send + 'static,
         <Fut as Future>::Output: Send,
     {
-        Ok(self.exec.spawn(future))
+        let (sender, recv) = futures::channel::oneshot::channel::<Fut::Output>();
+        let handle = self.exec.spawn(Box::pin(async move {
+            drop(sender.send(future.await));
+        }.boxed()))?;
+        Ok(TaskHandle::new(
+            handle,
+            recv,
+        ))
+
     }
 }
 
