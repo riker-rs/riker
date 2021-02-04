@@ -1,32 +1,22 @@
 use futures::{
-    task::{
-        Poll,
-        Context as PollContext,
-        SpawnExt,
-    },
     channel::oneshot::Receiver,
+    task::{Context as PollContext, Poll, SpawnExt},
     Future,
 };
-use std::{
-    error::Error,
-    pin::{
-        Pin,
-    },
-    sync::Arc,
-};
+use std::{error::Error, pin::Pin, sync::Arc};
 
 pub type ExecutorHandle = Arc<dyn TaskExecutor>;
 pub fn get_executor_handle() -> ExecutorHandle {
     Arc::new(TokioExecutor(tokio::runtime::Handle::current()))
 }
 
-pub trait Task: Future<Output=()> + Send { }
-impl<T: Future<Output=()> + Send> Task for T { }
+pub trait Task: Future<Output = ()> + Send {}
+impl<T: Future<Output = ()> + Send> Task for T {}
 
 pub trait TaskExecutor {
     fn spawn(&self, future: Pin<Box<dyn Task>>) -> Result<Box<dyn TaskExec>, Box<dyn Error>>;
 }
-pub trait TaskExec: Future<Output=Result<(), Box<dyn Error>>> + Unpin + Send + Sync {
+pub trait TaskExec: Future<Output = Result<(), Box<dyn Error>>> + Unpin + Send + Sync {
     fn abort(self);
     fn forget(self);
 }
@@ -36,10 +26,7 @@ pub struct TaskHandle<T: Send> {
 }
 impl<T: Send> TaskHandle<T> {
     pub fn new(handle: Box<dyn TaskExec>, recv: Receiver<T>) -> Self {
-        Self {
-            handle,
-            recv,
-        }
+        Self { handle, recv }
     }
 }
 impl<T: Send> Future for TaskHandle<T> {
@@ -80,7 +67,8 @@ impl TaskExec for TokioJoinHandle {
 struct FuturesExecutor(futures::executor::ThreadPool);
 impl TaskExecutor for FuturesExecutor {
     fn spawn(&self, future: Pin<Box<dyn Task>>) -> Result<Box<dyn TaskExec>, Box<dyn Error>> {
-        self.0.spawn_with_handle(future)
+        self.0
+            .spawn_with_handle(future)
             .map(|h| Box::new(FuturesJoinHandle(h)) as Box<dyn TaskExec>)
             .map_err(|e| Box::new(e) as Box<dyn Error>)
     }

@@ -15,6 +15,7 @@ use uuid::Uuid;
 
 use crate::{
     actor::{props::ActorFactory, *},
+    executor::TaskHandle,
     kernel::{
         kernel_ref::{dispatch, dispatch_any, KernelRef},
         mailbox::{AnyEnqueueError, AnySender, MailboxSender},
@@ -23,7 +24,6 @@ use crate::{
         timer::{Job, OnceJob, RepeatJob, ScheduleId, Timer},
         ActorSystem, Run, SystemCmd, SystemMsg,
     },
-    executor::TaskHandle,
     validate::InvalidPath,
     AnyMessage, Envelope, Message,
 };

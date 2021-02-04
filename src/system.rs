@@ -246,12 +246,7 @@ impl Deref for LoggingSystem {
     }
 }
 
-use crate::executor::{
-    TaskHandle,
-    TaskExecutor,
-    get_executor_handle,
-    ExecutorHandle,
-};
+use crate::executor::{get_executor_handle, ExecutorHandle, TaskExecutor, TaskHandle};
 pub type Exec = Arc<dyn TaskExecutor>;
 pub fn default_exec(_: &Config) -> ExecutorHandle {
     get_executor_handle()
@@ -680,33 +675,26 @@ use std::error::Error;
 // futures::task::Spawn::spawn requires &mut self so
 // we'll create a wrapper trait that requires only &self.
 pub trait Run {
-    fn run<Fut>(
-        &self,
-        future: Fut,
-    ) -> Result<TaskHandle<<Fut as Future>::Output>, Box<dyn Error>>
+    fn run<Fut>(&self, future: Fut) -> Result<TaskHandle<<Fut as Future>::Output>, Box<dyn Error>>
     where
         Fut: Future + Send + 'static,
         <Fut as Future>::Output: Send;
 }
 
 impl Run for ActorSystem {
-    fn run<Fut>(
-        &self,
-        future: Fut,
-    ) -> Result<TaskHandle<<Fut as Future>::Output>, Box<dyn Error>>
+    fn run<Fut>(&self, future: Fut) -> Result<TaskHandle<<Fut as Future>::Output>, Box<dyn Error>>
     where
         Fut: Future + Send + 'static,
         <Fut as Future>::Output: Send,
     {
         let (sender, recv) = futures::channel::oneshot::channel::<Fut::Output>();
-        let handle = self.exec.spawn(Box::pin(async move {
-            drop(sender.send(future.await));
-        }.boxed()))?;
-        Ok(TaskHandle::new(
-            handle,
-            recv,
-        ))
-
+        let handle = self.exec.spawn(Box::pin(
+            async move {
+                drop(sender.send(future.await));
+            }
+            .boxed(),
+        ))?;
+        Ok(TaskHandle::new(handle, recv))
     }
 }
 
