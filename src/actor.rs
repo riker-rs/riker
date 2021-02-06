@@ -210,60 +210,63 @@ impl<A: Actor + ?Sized> Actor for Box<A> {
 /// attribute macro and implemented for each message type to receive.
 ///
 /// # Examples
-///
-/// ```
-/// # use riker::actors::*;
-///
-/// #[derive(Clone, Debug)]
-/// pub struct Foo;
-/// #[derive(Clone, Debug)]
-/// pub struct Bar;
-/// #[actor(Foo, Bar)] // <-- set our actor to receive Foo and Bar types
-/// #[derive(Default)]
-/// struct MyActor;
-///
-/// impl Actor for MyActor {
-///     type Msg = MyActorMsg; // <-- MyActorMsg is provided for us
-///
-///     fn recv(&mut self,
-///                 ctx: &Context<Self::Msg>,
-///                 msg: Self::Msg,
-///                 sender: Sender) {
-///         self.receive(ctx, msg, sender); // <-- call the respective implementation
-///     }
-/// }
-///
-/// impl Receive<Foo> for MyActor {
-///     type Msg = MyActorMsg;
-///
-///     fn receive(&mut self,
-///                 ctx: &Context<Self::Msg>,
-///                 msg: Foo, // <-- receive Foo
-///                 sender: Sender) {
-///         println!("Received a Foo");
-///     }
-/// }
-///
-/// impl Receive<Bar> for MyActor {
-///     type Msg = MyActorMsg;
-///
-///     fn receive(&mut self,
-///                 ctx: &Context<Self::Msg>,
-///                 msg: Bar, // <-- receive Bar
-///                 sender: Sender) {
-///         println!("Received a Bar");
-///     }
-/// }
-///
-/// #[tokio::main]
-/// async fn main() {
-///     let sys = ActorSystem::new().unwrap();
-///     let actor = sys.actor_of::<MyActor>("my-actor").unwrap();
-///
-///     actor.tell(Foo, None);
-///     actor.tell(Bar, None);
-/// }
-/// ```
+#[cfg_attr(
+    not(feature = "tokio_executor"),
+    doc = r##"
+```
+# use riker::actors::*;
+
+#[derive(Clone, Debug)]
+pub struct Foo;
+#[derive(Clone, Debug)]
+pub struct Bar;
+#[actor(Foo, Bar)] // <-- set our actor to receive Foo and Bar types
+#[derive(Default)]
+struct MyActor;
+
+impl Actor for MyActor {
+    type Msg = MyActorMsg; // <-- MyActorMsg is provided for us
+
+    fn recv(&mut self,
+                ctx: &Context<Self::Msg>,
+                msg: Self::Msg,
+                sender: Sender) {
+        self.receive(ctx, msg, sender); // <-- call the respective implementation
+    }
+}
+
+impl Receive<Foo> for MyActor {
+    type Msg = MyActorMsg;
+
+    fn receive(&mut self,
+                ctx: &Context<Self::Msg>,
+                msg: Foo, // <-- receive Foo
+                sender: Sender) {
+        println!("Received a Foo");
+    }
+}
+
+impl Receive<Bar> for MyActor {
+    type Msg = MyActorMsg;
+
+    fn receive(&mut self,
+                ctx: &Context<Self::Msg>,
+                msg: Bar, // <-- receive Bar
+                sender: Sender) {
+        println!("Received a Bar");
+    }
+}
+
+fn main() {
+    let sys = ActorSystem::new().unwrap();
+    let actor = sys.actor_of::<MyActor>("my-actor").unwrap();
+
+    actor.tell(Foo, None);
+    actor.tell(Bar, None);
+}
+```
+"##
+)]
 pub trait Receive<Msg: Message> {
     type Msg: Message;
 
