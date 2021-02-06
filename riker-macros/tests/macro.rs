@@ -33,8 +33,8 @@ impl Receive<String> for NewActor {
     }
 }
 
-#[tokio::test]
-async fn run_derived_actor() {
+#[riker_testkit::test]
+fn run_derived_actor() {
     let sys = ActorSystem::new().unwrap();
 
     let act = sys.actor_of::<NewActor>("act").unwrap();
@@ -45,7 +45,10 @@ async fn run_derived_actor() {
     // wait until all direct children of the user root are terminated
     while sys.user_root().has_children() {
         // in order to lower cpu usage, sleep here
+        #[cfg(feature = "tokio_executor")]
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        #[cfg(not(feature = "tokio_executor"))]
+        std::thread::sleep(std::time::Duration::from_millis(50));
     }
 }
 
@@ -80,8 +83,8 @@ impl<A: Send + 'static, B: Send + 'static> Receive<String> for GenericActor<A, B
     }
 }
 
-#[tokio::test]
-async fn run_derived_generic_actor() {
+#[riker_testkit::test]
+fn run_derived_generic_actor() {
     let sys = ActorSystem::new().unwrap();
 
     let act = sys.actor_of::<GenericActor<(), ()>>("act").unwrap();
@@ -92,7 +95,10 @@ async fn run_derived_generic_actor() {
     // wait until all direct children of the user root are terminated
     while sys.user_root().has_children() {
         // in order to lower cpu usage, sleep here
+        #[cfg(feature = "tokio_executor")]
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        #[cfg(not(feature = "tokio_executor"))]
+        std::thread::sleep(std::time::Duration::from_millis(50));
     }
 }
 
@@ -131,8 +137,8 @@ impl Receive<Message<String>> for GenericMsgActor {
     }
 }
 
-#[tokio::test]
-async fn run_generic_message_actor() {
+#[riker_testkit::test]
+fn run_generic_message_actor() {
     let sys = ActorSystem::new().unwrap();
 
     let act = sys.actor_of::<GenericMsgActor>("act").unwrap();
@@ -145,7 +151,10 @@ async fn run_generic_message_actor() {
     // wait until all direct children of the user root are terminated
     while sys.user_root().has_children() {
         // in order to lower cpu usage, sleep here
+        #[cfg(feature = "tokio_executor")]
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        #[cfg(not(feature = "tokio_executor"))]
+        std::thread::sleep(std::time::Duration::from_millis(50));
     }
 }
 
@@ -202,8 +211,8 @@ impl Receive<test_mod::Message> for PathMsgActor {
     }
 }
 
-#[tokio::test]
-async fn run_path_message_actor() {
+#[riker_testkit::test]
+fn run_path_message_actor() {
     let sys = ActorSystem::new().unwrap();
 
     let act = sys.actor_of::<PathMsgActor>("act").unwrap();
@@ -219,6 +228,9 @@ async fn run_path_message_actor() {
     // wait until all direct children of the user root are terminated
     while sys.user_root().has_children() {
         // in order to lower cpu usage, sleep here
+        #[cfg(feature = "tokio_executor")]
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        #[cfg(not(feature = "tokio_executor"))]
+        std::thread::sleep(std::time::Duration::from_millis(50));
     }
 }
