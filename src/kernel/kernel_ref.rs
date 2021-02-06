@@ -36,10 +36,11 @@ impl KernelRef {
 
     fn send(&self, msg: KernelMsg, sys: &ActorSystem) {
         let mut tx = self.tx.clone();
-        let res = sys.run(async move {
+        sys.run(async move {
             drop(tx.send(msg).await);
-        });
-        res.unwrap();
+        })
+        .unwrap()
+        .forget();
     }
 }
 
