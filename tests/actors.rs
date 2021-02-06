@@ -49,8 +49,8 @@ impl Receive<Add> for Counter {
     }
 }
 
-#[tokio::test]
-async fn actor_create() {
+#[riker_testkit::test]
+fn actor_create() {
     let sys = ActorSystem::new().unwrap();
 
     assert!(sys.actor_of::<Counter>("valid-name").is_ok());
@@ -79,8 +79,8 @@ async fn actor_create() {
     assert!(sys.actor_of::<Counter>("!").is_err());
 }
 
-#[tokio::test]
-async fn actor_tell() {
+#[riker_testkit::test]
+fn actor_tell() {
     let sys = ActorSystem::new().unwrap();
 
     let actor = sys.actor_of::<Counter>("me").unwrap();
@@ -94,8 +94,8 @@ async fn actor_tell() {
     p_assert_eq!(listen, ());
 }
 
-#[tokio::test]
-async fn actor_try_tell() {
+#[riker_testkit::test]
+fn actor_try_tell() {
     let sys = ActorSystem::new().unwrap();
 
     let actor = sys.actor_of::<Counter>("me").unwrap();
@@ -155,9 +155,8 @@ impl Actor for Child {
     fn recv(&mut self, _: &Context<Self::Msg>, _: Self::Msg, _: Sender) {}
 }
 
-#[allow(dead_code)]
-#[tokio::test]
-async fn actor_stop() {
+#[riker_testkit::test]
+fn actor_stop() {
     let system = ActorSystem::new().unwrap();
 
     let parent = system.actor_of::<Parent>("parent").unwrap();
@@ -167,7 +166,10 @@ async fn actor_stop() {
     system.print_tree();
 
     // wait for the probe to arrive at the actor before attempting to stop the actor
+    #[cfg(feature = "tokio_executor")]
     listen.recv().await;
+    #[cfg(not(feature = "tokio_executor"))]
+    listen.recv();
 
     system.stop(&parent);
     p_assert_eq!(listen, ());

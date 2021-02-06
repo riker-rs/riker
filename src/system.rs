@@ -252,8 +252,8 @@ use crate::executor::{
     TaskExecutor,
     TaskHandle,
 };
-pub fn default_exec(_: &Config) -> ExecutorHandle {
-    get_executor_handle()
+pub fn default_exec(cfg: &Config) -> ExecutorHandle {
+    get_executor_handle(cfg)
 }
 /// The actor runtime and common services coordinator
 ///
@@ -285,12 +285,11 @@ impl ActorSystem {
 
         ActorSystem::create("riker", exec, log, cfg)
     }
-    /// Create a new `ActorSystem` instance
+    /// Create a new `ActorSystem` instance with provided executor
     ///
-    /// Requires a type that implements the `Model` trait.
+    /// Requires a type that implements the `TaskExecutor` trait.
     pub fn with_executor(exec: impl TaskExecutor + 'static) -> Result<ActorSystem, SystemError> {
         let cfg = load_config();
-        //let exec = default_exec(&cfg);
         let log = default_log(&cfg);
 
         ActorSystem::create("riker", Arc::new(exec), log, cfg)
@@ -873,10 +872,9 @@ impl<'a> From<&'a Config> for SystemSettings {
     }
 }
 
-#[allow(unused)]
-struct ThreadPoolConfig {
-    pool_size: usize,
-    stack_size: usize,
+pub(crate) struct ThreadPoolConfig {
+    pub pool_size: usize,
+    pub stack_size: usize,
 }
 
 impl<'a> From<&'a Config> for ThreadPoolConfig {

@@ -68,8 +68,8 @@ impl Receive<SomeMessage> for Subscriber {
     }
 }
 
-#[tokio::test]
-async fn channel_publish() {
+#[riker_testkit::test]
+fn channel_publish() {
     let sys = ActorSystem::new().unwrap();
 
     // Create the channel we'll be using
@@ -87,7 +87,10 @@ async fn channel_publish() {
     sub.tell(TestProbe(probe), None);
 
     // wait for the probe to arrive at the actor before publishing message
+    #[cfg(feature = "tokio_executor")]
     listen.recv().await;
+    #[cfg(not(feature = "tokio_executor"))]
+    listen.recv();
 
     // Publish a test message
     chan.tell(
@@ -101,8 +104,8 @@ async fn channel_publish() {
     p_assert_eq!(listen, ());
 }
 
-#[tokio::test]
-async fn channel_publish_subscribe_all() {
+#[riker_testkit::test]
+fn channel_publish_subscribe_all() {
     let sys = ActorSystem::new().unwrap();
 
     // Create the channel we'll be using
@@ -120,7 +123,10 @@ async fn channel_publish_subscribe_all() {
     sub.tell(TestProbe(probe), None);
 
     // wait for the probe to arrive at the actor before publishing message
+    #[cfg(feature = "tokio_executor")]
     listen.recv().await;
+    #[cfg(not(feature = "tokio_executor"))]
+    listen.recv();
 
     // Publish a test message to topic "topic-1"
     chan.tell(
@@ -258,8 +264,8 @@ impl Receive<SystemEvent> for EventSubscriber {
     }
 }
 
-#[tokio::test]
-async fn channel_system_events() {
+#[riker_testkit::test]
+fn channel_system_events() {
     let sys = ActorSystem::new().unwrap();
 
     let actor = sys.actor_of::<EventSubscriber>("event-sub").unwrap();
@@ -270,7 +276,10 @@ async fn channel_system_events() {
 
     // wait for the probe to arrive at the actor before attempting
     // create, restart and stop
+    #[cfg(feature = "tokio_executor")]
     listen.recv().await;
+    #[cfg(not(feature = "tokio_executor"))]
+    listen.recv();
 
     // Create an actor
     let dumb = sys.actor_of::<DumbActor>("dumb-actor").unwrap();
@@ -332,8 +341,8 @@ impl Receive<DeadLetter> for DeadLetterSub {
     }
 }
 
-#[tokio::test]
-async fn channel_dead_letters() {
+#[riker_testkit::test]
+fn channel_dead_letters() {
     let sys = ActorSystem::new().unwrap();
     let actor = sys.actor_of::<DeadLetterSub>("dl-subscriber").unwrap();
 
@@ -342,13 +351,19 @@ async fn channel_dead_letters() {
     actor.tell(TestProbe(probe), None);
 
     // wait for the probe to arrive at the actor before attempting to stop the actor
+    #[cfg(feature = "tokio_executor")]
     listen.recv().await;
+    #[cfg(not(feature = "tokio_executor"))]
+    listen.recv();
 
     let dumb = sys.actor_of::<DumbActor>("dumb-actor").unwrap();
 
     // immediately stop the actor and attempt to send a message
     sys.stop(&dumb);
+    #[cfg(feature = "tokio_executor")]
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    #[cfg(not(feature = "tokio_executor"))]
+    std::thread::sleep(std::time::Duration::from_secs(1));
     dumb.tell(SomeMessage, None);
 
     p_assert_eq!(listen, ());

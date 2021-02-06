@@ -1,10 +1,8 @@
-#[macro_use]
-extern crate riker_testkit;
-
 use riker::actors::*;
 
 use riker_testkit::probe::channel::{probe, ChannelProbe};
 use riker_testkit::probe::{Probe, ProbeReceive};
+use riker_testkit::p_assert_eq;
 
 #[derive(Clone, Debug)]
 pub struct TestProbe(ChannelProbe<(), ()>);
@@ -41,8 +39,8 @@ impl Actor for SelectTest {
     }
 }
 
-#[tokio::test]
-async fn select_child() {
+#[riker_testkit::test]
+fn select_child() {
     let sys = ActorSystem::new().unwrap();
 
     sys.actor_of::<SelectTest>("select-actor").unwrap();
@@ -57,15 +55,18 @@ async fn select_child() {
     p_assert_eq!(listen, ());
 }
 
-#[tokio::test]
-async fn select_child_of_child() {
+#[riker_testkit::test]
+fn select_child_of_child() {
     let sys = ActorSystem::new().unwrap();
 
     sys.actor_of::<SelectTest>("select-actor").unwrap();
 
     // delay to allow 'select-actor' pre_start to create 'child_a' and 'child_b'
     // Direct messaging on the actor_ref doesn't have this same issue
+    #[cfg(feature = "tokio_executor")]
     tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    #[cfg(not(feature = "tokio_executor"))]
+    std::thread::sleep(std::time::Duration::from_millis(500));
 
     let (probe, mut listen) = probe();
 
@@ -77,15 +78,18 @@ async fn select_child_of_child() {
     p_assert_eq!(listen, ());
 }
 
-#[tokio::test]
-async fn select_all_children_of_child() {
+#[riker_testkit::test]
+fn select_all_children_of_child() {
     let sys = ActorSystem::new().unwrap();
 
     sys.actor_of::<SelectTest>("select-actor").unwrap();
 
     // delay to allow 'select-actor' pre_start to create 'child_a' and 'child_b'
     // Direct messaging on the actor_ref doesn't have this same issue
+    #[cfg(feature = "tokio_executor")]
     tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    #[cfg(not(feature = "tokio_executor"))]
+    std::thread::sleep(std::time::Duration::from_millis(500));
 
     let (probe, mut listen) = probe();
 
@@ -143,8 +147,8 @@ impl Actor for SelectTest2 {
     }
 }
 
-#[tokio::test]
-async fn select_from_context() {
+#[riker_testkit::test]
+fn select_from_context() {
     let sys = ActorSystem::new().unwrap();
 
     let actor = sys.actor_of::<SelectTest2>("select-actor").unwrap();
@@ -163,8 +167,8 @@ async fn select_from_context() {
     p_assert_eq!(listen, ());
 }
 
-#[tokio::test]
-async fn select_paths() {
+#[riker_testkit::test]
+fn select_paths() {
     let sys = ActorSystem::new().unwrap();
 
     assert!(sys.select("foo/").is_ok());

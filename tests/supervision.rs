@@ -1,11 +1,8 @@
-#[macro_use]
-extern crate riker_testkit;
-
 use riker::actors::*;
 
 use riker_testkit::probe::channel::{probe, ChannelProbe};
 use riker_testkit::probe::{Probe, ProbeReceive};
-use riker_testkit::test_fn;
+use riker_testkit::p_assert_eq;
 
 #[derive(Clone, Debug)]
 pub struct Panic;
@@ -99,25 +96,25 @@ impl Receive<Panic> for RestartSup {
     }
 }
 
-test_fn! {
-    fn supervision_restart_failed_actor() {
-        let sys = ActorSystem::new().unwrap();
+#[riker_testkit::test]
+fn supervision_restart_failed_actor() {
+    let sys = ActorSystem::new().unwrap();
 
-        for i in 0..100 {
-            let sup = sys
-                .actor_of::<RestartSup>(&format!("supervisor_{}", i))
-                .unwrap();
+    for i in 0..100 {
+        let sup = sys
+            .actor_of::<RestartSup>(&format!("supervisor_{}", i))
+            .unwrap();
 
-            // Make the test actor panic
-            sup.tell(Panic, None);
+        // Make the test actor panic
+        sup.tell(Panic, None);
 
-            let (probe, mut listen) = probe::<()>();
+        let (probe, mut listen) = probe::<()>();
 
-            sup.tell(TestProbe(probe), None);
-            p_assert_eq!(listen, ());
-        }
+        sup.tell(TestProbe(probe), None);
+        p_assert_eq!(listen, ());
     }
 }
+
 
 // Test Escalate Strategy
 #[actor(TestProbe, Panic)]
@@ -206,8 +203,8 @@ impl Receive<Panic> for EscRestartSup {
     }
 }
 
-#[tokio::test]
-async fn supervision_escalate_failed_actor() {
+#[riker_testkit::test]
+fn supervision_escalate_failed_actor() {
     let sys = ActorSystem::new().unwrap();
 
     let sup = sys.actor_of::<EscRestartSup>("supervisor").unwrap();
@@ -217,7 +214,11 @@ async fn supervision_escalate_failed_actor() {
 
     let (probe, mut listen) = probe::<()>();
 
+    #[cfg(feature = "tokio_executor")]
     tokio::time::sleep(std::time::Duration::from_millis(2000)).await;
+    #[cfg(not(feature = "tokio_executor"))]
+    std::thread::sleep(std::time::Duration::from_millis(2000));
+
     sup.tell(TestProbe(probe), None);
     p_assert_eq!(listen, ());
     sys.print_tree();

@@ -1,10 +1,8 @@
-#[macro_use]
-extern crate riker_testkit;
-
 use riker::actors::*;
 
 use riker_testkit::probe::channel::{probe, ChannelProbe};
 use riker_testkit::probe::{Probe, ProbeReceive};
+use riker_testkit::p_assert_eq;
 
 use chrono::{Duration as CDuration, Utc};
 use std::time::Duration;
@@ -47,8 +45,8 @@ impl Receive<SomeMessage> for ScheduleOnce {
     }
 }
 
-#[tokio::test]
-async fn schedule_once() {
+#[riker_testkit::test]
+fn schedule_once() {
     let sys = ActorSystem::new().unwrap();
 
     let actor = sys.actor_of::<ScheduleOnce>("schedule-once").unwrap();
@@ -60,8 +58,8 @@ async fn schedule_once() {
     p_assert_eq!(listen, ());
 }
 
-#[tokio::test]
-async fn schedule_at_time() {
+#[riker_testkit::test]
+fn schedule_at_time() {
     let sys = ActorSystem::new().unwrap();
 
     let actor = sys.actor_of::<ScheduleOnce>("schedule-once").unwrap();
@@ -122,8 +120,8 @@ impl Receive<SomeMessage> for ScheduleRepeat {
     }
 }
 
-#[tokio::test]
-async fn schedule_repeat() {
+#[riker_testkit::test]
+fn schedule_repeat() {
     let sys = ActorSystem::new().unwrap();
 
     let actor = sys.actor_of::<ScheduleRepeat>("schedule-repeat").unwrap();
