@@ -1,8 +1,8 @@
 use riker::actors::*;
 
+use riker_testkit::p_assert_eq;
 use riker_testkit::probe::channel::{probe, ChannelProbe};
 use riker_testkit::probe::{Probe, ProbeReceive};
-use riker_testkit::p_assert_eq;
 
 #[derive(Clone, Debug)]
 pub struct Panic;
@@ -114,7 +114,6 @@ fn supervision_restart_failed_actor() {
         p_assert_eq!(listen, ());
     }
 }
-
 
 // Test Escalate Strategy
 #[actor(TestProbe, Panic)]

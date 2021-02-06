@@ -20,4 +20,3 @@ proc-macro2 = "1.0"
 
 [dev-dependencies]
 riker = { path = ".." }
-tokio = { version = "^1", features = ["rt-multi-thread", "macros", "time"] }

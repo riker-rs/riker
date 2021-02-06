@@ -1,8 +1,8 @@
 use riker::actors::*;
 
+use riker_testkit::p_assert_eq;
 use riker_testkit::probe::channel::{probe, ChannelProbe};
 use riker_testkit::probe::{Probe, ProbeReceive};
-use riker_testkit::p_assert_eq;
 
 use chrono::{Duration as CDuration, Utc};
 use std::time::Duration;

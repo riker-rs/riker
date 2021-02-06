@@ -246,12 +246,7 @@ impl Deref for LoggingSystem {
     }
 }
 
-use crate::executor::{
-    ExecutorHandle,
-    get_executor_handle,
-    TaskExecutor,
-    TaskHandle,
-};
+use crate::executor::{get_executor_handle, ExecutorHandle, TaskExecutor, TaskHandle};
 pub fn default_exec(cfg: &Config) -> ExecutorHandle {
     get_executor_handle(cfg)
 }

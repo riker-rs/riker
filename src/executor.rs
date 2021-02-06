@@ -1,45 +1,20 @@
+use config::Config;
 use futures::{
-    task::{
-        Poll,
-        Context as PollContext,
-        SpawnExt,
-    },
     channel::oneshot::Receiver,
+    task::{Context as PollContext, Poll},
     Future,
 };
-use std::{
-    error::Error,
-    pin::{
-        Pin,
-    },
-    sync::Arc,
-};
-use config::Config;
-use crate::system::ThreadPoolConfig;
+use std::{error::Error, pin::Pin, sync::Arc};
 
 pub type ExecutorHandle = Arc<dyn TaskExecutor>;
-#[cfg(feature = "tokio_executor")]
-pub fn get_executor_handle() -> ExecutorHandle {
-    Arc::new(TokioExecutor(tokio::runtime::Handle::current()))
-}
-#[cfg(not(feature = "tokio_executor"))]
-pub fn get_executor_handle(cfg: &Config) -> ExecutorHandle {
-    let exec_cfg = ThreadPoolConfig::from(cfg);
-    let pool = futures::executor::ThreadPoolBuilder::new()
-        .pool_size(exec_cfg.pool_size)
-        .stack_size(exec_cfg.stack_size)
-        .name_prefix("pool-thread-#")
-        .create()
-        .unwrap();
-    Arc::new(FuturesExecutor(pool))
-}
-pub trait Task: Future<Output=()> + Send { }
-impl<T: Future<Output=()> + Send> Task for T { }
+
+pub trait Task: Future<Output = ()> + Send {}
+impl<T: Future<Output = ()> + Send> Task for T {}
 
 pub trait TaskExecutor {
     fn spawn(&self, future: Pin<Box<dyn Task>>) -> Result<Box<dyn TaskExec>, Box<dyn Error>>;
 }
-pub trait TaskExec: Future<Output=Result<(), Box<dyn Error>>> + Unpin + Send + Sync {
+pub trait TaskExec: Future<Output = Result<(), Box<dyn Error>>> + Unpin + Send + Sync {
     fn abort(self);
     fn forget(self);
 }
@@ -49,10 +24,7 @@ pub struct TaskHandle<T: Send> {
 }
 impl<T: Send> TaskHandle<T> {
     pub fn new(handle: Box<dyn TaskExec>, recv: Receiver<T>) -> Self {
-        Self {
-            handle,
-            recv,
-        }
+        Self { handle, recv }
     }
 }
 impl<T: Send> Future for TaskHandle<T> {
@@ -68,9 +40,12 @@ impl<T: Send> Future for TaskHandle<T> {
     }
 }
 
-use executor_impl::*;
+pub use executor_impl::*;
 #[cfg(feature = "tokio_executor")]
 mod executor_impl {
+    pub fn get_executor_handle(_: &Config) -> ExecutorHandle {
+        Arc::new(TokioExecutor(tokio::runtime::Handle::current()))
+    }
     use super::*;
     pub struct TokioExecutor(pub tokio::runtime::Handle);
     impl TaskExecutor for TokioExecutor {
@@ -82,7 +57,8 @@ mod executor_impl {
     impl Future for TokioJoinHandle {
         type Output = Result<(), Box<dyn Error>>;
         fn poll(mut self: Pin<&mut Self>, cx: &mut PollContext<'_>) -> Poll<Self::Output> {
-            Future::poll(Pin::new(&mut self.0), cx).map_err(|e| Box::new(e) as Box<dyn Error + 'static>)
+            Future::poll(Pin::new(&mut self.0), cx)
+                .map_err(|e| Box::new(e) as Box<dyn Error + 'static>)
         }
     }
     impl TaskExec for TokioJoinHandle {
@@ -98,10 +74,23 @@ mod executor_impl {
 #[cfg(not(feature = "tokio_executor"))]
 mod executor_impl {
     use super::*;
+    use crate::system::ThreadPoolConfig;
+    use futures::task::SpawnExt;
+    pub fn get_executor_handle(cfg: &Config) -> ExecutorHandle {
+        let exec_cfg = ThreadPoolConfig::from(cfg);
+        let pool = futures::executor::ThreadPoolBuilder::new()
+            .pool_size(exec_cfg.pool_size)
+            .stack_size(exec_cfg.stack_size)
+            .name_prefix("pool-thread-#")
+            .create()
+            .unwrap();
+        Arc::new(FuturesExecutor(pool))
+    }
     pub struct FuturesExecutor(pub futures::executor::ThreadPool);
     impl TaskExecutor for FuturesExecutor {
         fn spawn(&self, future: Pin<Box<dyn Task>>) -> Result<Box<dyn TaskExec>, Box<dyn Error>> {
-            self.0.spawn_with_handle(future)
+            self.0
+                .spawn_with_handle(future)
                 .map(|h| Box::new(FuturesJoinHandle(h)) as Box<dyn TaskExec>)
                 .map_err(|e| Box::new(e) as Box<dyn Error>)
         }
