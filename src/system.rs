@@ -171,7 +171,7 @@ pub struct SystemBuilder {
     name: Option<String>,
     cfg: Option<Config>,
     log: Option<Logger>,
-    exec: Option<Exec>,
+    exec: Option<ExecutorHandle>,
 }
 
 impl SystemBuilder {
@@ -205,7 +205,7 @@ impl SystemBuilder {
         }
     }
 
-    pub fn exec(self, exec: Exec) -> Self {
+    pub fn exec(self, exec: ExecutorHandle) -> Self {
         SystemBuilder {
             exec: Some(exec),
             ..self
@@ -246,8 +246,12 @@ impl Deref for LoggingSystem {
     }
 }
 
-use crate::executor::{get_executor_handle, ExecutorHandle, TaskExecutor, TaskHandle};
-pub type Exec = Arc<dyn TaskExecutor>;
+use crate::executor::{
+    ExecutorHandle,
+    get_executor_handle,
+    TaskExecutor,
+    TaskHandle,
+};
 pub fn default_exec(_: &Config) -> ExecutorHandle {
     get_executor_handle()
 }
