@@ -15,7 +15,6 @@ proc-macro = true
 
 [features]
 default = []
-tokio_executor = ["tokio", "riker-testkit/tokio_executor"]
 
 [dependencies]
 syn = { version ="1.0", features = ["parsing", "full", "extra-traits", "proc-macro"] }
