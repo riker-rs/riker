@@ -139,13 +139,7 @@ use std::{
 
 use chrono::prelude::*;
 use config::Config;
-use futures::{
-    channel::oneshot,
-    executor::{ThreadPool, ThreadPoolBuilder},
-    future::RemoteHandle,
-    task::{SpawnError, SpawnExt},
-    Future,
-};
+use futures::{channel::oneshot, Future, FutureExt};
 
 use uuid::Uuid;
 
@@ -177,7 +171,7 @@ pub struct SystemBuilder {
     name: Option<String>,
     cfg: Option<Config>,
     log: Option<Logger>,
-    exec: Option<ThreadPool>,
+    exec: Option<ExecutorHandle>,
 }
 
 impl SystemBuilder {
@@ -211,7 +205,7 @@ impl SystemBuilder {
         }
     }
 
-    pub fn exec(self, exec: ThreadPool) -> Self {
+    pub fn exec(self, exec: ExecutorHandle) -> Self {
         SystemBuilder {
             exec: Some(exec),
             ..self
@@ -252,6 +246,10 @@ impl Deref for LoggingSystem {
     }
 }
 
+use crate::executor::{get_executor_handle, ExecutorHandle, TaskExecutor, TaskHandle};
+pub fn default_exec(cfg: &Config) -> ExecutorHandle {
+    get_executor_handle(cfg)
+}
 /// The actor runtime and common services coordinator
 ///
 /// The `ActorSystem` provides a runtime on which actors are executed.
@@ -266,12 +264,11 @@ pub struct ActorSystem {
     sys_actors: Option<SysActors>,
     log: LoggingSystem,
     debug: bool,
-    pub exec: ThreadPool,
+    pub exec: ExecutorHandle,
     pub timer: TimerRef,
     pub sys_channels: Option<SysChannels>,
     pub(crate) provider: Provider,
 }
-
 impl ActorSystem {
     /// Create a new `ActorSystem` instance
     ///
@@ -282,6 +279,15 @@ impl ActorSystem {
         let log = default_log(&cfg);
 
         ActorSystem::create("riker", exec, log, cfg)
+    }
+    /// Create a new `ActorSystem` instance with provided executor
+    ///
+    /// Requires a type that implements the `TaskExecutor` trait.
+    pub fn with_executor(exec: impl TaskExecutor + 'static) -> Result<ActorSystem, SystemError> {
+        let cfg = load_config();
+        let log = default_log(&cfg);
+
+        ActorSystem::create("riker", Arc::new(exec), log, cfg)
     }
 
     /// Create a new `ActorSystem` instance with provided name
@@ -305,7 +311,7 @@ impl ActorSystem {
 
     fn create(
         name: &str,
-        exec: ThreadPool,
+        exec: ExecutorHandle,
         log: LoggingSystem,
         cfg: Config,
     ) -> Result<ActorSystem, SystemError> {
@@ -663,22 +669,30 @@ impl ActorSelectionFactory for ActorSystem {
     }
 }
 
+use std::error::Error;
 // futures::task::Spawn::spawn requires &mut self so
 // we'll create a wrapper trait that requires only &self.
 pub trait Run {
-    fn run<Fut>(&self, future: Fut) -> Result<RemoteHandle<<Fut as Future>::Output>, SpawnError>
+    fn run<Fut>(&self, future: Fut) -> Result<TaskHandle<<Fut as Future>::Output>, Box<dyn Error>>
     where
         Fut: Future + Send + 'static,
         <Fut as Future>::Output: Send;
 }
 
 impl Run for ActorSystem {
-    fn run<Fut>(&self, future: Fut) -> Result<RemoteHandle<<Fut as Future>::Output>, SpawnError>
+    fn run<Fut>(&self, future: Fut) -> Result<TaskHandle<<Fut as Future>::Output>, Box<dyn Error>>
     where
         Fut: Future + Send + 'static,
         <Fut as Future>::Output: Send,
     {
-        self.exec.spawn_with_handle(future)
+        let (sender, recv) = futures::channel::oneshot::channel::<Fut::Output>();
+        let handle = self.exec.spawn(Box::pin(
+            async move {
+                drop(sender.send(future.await));
+            }
+            .boxed(),
+        ))?;
+        Ok(TaskHandle::new(handle, recv))
     }
 }
 
@@ -853,9 +867,9 @@ impl<'a> From<&'a Config> for SystemSettings {
     }
 }
 
-struct ThreadPoolConfig {
-    pool_size: usize,
-    stack_size: usize,
+pub(crate) struct ThreadPoolConfig {
+    pub pool_size: usize,
+    pub stack_size: usize,
 }
 
 impl<'a> From<&'a Config> for ThreadPoolConfig {
@@ -865,16 +879,6 @@ impl<'a> From<&'a Config> for ThreadPoolConfig {
             stack_size: config.get_int("dispatcher.stack_size").unwrap() as usize,
         }
     }
-}
-
-fn default_exec(cfg: &Config) -> ThreadPool {
-    let exec_cfg = ThreadPoolConfig::from(cfg);
-    ThreadPoolBuilder::new()
-        .pool_size(exec_cfg.pool_size)
-        .stack_size(exec_cfg.stack_size)
-        .name_prefix("pool-thread-#")
-        .create()
-        .unwrap()
 }
 
 #[derive(Clone)]

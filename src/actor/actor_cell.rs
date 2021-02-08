@@ -10,11 +10,12 @@ use std::{
 
 use chrono::prelude::*;
 use dashmap::DashMap;
-use futures::{future::RemoteHandle, task::SpawnError, Future};
+use futures::Future;
 use uuid::Uuid;
 
 use crate::{
     actor::{props::ActorFactory, *},
+    executor::TaskHandle,
     kernel::{
         kernel_ref::{dispatch, dispatch_any, KernelRef},
         mailbox::{AnyEnqueueError, AnySender, MailboxSender},
@@ -525,7 +526,10 @@ impl<Msg> Run for Context<Msg>
 where
     Msg: Message,
 {
-    fn run<Fut>(&self, future: Fut) -> Result<RemoteHandle<<Fut as Future>::Output>, SpawnError>
+    fn run<Fut>(
+        &self,
+        future: Fut,
+    ) -> Result<TaskHandle<<Fut as Future>::Output>, Box<dyn std::error::Error>>
     where
         Fut: Future + Send + 'static,
         <Fut as Future>::Output: Send,

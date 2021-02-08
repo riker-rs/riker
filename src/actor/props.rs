@@ -17,33 +17,40 @@ use crate::actor::Actor;
 pub struct Props;
 
 impl Props {
+    #[cfg_attr(
+        not(feature = "tokio_executor"),
+        doc = r##"
     /// Creates an `ActorProducer` with no factory method parameters.
     ///
     /// # Examples
     ///
-    /// ```
-    /// # use riker::actors::*;
-    ///
-    /// struct User;
-    ///
-    /// impl User {
-    ///     fn actor() -> Self {
-    ///         User
-    ///     }
-    /// }
-    ///
-    /// # impl Actor for User {
-    /// #    type Msg = String;
-    /// #    fn recv(&mut self, _ctx: &Context<String>, _msg: String, _sender: Sender) {}
-    /// # }
-    /// // main
-    /// let sys = ActorSystem::new().unwrap();
-    ///
-    /// let props = Props::new_from(User::actor);
-    ///
-    /// // start the actor and get an `ActorRef`
-    /// let actor = sys.actor_of_props("user", props).unwrap();
-    /// ```
+    ```
+    # use riker::actors::*;
+    
+    struct User;
+    
+    impl User {
+        fn actor() -> Self {
+            User
+        }
+    }
+    
+    # impl Actor for User {
+    #    type Msg = String;
+    #    fn recv(&mut self, _ctx: &Context<String>, _msg: String, _sender: Sender) {}
+    # }
+    
+    fn main() {
+        let sys = ActorSystem::new().unwrap();
+    
+        let props = Props::new_from(User::actor);
+    
+        // start the actor and get an `ActorRef`
+        let actor = sys.actor_of_props("user", props).unwrap();
+    }
+    ```
+    "##
+    )]
     #[inline]
     pub fn new_from<A, F>(creator: F) -> Arc<Mutex<impl ActorProducer<Actor = A>>>
     where
@@ -53,67 +60,76 @@ impl Props {
         Arc::new(Mutex::new(ActorProps::new(creator)))
     }
 
+    #[cfg_attr(
+        not(feature = "tokio_executor"),
+        doc = r##"
     /// Creates an `ActorProducer` with one or more factory method parameters.
     ///
     /// # Examples
     /// An actor requiring a single parameter.
-    /// ```
-    /// # use riker::actors::*;
-    ///
-    /// struct User {
-    ///     name: String,
-    /// }
-    ///
-    /// impl User {
-    ///     fn actor(name: String) -> Self {
-    ///         User {
-    ///             name
-    ///         }
-    ///     }
-    /// }
-    ///
-    /// # impl Actor for User {
-    /// #    type Msg = String;
-    /// #    fn recv(&mut self, _ctx: &Context<String>, _msg: String, _sender: Sender) {}
-    /// # }
-    /// // main
-    /// let sys = ActorSystem::new().unwrap();
-    ///
-    /// let props = Props::new_from_args(User::actor, "Naomi Nagata".into());
-    ///
-    /// let actor = sys.actor_of_props("user", props).unwrap();
-    /// ```
+    ```
+    # use riker::actors::*;
+    
+    struct User {
+        name: String,
+    }
+    
+    impl User {
+        fn actor(name: String) -> Self {
+            User {
+                name
+            }
+        }
+    }
+    
+    # impl Actor for User {
+    #    type Msg = String;
+    #    fn recv(&mut self, _ctx: &Context<String>, _msg: String, _sender: Sender) {}
+    # }
+    
+    fn main() {
+        let sys = ActorSystem::new().unwrap();
+    
+        let props = Props::new_from_args(User::actor, "Naomi Nagata".into());
+    
+        let actor = sys.actor_of_props("user", props).unwrap();
+    }
+    ```
     /// An actor requiring multiple parameters.
-    /// ```
-    /// # use riker::actors::*;
-    ///
-    /// struct BankAccount {
-    ///     name: String,
-    ///     number: String,
-    /// }
-    ///
-    /// impl BankAccount {
-    ///     fn actor((name, number): (String, String)) -> Self {
-    ///         BankAccount {
-    ///             name,
-    ///             number
-    ///         }
-    ///     }
-    /// }
-    ///
-    /// # impl Actor for BankAccount {
-    /// #    type Msg = String;
-    /// #    fn recv(&mut self, _ctx: &Context<String>, _msg: String, _sender: Sender) {}
-    /// # }
-    /// // main
-    /// let sys = ActorSystem::new().unwrap();
-    ///
-    /// let props = Props::new_from_args(BankAccount::actor,
-    ///                             ("James Holden".into(), "12345678".into()));
-    ///
-    /// // start the actor and get an `ActorRef`
-    /// let actor = sys.actor_of_props("bank_account", props).unwrap();
-    /// ```
+    ```
+    # use riker::actors::*;
+    
+    struct BankAccount {
+        name: String,
+        number: String,
+    }
+    
+    impl BankAccount {
+        fn actor((name, number): (String, String)) -> Self {
+            BankAccount {
+                name,
+                number
+            }
+        }
+    }
+    
+    # impl Actor for BankAccount {
+    #    type Msg = String;
+    #    fn recv(&mut self, _ctx: &Context<String>, _msg: String, _sender: Sender) {}
+    # }
+    
+    fn main() {
+        let sys = ActorSystem::new().unwrap();
+    
+        let props = Props::new_from_args(BankAccount::actor,
+                                    ("James Holden".into(), "12345678".into()));
+    
+        // start the actor and get an `ActorRef`
+        let actor = sys.actor_of_props("bank_account", props).unwrap();
+    }
+    ```
+    "##
+    )]
     #[inline]
     pub fn new_from_args<A, Args, F>(
         creator: F,
@@ -127,55 +143,64 @@ impl Props {
         Arc::new(Mutex::new(ActorPropsWithArgs::new(creator, args)))
     }
 
+    #[cfg_attr(
+        not(feature = "tokio_executor"),
+        doc = r##"
     /// Creates an `ActorProducer` from default constructible type with no factory method parameters.
     ///
     /// # Examples
     ///
-    /// ```
-    /// # use riker::actors::*;
-    ///
-    /// #[derive(Default)]
-    /// struct User;
-    ///
-    /// # impl Actor for User {
-    /// #    type Msg = String;
-    /// #    fn recv(&mut self, _ctx: &Context<String>, _msg: String, _sender: Sender) {}
-    /// # }
-    /// // main
-    /// let sys = ActorSystem::new().unwrap();
-    ///
-    /// let props = Props::new::<User>();
-    ///
-    /// // start the actor and get an `ActorRef`
-    /// let actor = sys.actor_of_props("user", props).unwrap();
-    /// ```
-    /// Creates an `ActorProducer` from a type which implements ActorFactory with no factory method parameters.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use riker::actors::*;
-    ///
-    /// struct User;
-    ///
-    /// impl ActorFactory for User {
-    ///     fn create() -> Self {
-    ///         User
-    ///     }
-    /// }
-    ///
-    /// # impl Actor for User {
-    /// #    type Msg = String;
-    /// #    fn recv(&mut self, _ctx: &Context<String>, _msg: String, _sender: Sender) {}
-    /// # }
-    /// // main
-    /// let sys = ActorSystem::new().unwrap();
-    ///
-    /// let props = Props::new::<User>();
-    ///
-    /// // start the actor and get an `ActorRef`
-    /// let actor = sys.actor_of_props("user", props).unwrap();
-    /// ```
+    ```
+    # use riker::actors::*;
+    
+    #[derive(Default)]
+    struct User;
+    
+    # impl Actor for User {
+    #    type Msg = String;
+    #    fn recv(&mut self, _ctx: &Context<String>, _msg: String, _sender: Sender) {}
+    # }
+    
+    fn main() {
+        let sys = ActorSystem::new().unwrap();
+    
+        let props = Props::new::<User>();
+    
+        // start the actor and get an `ActorRef`
+        let actor = sys.actor_of_props("user", props).unwrap();
+    }
+    ```
+    Creates an `ActorProducer` from a type which implements ActorFactory with no factory method parameters.
+    
+    # Examples
+    
+    ```
+    # use riker::actors::*;
+    
+    struct User;
+    
+    impl ActorFactory for User {
+        fn create() -> Self {
+            User
+        }
+    }
+    
+    # impl Actor for User {
+    #    type Msg = String;
+    #    fn recv(&mut self, _ctx: &Context<String>, _msg: String, _sender: Sender) {}
+    # }
+    
+    fn main() {
+        let sys = ActorSystem::new().unwrap();
+    
+        let props = Props::new::<User>();
+    
+        // start the actor and get an `ActorRef`
+        let actor = sys.actor_of_props("user", props).unwrap();
+    }
+    ```
+    "##
+    )]
     #[inline]
     pub fn new<A>() -> Arc<Mutex<impl ActorProducer<Actor = A>>>
     where
@@ -184,67 +209,76 @@ impl Props {
         Self::new_from(A::create)
     }
 
+    #[cfg_attr(
+        not(feature = "tokio_executor"),
+        doc = r##"
     /// Creates an `ActorProducer` from a type which implements ActorFactoryArgs with one or more factory method parameters.
     ///
     /// # Examples
     /// An actor requiring a single parameter.
-    /// ```
-    /// # use riker::actors::*;
-    ///
-    /// struct User {
-    ///     name: String,
-    /// }
-    ///
-    /// impl ActorFactoryArgs<String> for User {
-    ///     fn create_args(name: String) -> Self {
-    ///         User {
-    ///             name
-    ///         }
-    ///     }
-    /// }
-    ///
-    /// # impl Actor for User {
-    /// #    type Msg = String;
-    /// #    fn recv(&mut self, _ctx: &Context<String>, _msg: String, _sender: Sender) {}
-    /// # }
-    /// // main
-    /// let sys = ActorSystem::new().unwrap();
-    ///
-    /// let props = Props::new_args::<User, _>("Naomi Nagata".into());
-    ///
-    /// let actor = sys.actor_of_props("user", props).unwrap();
-    /// ```
-    /// An actor requiring multiple parameters.
-    /// ```
-    /// # use riker::actors::*;
-    ///
-    /// struct BankAccount {
-    ///     name: String,
-    ///     number: String,
-    /// }
-    ///
-    /// impl ActorFactoryArgs<(String, String)> for BankAccount {
-    ///     fn create_args((name, number): (String, String)) -> Self {
-    ///         BankAccount {
-    ///             name,
-    ///             number
-    ///         }
-    ///     }
-    /// }
-    ///
-    /// # impl Actor for BankAccount {
-    /// #    type Msg = String;
-    /// #    fn recv(&mut self, _ctx: &Context<String>, _msg: String, _sender: Sender) {}
-    /// # }
-    /// // main
-    /// let sys = ActorSystem::new().unwrap();
-    ///
-    /// let props = Props::new_from_args(BankAccount::create_args,
-    ///                             ("James Holden".into(), "12345678".into()));
-    ///
-    /// // start the actor and get an `ActorRef`
-    /// let actor = sys.actor_of_props("bank_account", props).unwrap();
-    /// ```
+    ```
+    # use riker::actors::*;
+    
+    struct User {
+        name: String,
+    }
+    
+    impl ActorFactoryArgs<String> for User {
+        fn create_args(name: String) -> Self {
+            User {
+                name
+            }
+        }
+    }
+    
+    # impl Actor for User {
+    #    type Msg = String;
+    #    fn recv(&mut self, _ctx: &Context<String>, _msg: String, _sender: Sender) {}
+    # }
+    
+    fn main() {
+        let sys = ActorSystem::new().unwrap();
+    
+        let props = Props::new_args::<User, _>("Naomi Nagata".into());
+    
+        let actor = sys.actor_of_props("user", props).unwrap();
+    }
+    ```
+    An actor requiring multiple parameters.
+    ```
+    # use riker::actors::*;
+    
+    struct BankAccount {
+        name: String,
+        number: String,
+    }
+    
+    impl ActorFactoryArgs<(String, String)> for BankAccount {
+        fn create_args((name, number): (String, String)) -> Self {
+            BankAccount {
+                name,
+                number
+            }
+        }
+    }
+    
+    # impl Actor for BankAccount {
+    #    type Msg = String;
+    #    fn recv(&mut self, _ctx: &Context<String>, _msg: String, _sender: Sender) {}
+    # }
+    
+    fn main() {
+        let sys = ActorSystem::new().unwrap();
+    
+        let props = Props::new_from_args(BankAccount::create_args,
+                                    ("James Holden".into(), "12345678".into()));
+    
+        // start the actor and get an `ActorRef`
+        let actor = sys.actor_of_props("bank_account", props).unwrap();
+    }
+    ```
+    "##
+    )]
     #[inline]
     pub fn new_args<A, Args>(args: Args) -> Arc<Mutex<impl ActorProducer<Actor = A>>>
     where

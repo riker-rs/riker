@@ -1,8 +1,6 @@
-#[macro_use]
-extern crate riker_testkit;
-
 use riker::actors::*;
 
+use riker_testkit::p_assert_eq;
 use riker_testkit::probe::channel::{probe, ChannelProbe};
 use riker_testkit::probe::{Probe, ProbeReceive};
 
@@ -47,26 +45,26 @@ impl Receive<SomeMessage> for ScheduleOnce {
     }
 }
 
-#[test]
+#[riker_testkit::test]
 fn schedule_once() {
     let sys = ActorSystem::new().unwrap();
 
     let actor = sys.actor_of::<ScheduleOnce>("schedule-once").unwrap();
 
-    let (probe, listen) = probe();
+    let (probe, mut listen) = probe();
 
     // use scheduler to set up probe
     sys.schedule_once(Duration::from_millis(200), actor, None, TestProbe(probe));
     p_assert_eq!(listen, ());
 }
 
-#[test]
+#[riker_testkit::test]
 fn schedule_at_time() {
     let sys = ActorSystem::new().unwrap();
 
     let actor = sys.actor_of::<ScheduleOnce>("schedule-once").unwrap();
 
-    let (probe, listen) = probe();
+    let (probe, mut listen) = probe();
 
     // use scheduler to set up probe at a specific time
     let schedule_at = Utc::now() + CDuration::milliseconds(200);
@@ -122,13 +120,13 @@ impl Receive<SomeMessage> for ScheduleRepeat {
     }
 }
 
-#[test]
+#[riker_testkit::test]
 fn schedule_repeat() {
     let sys = ActorSystem::new().unwrap();
 
     let actor = sys.actor_of::<ScheduleRepeat>("schedule-repeat").unwrap();
 
-    let (probe, listen) = probe();
+    let (probe, mut listen) = probe();
 
     actor.tell(TestProbe(probe), None);
 

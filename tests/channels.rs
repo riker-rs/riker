@@ -1,10 +1,12 @@
-#[macro_use]
-extern crate riker_testkit;
-
 use riker::actors::*;
 
-use riker_testkit::probe::channel::{probe, ChannelProbe};
-use riker_testkit::probe::{Probe, ProbeReceive};
+use riker_testkit::{
+    p_assert_eq,
+    probe::{
+        channel::{probe, ChannelProbe},
+        Probe, ProbeReceive,
+    },
+};
 
 #[derive(Clone, Debug)]
 pub struct TestProbe(ChannelProbe<(), ()>);
@@ -66,7 +68,7 @@ impl Receive<SomeMessage> for Subscriber {
     }
 }
 
-#[test]
+#[riker_testkit::test]
 fn channel_publish() {
     let sys = ActorSystem::new().unwrap();
 
@@ -80,10 +82,14 @@ fn channel_publish() {
         .actor_of_args::<Subscriber, _>("sub-actor", (chan.clone(), topic.clone()))
         .unwrap();
 
-    let (probe, listen) = probe();
+    let (probe, mut listen) = probe();
+
     sub.tell(TestProbe(probe), None);
 
     // wait for the probe to arrive at the actor before publishing message
+    #[cfg(feature = "tokio_executor")]
+    listen.recv().await;
+    #[cfg(not(feature = "tokio_executor"))]
     listen.recv();
 
     // Publish a test message
@@ -98,7 +104,7 @@ fn channel_publish() {
     p_assert_eq!(listen, ());
 }
 
-#[test]
+#[riker_testkit::test]
 fn channel_publish_subscribe_all() {
     let sys = ActorSystem::new().unwrap();
 
@@ -112,10 +118,14 @@ fn channel_publish_subscribe_all() {
         .actor_of_args::<Subscriber, _>("sub-actor", (chan.clone(), topic))
         .unwrap();
 
-    let (probe, listen) = probe();
+    let (probe, mut listen) = probe();
+
     sub.tell(TestProbe(probe), None);
 
     // wait for the probe to arrive at the actor before publishing message
+    #[cfg(feature = "tokio_executor")]
+    listen.recv().await;
+    #[cfg(not(feature = "tokio_executor"))]
     listen.recv();
 
     // Publish a test message to topic "topic-1"
@@ -237,34 +247,38 @@ impl Receive<SystemEvent> for EventSubscriber {
         match msg {
             SystemEvent::ActorCreated(created) => {
                 if created.actor.path() == "/user/dumb-actor" {
-                    self.probe.as_ref().unwrap().0.event(())
+                    self.probe.as_ref().unwrap().0.event(());
                 }
             }
             SystemEvent::ActorRestarted(restarted) => {
                 if restarted.actor.path() == "/user/dumb-actor" {
-                    self.probe.as_ref().unwrap().0.event(())
+                    self.probe.as_ref().unwrap().0.event(());
                 }
             }
             SystemEvent::ActorTerminated(terminated) => {
                 if terminated.actor.path() == "/user/dumb-actor" {
-                    self.probe.as_ref().unwrap().0.event(())
+                    self.probe.as_ref().unwrap().0.event(());
                 }
             }
         }
     }
 }
 
-#[test]
+#[riker_testkit::test]
 fn channel_system_events() {
     let sys = ActorSystem::new().unwrap();
 
     let actor = sys.actor_of::<EventSubscriber>("event-sub").unwrap();
 
-    let (probe, listen) = probe();
+    let (probe, mut listen) = probe();
+
     actor.tell(TestProbe(probe), None);
 
     // wait for the probe to arrive at the actor before attempting
     // create, restart and stop
+    #[cfg(feature = "tokio_executor")]
+    listen.recv().await;
+    #[cfg(not(feature = "tokio_executor"))]
     listen.recv();
 
     // Create an actor
@@ -327,21 +341,28 @@ impl Receive<DeadLetter> for DeadLetterSub {
     }
 }
 
-#[test]
+#[riker_testkit::test]
 fn channel_dead_letters() {
     let sys = ActorSystem::new().unwrap();
     let actor = sys.actor_of::<DeadLetterSub>("dl-subscriber").unwrap();
 
-    let (probe, listen) = probe();
+    let (probe, mut listen) = probe();
+
     actor.tell(TestProbe(probe), None);
 
     // wait for the probe to arrive at the actor before attempting to stop the actor
+    #[cfg(feature = "tokio_executor")]
+    listen.recv().await;
+    #[cfg(not(feature = "tokio_executor"))]
     listen.recv();
 
     let dumb = sys.actor_of::<DumbActor>("dumb-actor").unwrap();
 
     // immediately stop the actor and attempt to send a message
     sys.stop(&dumb);
+    #[cfg(feature = "tokio_executor")]
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    #[cfg(not(feature = "tokio_executor"))]
     std::thread::sleep(std::time::Duration::from_secs(1));
     dumb.tell(SomeMessage, None);
 
