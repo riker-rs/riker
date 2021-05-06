@@ -60,7 +60,7 @@ impl Actor for MyActor {
 fn main() {
     let sys = ActorSystem::new().unwrap();
 
-    let my_actor = sys.actor_of::<MyActor>("my-actor").unwrap();
+    let my_actor = sys.sys_actor_of::<MyActor>("my-actor").unwrap();
 
     my_actor.tell("Hello my actor!".to_string(), None);
 
