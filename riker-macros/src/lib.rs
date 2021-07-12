@@ -103,7 +103,9 @@ fn intos(name: &Ident, types: &MsgTypes) -> TokenStream {
     let intos = types
         .types
         .iter()
-        .map(|t| impl_into(&name, &t.name, &t.mtype));
+        .map(|t| {
+            impl_from(&name, &t.name, &t.mtype)
+        });
     quote! {
         #(#intos)*
     }
@@ -135,11 +137,11 @@ fn receive(aname: &Ident, gen: &Generics, name: &Ident, types: &MsgTypes) -> Tok
     }
 }
 
-fn impl_into(name: &Ident, vname: &Ident, ty: &TypePath) -> TokenStream {
+fn impl_from(name: &Ident, vname: &Ident, ty: &TypePath) -> TokenStream {
     quote! {
-        impl Into<#name> for #ty {
-            fn into(self) -> #name {
-                #name::#vname(self)
+        impl From<#ty> for #name {
+            fn from(msg: #ty) -> #name {
+                #name::#vname(msg)
             }
         }
     }

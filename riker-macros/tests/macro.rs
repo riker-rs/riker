@@ -222,3 +222,68 @@ fn run_path_message_actor() {
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
 }
+
+#[derive(Clone)]
+struct WithFromActor<M>
+where
+    M: riker::actors::Message + From<test_mod::Message>,
+{
+    link: ActorRef<M>,
+}
+
+impl<M> ActorFactoryArgs<ActorRef<M>> for WithFromActor<M>
+where
+    M: riker::actors::Message + From<test_mod::Message>,
+{
+    fn create_args(link: ActorRef<M>) -> Self {
+        Self { link }
+    }
+}
+
+impl<M> Actor for WithFromActor<M>
+where
+    M: riker::actors::Message + From<test_mod::Message>,
+{
+    type Msg = String;
+
+    fn supervisor_strategy(&self) -> Strategy {
+        Strategy::Stop
+    }
+
+    fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender) {
+        self.receive(ctx, msg, sender);
+        ctx.stop(&ctx.myself);
+    }
+}
+
+impl<M> Receive<String> for WithFromActor<M>
+where
+    M: riker::actors::Message + From<test_mod::Message>,
+{
+    type Msg = String;
+
+    fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: Self::Msg, sender: Sender) {
+        self.link.tell(M::from(test_mod::Message), sender);
+    }
+}
+
+#[test]
+fn run_with_from_message_actor() {
+    let sys = ActorSystem::new().unwrap();
+
+    let act = sys.actor_of::<PathMsgActor>("act").unwrap();
+    let with_from_act = sys
+        .actor_of_args::<WithFromActor<PathMsgActorMsg>, _>("from-actor", act.clone())
+        .unwrap();
+
+    let msg = PathMsgActorMsg::TestModMessage(test_mod::Message);
+    act.tell(msg, None);
+
+    with_from_act.tell("from-actor".to_string(), None);
+
+    // wait until all direct children of the user root are terminated
+    while sys.user_root().has_children() {
+        // in order to lower cpu usage, sleep here
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+}
