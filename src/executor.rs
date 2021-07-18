@@ -32,7 +32,7 @@ impl<T: Send> TaskHandle<T> {
 impl<T: Send> Future for TaskHandle<T> {
     type Output = Result<T, Box<dyn Error>>;
     fn poll(mut self: Pin<&mut Self>, cx: &mut PollContext<'_>) -> Poll<Self::Output> {
-        if let Poll::Ready(_) = TaskExec::poll(Pin::new(&mut *self.handle), cx) {
+        if Pin::new(&mut *self.handle).poll(cx).is_ready() {
             if let Poll::Ready(val) = <Receiver<T> as Future>::poll(Pin::new(&mut self.recv), cx) {
                 self.recv.close();
                 return Poll::Ready(val.map_err(|e| Box::new(e) as Box<dyn Error + 'static>));
