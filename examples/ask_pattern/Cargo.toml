@@ -1,0 +1,12 @@
+[package]
+name = "riker_ask_example"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+riker = "0.4"
+riker-macros = "0.2"
+riker-patterns =""
+futures = "0.3"
