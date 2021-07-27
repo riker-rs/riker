@@ -84,14 +84,14 @@ pub fn actor(
     let types = syn::parse_macro_input!(attr as MsgTypes);
 
     let menum = types.enum_stream(&name);
-    let intos = intos(&name, &types);
+    let froms = froms(&name, &types);
     let rec = receive(&ast.ident, &ast.generics, &name, &types);
 
     let input: TokenStream = input.into();
     let gen = quote! {
         #input
         #menum
-        #intos
+        #froms
 
         #rec
     };
@@ -99,13 +99,13 @@ pub fn actor(
     gen.into()
 }
 
-fn intos(name: &Ident, types: &MsgTypes) -> TokenStream {
-    let intos = types
+fn froms(name: &Ident, types: &MsgTypes) -> TokenStream {
+    let froms = types
         .types
         .iter()
-        .map(|t| impl_into(&name, &t.name, &t.mtype));
+        .map(|t| impl_from(&name, &t.name, &t.mtype));
     quote! {
-        #(#intos)*
+        #(#froms)*
     }
 }
 
@@ -135,11 +135,11 @@ fn receive(aname: &Ident, gen: &Generics, name: &Ident, types: &MsgTypes) -> Tok
     }
 }
 
-fn impl_into(name: &Ident, vname: &Ident, ty: &TypePath) -> TokenStream {
+fn impl_from(name: &Ident, vname: &Ident, ty: &TypePath) -> TokenStream {
     quote! {
-        impl Into<#name> for #ty {
-            fn into(self) -> #name {
-                #name::#vname(self)
+        impl From<#ty> for #name {
+            fn from(obj: #ty) -> #name {
+                #name::#vname(obj)
             }
         }
     }
