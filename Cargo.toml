@@ -15,7 +15,7 @@ travis-ci = { repository = "riker-rs/riker" }
 
 [features]
 default = []
-tokio_executor = ["tokio", "riker-testkit/tokio_executor"]
+tokio_executor = ["tokio"]
 
 [dependencies]
 riker-macros = { path = "riker-macros", version = "0.2.0" }
@@ -37,6 +37,6 @@ tokio = { version = "^1", features = ["rt-multi-thread", "macros", "time"], opti
 [dev-dependencies]
 log = "0.4"
 
-[dev-dependencies.riker-testkit]
-git = "https://github.com/mankinskin/riker-testkit"
-branch = "tokio_executor"
+#[dev-dependencies.riker-testkit]
+#git = "https://github.com/mankinskin/riker-testkit"
+#branch = "tokio_executor"
