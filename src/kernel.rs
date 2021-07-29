@@ -18,7 +18,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use futures::{channel::mpsc::channel, task::SpawnExt, StreamExt};
+use futures::{channel::mpsc::channel, StreamExt};
 use slog::warn;
 
 use crate::{
@@ -28,7 +28,7 @@ use crate::{
         kernel_ref::KernelRef,
         mailbox::{flush_to_deadletters, run_mailbox, Mailbox},
     },
-    system::{ActorRestarted, ActorTerminated, SystemMsg},
+    system::{ActorRestarted, ActorTerminated, Run, SystemMsg},
     Message,
 };
 
@@ -98,7 +98,7 @@ where
         }
     };
 
-    sys.exec.spawn(f).unwrap();
+    sys.run(f).unwrap().forget();
     Ok(kr)
 }
 

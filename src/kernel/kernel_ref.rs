@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use futures::{channel::mpsc::Sender, task::SpawnExt, SinkExt};
+use futures::{channel::mpsc::Sender, SinkExt};
 
 use crate::{
     actor::{MsgError, MsgResult},
@@ -8,7 +8,7 @@ use crate::{
         mailbox::{AnyEnqueueError, AnySender, MailboxSchedule, MailboxSender},
         KernelMsg,
     },
-    system::ActorSystem,
+    system::{ActorSystem, Run},
     AnyMessage, Envelope, Message,
 };
 
@@ -36,11 +36,11 @@ impl KernelRef {
 
     fn send(&self, msg: KernelMsg, sys: &ActorSystem) {
         let mut tx = self.tx.clone();
-        sys.exec
-            .spawn(async move {
-                drop(tx.send(msg).await);
-            })
-            .unwrap();
+        sys.run(async move {
+            drop(tx.send(msg).await);
+        })
+        .unwrap()
+        .forget();
     }
 }
 

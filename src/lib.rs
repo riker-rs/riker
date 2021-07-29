@@ -8,6 +8,7 @@
 mod validate;
 
 pub mod actor;
+pub mod executor;
 pub mod kernel;
 pub mod system;
 

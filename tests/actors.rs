@@ -1,10 +1,12 @@
-#[macro_use]
-extern crate riker_testkit;
-
 use riker::actors::*;
 
-use riker_testkit::probe::channel::{probe, ChannelProbe};
-use riker_testkit::probe::{Probe, ProbeReceive};
+use riker_testkit::{
+    p_assert_eq,
+    probe::{
+        channel::{probe, ChannelProbe},
+        Probe, ProbeReceive,
+    },
+};
 
 #[derive(Clone, Debug)]
 pub struct Add;
@@ -42,17 +44,16 @@ impl Receive<Add> for Counter {
     fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: Add, _sender: Sender) {
         self.count += 1;
         if self.count == 1_000_000 {
-            self.probe.as_ref().unwrap().0.event(())
+            self.probe.as_ref().unwrap().0.event(());
         }
     }
 }
 
-#[test]
+#[riker_testkit::test]
 fn actor_create() {
     let sys = ActorSystem::new().unwrap();
 
     assert!(sys.actor_of::<Counter>("valid-name").is_ok());
-
     match sys.actor_of::<Counter>("/") {
         Ok(_) => panic!("test should not reach here"),
         Err(e) => {
@@ -78,30 +79,29 @@ fn actor_create() {
     assert!(sys.actor_of::<Counter>("!").is_err());
 }
 
-#[test]
+#[riker_testkit::test]
 fn actor_tell() {
     let sys = ActorSystem::new().unwrap();
 
     let actor = sys.actor_of::<Counter>("me").unwrap();
 
-    let (probe, listen) = probe();
+    let (probe, mut listen) = probe();
     actor.tell(TestProbe(probe), None);
 
     for _ in 0..1_000_000 {
         actor.tell(Add, None);
     }
-
     p_assert_eq!(listen, ());
 }
 
-#[test]
+#[riker_testkit::test]
 fn actor_try_tell() {
     let sys = ActorSystem::new().unwrap();
 
     let actor = sys.actor_of::<Counter>("me").unwrap();
     let actor: BasicActorRef = actor.into();
 
-    let (probe, listen) = probe();
+    let (probe, mut listen) = probe();
     actor
         .try_tell(CounterMsg::TestProbe(TestProbe(probe)), None)
         .unwrap();
@@ -155,18 +155,20 @@ impl Actor for Child {
     fn recv(&mut self, _: &Context<Self::Msg>, _: Self::Msg, _: Sender) {}
 }
 
-#[test]
-#[allow(dead_code)]
+#[riker_testkit::test]
 fn actor_stop() {
     let system = ActorSystem::new().unwrap();
 
     let parent = system.actor_of::<Parent>("parent").unwrap();
 
-    let (probe, listen) = probe();
+    let (probe, mut listen) = probe();
     parent.tell(TestProbe(probe), None);
     system.print_tree();
 
     // wait for the probe to arrive at the actor before attempting to stop the actor
+    #[cfg(feature = "tokio_executor")]
+    listen.recv().await;
+    #[cfg(not(feature = "tokio_executor"))]
     listen.recv();
 
     system.stop(&parent);

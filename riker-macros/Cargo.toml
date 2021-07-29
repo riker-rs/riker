@@ -13,10 +13,18 @@ keywords = ["actors", "actor-model", "async", "cqrs", "event_sourcing"]
 [lib]
 proc-macro = true
 
+[features]
+default = []
+
 [dependencies]
 syn = { version ="1.0", features = ["parsing", "full", "extra-traits", "proc-macro"] }
 quote = "1.0"
 proc-macro2 = "1.0"
+tokio = { version = "^1", features = ["rt-multi-thread", "macros", "time"], optional = true }
 
 [dev-dependencies]
 riker = { path = ".." }
+
+[dev-dependencies.riker-testkit]
+git = "https://github.com/mankinskin/riker-testkit"
+branch = "tokio_executor"

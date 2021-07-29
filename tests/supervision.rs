@@ -1,8 +1,6 @@
-#[macro_use]
-extern crate riker_testkit;
-
 use riker::actors::*;
 
+use riker_testkit::p_assert_eq;
 use riker_testkit::probe::channel::{probe, ChannelProbe};
 use riker_testkit::probe::{Probe, ProbeReceive};
 
@@ -98,7 +96,7 @@ impl Receive<Panic> for RestartSup {
     }
 }
 
-#[test]
+#[riker_testkit::test]
 fn supervision_restart_failed_actor() {
     let sys = ActorSystem::new().unwrap();
 
@@ -110,7 +108,8 @@ fn supervision_restart_failed_actor() {
         // Make the test actor panic
         sup.tell(Panic, None);
 
-        let (probe, listen) = probe::<()>();
+        let (probe, mut listen) = probe::<()>();
+
         sup.tell(TestProbe(probe), None);
         p_assert_eq!(listen, ());
     }
@@ -203,7 +202,7 @@ impl Receive<Panic> for EscRestartSup {
     }
 }
 
-#[test]
+#[riker_testkit::test]
 fn supervision_escalate_failed_actor() {
     let sys = ActorSystem::new().unwrap();
 
@@ -212,8 +211,13 @@ fn supervision_escalate_failed_actor() {
     // Make the test actor panic
     sup.tell(Panic, None);
 
-    let (probe, listen) = probe::<()>();
+    let (probe, mut listen) = probe::<()>();
+
+    #[cfg(feature = "tokio_executor")]
+    tokio::time::sleep(std::time::Duration::from_millis(2000)).await;
+    #[cfg(not(feature = "tokio_executor"))]
     std::thread::sleep(std::time::Duration::from_millis(2000));
+
     sup.tell(TestProbe(probe), None);
     p_assert_eq!(listen, ());
     sys.print_tree();
