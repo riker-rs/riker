@@ -15,13 +15,11 @@ travis-ci = { repository = "riker-rs/riker" }
 
 [dependencies]
 riker-macros = { path = "riker-macros", version = "0.2.0" }
-chrono = "0.4"
-config = "0.10.1"
-futures = { version = "0.3.4", features = ["thread-pool"] }
-rand = "0.7"
+chrono = { version = "0.4", default-features = false, features = ["std"] }
+config = { version = "0.11.0", default-features = false, features = ["toml"] }
+futures = { version = "0.3.4", default-features = false, features = ["std", "thread-pool"] }
 regex = "1"
 uuid = { version = "0.8.1", features = ["v4"] }
-pin-utils = "0.1.0"
 slog = "2.5"
 slog-stdlog = "4.0"
 slog-scope = "4.3.0"

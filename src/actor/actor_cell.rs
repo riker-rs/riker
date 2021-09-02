@@ -243,8 +243,7 @@ impl TmpActorRefFactory for ActorCell {
         &self,
         _props: BoxActorProd<A>,
     ) -> Result<ActorRef<A::Msg>, CreateError> {
-        let name = rand::random::<u64>();
-        let _name = format!("{}", name);
+        let _name = Uuid::new_v4().to_string();
 
         // self.inner
         //     .kernel
@@ -253,8 +252,7 @@ impl TmpActorRefFactory for ActorCell {
     }
 
     fn tmp_actor_of<A: ActorFactory>(&self) -> Result<ActorRef<<A as Actor>::Msg>, CreateError> {
-        let name = rand::random::<u64>();
-        let _name = format!("{}", name);
+        let _name = Uuid::new_v4().to_string();
 
         // self.inner
         //     .kernel
@@ -270,8 +268,7 @@ impl TmpActorRefFactory for ActorCell {
         Args: ActorArgs,
         A: ActorFactoryArgs<Args>,
     {
-        let name = rand::random::<u64>();
-        let _name = format!("{}", name);
+        let _name = Uuid::new_v4().to_string();
 
         // self.inner
         //     .kernel

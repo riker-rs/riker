@@ -605,7 +605,7 @@ impl TmpActorRefFactory for ActorSystem {
     where
         A: Actor,
     {
-        let name = format!("{}", rand::random::<u64>());
+        let name = Uuid::new_v4().to_string();
         self.provider
             .create_actor(props, &name, &self.temp_root(), self)
     }
@@ -614,7 +614,7 @@ impl TmpActorRefFactory for ActorSystem {
     where
         A: ActorFactory,
     {
-        let name = format!("{}", rand::random::<u64>());
+        let name = Uuid::new_v4().to_string();
         self.provider
             .create_actor(Props::new::<A>(), &name, &self.temp_root(), self)
     }
@@ -627,7 +627,7 @@ impl TmpActorRefFactory for ActorSystem {
         Args: ActorArgs,
         A: ActorFactoryArgs<Args>,
     {
-        let name = format!("{}", rand::random::<u64>());
+        let name = Uuid::new_v4().to_string();
         self.provider.create_actor(
             Props::new_args::<A, _>(args),
             &name,
