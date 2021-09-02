@@ -1,7 +1,6 @@
-use dashmap::DashMap;
 use slog::trace;
 
-use std::sync::Arc;
+use std::{sync::{Arc, RwLock}, collections::HashSet};
 
 use crate::system::LoggingSystem;
 use crate::{
@@ -20,13 +19,13 @@ pub struct Provider {
 }
 
 struct ProviderInner {
-    paths: DashMap<ActorPath, ()>,
+    paths: RwLock<HashSet<ActorPath>>,
 }
 
 impl Provider {
     pub fn new(log: LoggingSystem) -> Self {
         let inner = ProviderInner {
-            paths: DashMap::new(),
+            paths: RwLock::new(HashSet::default()),
         };
 
         Provider {
@@ -82,8 +81,8 @@ impl Provider {
     }
 
     fn register(&self, path: &ActorPath) -> Result<(), CreateError> {
-        let old = self.inner.paths.insert(path.clone(), ());
-        if old.is_some() {
+        let not_present = self.inner.paths.write().unwrap().insert(path.clone());
+        if !not_present {
             Err(CreateError::AlreadyExists(path.clone()))
         } else {
             Ok(())
@@ -91,7 +90,7 @@ impl Provider {
     }
 
     pub fn unregister(&self, path: &ActorPath) {
-        self.inner.paths.remove(path);
+        self.inner.paths.write().unwrap().remove(path);
     }
 }
 

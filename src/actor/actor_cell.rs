@@ -3,13 +3,13 @@ use std::{
     ops::Deref,
     sync::{
         atomic::{AtomicBool, AtomicUsize, Ordering},
-        Arc,
+        Arc, RwLock,
     },
     time::{Duration, Instant},
+    collections::HashMap,
 };
 
 use chrono::prelude::*;
-use dashmap::DashMap;
 use futures::{future::RemoteHandle, task::SpawnError, Future};
 use uuid::Uuid;
 
@@ -139,7 +139,7 @@ impl ActorCell {
     }
 
     pub(crate) fn is_child(&self, actor: &BasicActorRef) -> bool {
-        self.inner.children.iter().any(|child| child == *actor)
+        self.inner.children.any(actor)
     }
 
     pub(crate) fn stop(&self, actor: &BasicActorRef) {
@@ -172,9 +172,7 @@ impl ActorCell {
             self.kernel().terminate(&self.inner.system);
             post_stop(actor);
         } else {
-            for child in self.inner.children.iter() {
-                self.stop(&child);
-            }
+            self.inner.children.for_each(|child| self.stop(child));
         }
     }
 
@@ -183,9 +181,7 @@ impl ActorCell {
             self.kernel().restart(&self.inner.system);
         } else {
             self.inner.is_restarting.store(true, Ordering::Relaxed);
-            for child in self.inner.children.iter() {
-                self.stop(&child);
-            }
+            self.inner.children.for_each(|child| self.stop(child));
         }
     }
 
@@ -640,29 +636,40 @@ where
 
 #[derive(Clone)]
 pub struct Children {
-    actors: Arc<DashMap<String, BasicActorRef>>,
+    actors: Arc<RwLock<HashMap<String, BasicActorRef>>>,
 }
 
 impl Children {
     pub fn new() -> Children {
         Children {
-            actors: Arc::new(DashMap::new()),
+            actors: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
     pub fn add(&self, actor: BasicActorRef) {
-        self.actors.insert(actor.name().to_string(), actor);
+        self.actors.write().unwrap().insert(actor.name().to_string(), actor);
     }
 
     pub fn remove(&self, actor: &BasicActorRef) {
-        self.actors.remove(actor.name());
+        self.actors.write().unwrap().remove(actor.name());
     }
 
     pub fn len(&self) -> usize {
-        self.actors.len()
+        self.actors.read().unwrap().len()
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = BasicActorRef> + '_ {
-        self.actors.iter().map(|e| e.value().clone())
+    pub fn for_each<F>(&self, f: F)
+    where
+        F: FnMut(&BasicActorRef),
+    {
+        self.actors.read().unwrap().values().for_each(f)
+    }
+
+    pub fn any(&self, actor: &BasicActorRef) -> bool {
+        self.actors.read().unwrap().values().any(|child| *child == *actor)
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = BasicActorRef> {
+        self.actors.read().unwrap().values().cloned().collect::<Vec<_>>().into_iter()
     }
 }
