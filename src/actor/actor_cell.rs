@@ -560,8 +560,6 @@ where
 
         let _ = self.system
             .timer
-            .lock()
-            .unwrap()
             .send(Job::Repeat(job));
         id
     }
@@ -590,8 +588,6 @@ where
 
         let _ = self.system
             .timer
-            .lock()
-            .unwrap()
             .send(Job::Once(job));
         id
     }
@@ -623,14 +619,12 @@ where
 
         let _ = self.system
             .timer
-            .lock()
-            .unwrap()
             .send(Job::Once(job));
         id
     }
 
     fn cancel_schedule(&self, id: Uuid) {
-        let _ = self.system.timer.lock().unwrap().send(Job::Cancel(id));
+        let _ = self.system.timer.send(Job::Cancel(id));
     }
 }
 

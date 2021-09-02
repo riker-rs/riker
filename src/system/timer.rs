@@ -1,5 +1,4 @@
 use std::{
-    sync::mpsc,
     thread,
     time::{Duration, Instant},
 };
@@ -13,7 +12,7 @@ use crate::{
     AnyMessage, Message,
 };
 
-pub type TimerRef = mpsc::Sender<Job>;
+pub type TimerRef = flume::Sender<Job>;
 
 pub type ScheduleId = Uuid;
 
@@ -108,7 +107,7 @@ impl BasicTimer {
             repeat_jobs: Vec::new(),
         };
 
-        let (tx, rx) = mpsc::channel();
+        let (tx, rx) = flume::unbounded();
         thread::spawn(move || loop {
             process.execute_once_jobs();
             process.execute_repeat_jobs();
