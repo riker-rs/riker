@@ -91,9 +91,6 @@ where
     }
 }
 
-unsafe impl<Msg: Message> Send for MailboxSender<Msg> {}
-unsafe impl<Msg: Message> Sync for MailboxSender<Msg> {}
-
 #[derive(Clone)]
 pub struct Mailbox<Msg: Message> {
     inner: Arc<MailboxInner<Msg>>,

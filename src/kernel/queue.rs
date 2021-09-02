@@ -1,6 +1,6 @@
 use std::sync::{
     mpsc::{channel, Receiver, Sender},
-    Mutex,
+    Arc, Mutex,
 };
 
 use crate::{Envelope, Message};
@@ -8,7 +8,9 @@ use crate::{Envelope, Message};
 pub fn queue<Msg: Message>() -> (QueueWriter<Msg>, QueueReader<Msg>) {
     let (tx, rx) = channel::<Envelope<Msg>>();
 
-    let qw = QueueWriter { tx };
+    let qw = QueueWriter {
+        tx: Arc::new(Mutex::new(tx)),
+    };
 
     let qr = QueueReaderInner {
         rx,
@@ -24,12 +26,14 @@ pub fn queue<Msg: Message>() -> (QueueWriter<Msg>, QueueReader<Msg>) {
 
 #[derive(Clone)]
 pub struct QueueWriter<Msg: Message> {
-    tx: Sender<Envelope<Msg>>,
+    tx: Arc<Mutex<Sender<Envelope<Msg>>>>,
 }
 
 impl<Msg: Message> QueueWriter<Msg> {
     pub fn try_enqueue(&self, msg: Envelope<Msg>) -> EnqueueResult<Msg> {
         self.tx
+            .lock()
+            .unwrap()
             .send(msg)
             .map(|_| ())
             .map_err(|e| EnqueueError { msg: e.0 })

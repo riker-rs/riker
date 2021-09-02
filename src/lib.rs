@@ -4,6 +4,7 @@
 // #![deny(clippy::nursery)]
 #![allow(clippy::new_ret_no_self)]
 #![allow(clippy::large_enum_variant)]
+#![forbid(unsafe_code)]
 
 mod validate;
 
@@ -53,8 +54,6 @@ pub struct Envelope<T: Message> {
     pub sender: Option<BasicActorRef>,
     pub msg: T,
 }
-
-unsafe impl<T: Message> Send for Envelope<T> {}
 
 pub trait Message: Debug + Clone + Send + 'static {}
 impl<T: Debug + Clone + Send + 'static> Message for T {}

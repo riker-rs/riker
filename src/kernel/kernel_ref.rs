@@ -80,6 +80,3 @@ pub fn dispatch_any(
         }
     })
 }
-
-unsafe impl Send for KernelRef {}
-unsafe impl Sync for KernelRef {}

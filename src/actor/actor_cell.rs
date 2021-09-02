@@ -562,7 +562,11 @@ where
             msg: AnyMessage::new(msg, false),
         };
 
-        self.system.timer.send(Job::Repeat(job)).unwrap();
+        let _ = self.system
+            .timer
+            .lock()
+            .unwrap()
+            .send(Job::Repeat(job));
         id
     }
 
@@ -588,7 +592,11 @@ where
             msg: AnyMessage::new(msg, true),
         };
 
-        self.system.timer.send(Job::Once(job)).unwrap();
+        let _ = self.system
+            .timer
+            .lock()
+            .unwrap()
+            .send(Job::Once(job));
         id
     }
 
@@ -617,12 +625,16 @@ where
             msg: AnyMessage::new(msg, true),
         };
 
-        self.system.timer.send(Job::Once(job)).unwrap();
+        let _ = self.system
+            .timer
+            .lock()
+            .unwrap()
+            .send(Job::Once(job));
         id
     }
 
     fn cancel_schedule(&self, id: Uuid) {
-        let _ = self.system.timer.send(Job::Cancel(id));
+        let _ = self.system.timer.lock().unwrap().send(Job::Cancel(id));
     }
 }
 
