@@ -7,6 +7,7 @@ use config::Config;
 use slog::{info, o, Drain, Level, Logger, Never, OwnedKVList, Record};
 use std::str::FromStr;
 use std::sync::Arc;
+use std::time::SystemTime;
 
 pub(crate) type GlobalLoggerGuard = Arc<slog_scope::GlobalLoggerGuard>;
 
@@ -68,7 +69,7 @@ impl Drain for DefaultConsoleLogger {
     type Err = Never;
 
     fn log(&self, record: &Record, _values: &OwnedKVList) -> Result<Self::Ok, Self::Err> {
-        let now = chrono::Utc::now();
+        let now = SystemTime::now();
         let filter_match = self.cfg.filter.iter().any(|f| record.module().contains(f));
         if !filter_match {
             // note:
@@ -77,9 +78,9 @@ impl Drain for DefaultConsoleLogger {
             // It's not clear if runtime-fmt is maintained any longer as so we'll
             // attempt to find an alternative to provide configurable formatting.
             println!(
-                "{} {} {} [{}] {}",
-                now.format(&self.cfg.date_fmt),
-                now.format(&self.cfg.time_fmt),
+                "{:?} {} [{}] {}",
+                now.duration_since(SystemTime::UNIX_EPOCH)
+                    .expect("system time should be after 1970"),
                 record.level().as_short_str(),
                 record.module(),
                 record.msg()

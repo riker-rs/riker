@@ -132,10 +132,9 @@ impl fmt::Debug for SystemError {
 use std::{
     ops::Deref,
     sync::{Arc, Mutex},
-    time::{Duration, Instant},
+    time::{SystemTime, Duration, Instant},
 };
 
-use chrono::prelude::*;
 use config::Config;
 use futures::{
     channel::oneshot,
@@ -167,7 +166,8 @@ pub struct ProtoSystem {
     pub host: Arc<str>,
     config: Config,
     pub(crate) sys_settings: SystemSettings,
-    started_at: DateTime<Utc>,
+    started_at: SystemTime,
+    started_at_moment: Instant,
 }
 
 #[derive(Default)]
@@ -326,7 +326,8 @@ impl ActorSystem {
             host: Arc::from("localhost"),
             config: cfg.clone(),
             sys_settings: SystemSettings::from(&cfg),
-            started_at: Utc::now(),
+            started_at: SystemTime::now(),
+            started_at_moment: Instant::now(),
         };
 
         // 2. create uninitialized system
@@ -368,17 +369,15 @@ impl ActorSystem {
         self.sys_actors.as_ref().unwrap().user.sys_init(self);
     }
 
-    /// Returns the system start date
-    pub fn start_date(&self) -> &DateTime<Utc> {
-        &self.proto.started_at
+    /// Returns the system start moment
+    pub fn start_date(&self) -> SystemTime {
+        self.proto.started_at
     }
 
     /// Returns the number of seconds since the system started
     pub fn uptime(&self) -> u64 {
-        let now = Utc::now();
-        now.time()
-            .signed_duration_since(self.start_date().time())
-            .num_seconds() as u64
+        let now = Instant::now();
+        now.duration_since(self.proto.started_at_moment).as_secs() as u64
     }
 
     /// Returns the hostname used when the system started
@@ -681,7 +680,7 @@ impl fmt::Debug for ActorSystem {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "ActorSystem[Name: {}, Start Time: {}, Uptime: {} seconds]",
+            "ActorSystem[Name: {}, Start Time: {:?}, Uptime: {} seconds]",
             self.name(),
             self.start_date(),
             self.uptime()
@@ -729,35 +728,6 @@ impl Timer for ActorSystem {
         T: Message + Into<M>,
         M: Message,
     {
-        let id = Uuid::new_v4();
-        let msg: M = msg.into();
-
-        let job = OnceJob {
-            id,
-            send_at: Instant::now() + delay,
-            receiver: receiver.into(),
-            sender,
-            msg: AnyMessage::new(msg, true),
-        };
-
-        let _ = self.timer.send(Job::Once(job));
-        id
-    }
-
-    fn schedule_at_time<T, M>(
-        &self,
-        time: DateTime<Utc>,
-        receiver: ActorRef<M>,
-        sender: Sender,
-        msg: T,
-    ) -> ScheduleId
-    where
-        T: Message + Into<M>,
-        M: Message,
-    {
-        let delay = std::cmp::max(time.timestamp() - Utc::now().timestamp(), 0_i64);
-        let delay = Duration::from_secs(delay as u64);
-
         let id = Uuid::new_v4();
         let msg: M = msg.into();
 

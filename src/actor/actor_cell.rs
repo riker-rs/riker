@@ -9,7 +9,6 @@ use std::{
     collections::HashMap,
 };
 
-use chrono::prelude::*;
 use futures::{future::RemoteHandle, task::SpawnError, Future};
 use uuid::Uuid;
 
@@ -572,37 +571,6 @@ where
         T: Message + Into<M>,
         M: Message,
     {
-        let id = Uuid::new_v4();
-        let msg: M = msg.into();
-
-        let job = OnceJob {
-            id,
-            send_at: Instant::now() + delay,
-            receiver: receiver.into(),
-            sender,
-            msg: AnyMessage::new(msg, true),
-        };
-
-        let _ = self.system
-            .timer
-            .send(Job::Once(job));
-        id
-    }
-
-    fn schedule_at_time<T, M>(
-        &self,
-        time: DateTime<Utc>,
-        receiver: ActorRef<M>,
-        sender: Sender,
-        msg: T,
-    ) -> ScheduleId
-    where
-        T: Message + Into<M>,
-        M: Message,
-    {
-        let delay = std::cmp::max(time.timestamp() - Utc::now().timestamp(), 0_i64);
-        let delay = Duration::from_secs(delay as u64);
-
         let id = Uuid::new_v4();
         let msg: M = msg.into();
 

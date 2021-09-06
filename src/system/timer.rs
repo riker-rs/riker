@@ -3,7 +3,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-use chrono::{DateTime, Utc};
 use config::Config;
 use uuid::Uuid;
 
@@ -32,17 +31,6 @@ pub trait Timer {
     fn schedule_once<T, M>(
         &self,
         delay: Duration,
-        receiver: ActorRef<M>,
-        sender: Sender,
-        msg: T,
-    ) -> ScheduleId
-    where
-        T: Message + Into<M>,
-        M: Message;
-
-    fn schedule_at_time<T, M>(
-        &self,
-        time: DateTime<Utc>,
         receiver: ActorRef<M>,
         sender: Sender,
         msg: T,

@@ -6,7 +6,6 @@ use riker::actors::*;
 use riker_testkit::probe::channel::{probe, ChannelProbe};
 use riker_testkit::probe::{Probe, ProbeReceive};
 
-use chrono::{Duration as CDuration, Utc};
 use std::time::Duration;
 
 #[derive(Clone, Debug)]
@@ -57,20 +56,6 @@ fn schedule_once() {
 
     // use scheduler to set up probe
     sys.schedule_once(Duration::from_millis(200), actor, None, TestProbe(probe));
-    p_assert_eq!(listen, ());
-}
-
-#[test]
-fn schedule_at_time() {
-    let sys = ActorSystem::new().unwrap();
-
-    let actor = sys.actor_of::<ScheduleOnce>("schedule-once").unwrap();
-
-    let (probe, listen) = probe();
-
-    // use scheduler to set up probe at a specific time
-    let schedule_at = Utc::now() + CDuration::milliseconds(200);
-    sys.schedule_at_time(schedule_at, actor, None, TestProbe(probe));
     p_assert_eq!(listen, ());
 }
 
