@@ -83,13 +83,6 @@ fn system_futures_panic() {
 }
 
 #[test]
-fn system_load_app_config() {
-    let sys = ActorSystem::new().unwrap();
-
-    assert_eq!(sys.config().get_int("app.some_setting").unwrap() as i64, 1);
-}
-
-#[test]
 fn system_builder() {
     let sys = SystemBuilder::new().create().unwrap();
     block_on(sys.shutdown()).unwrap();

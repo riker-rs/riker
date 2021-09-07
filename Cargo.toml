@@ -15,7 +15,7 @@ travis-ci = { repository = "riker-rs/riker" }
 
 [dependencies]
 riker-macros = { path = "riker-macros", version = "0.2.0" }
-config = { version = "0.11.0", default-features = false, features = ["toml"] }
+toml = { version = "0.5.8" }
 futures = { version = "0.3.4", default-features = false, features = ["std", "thread-pool"] }
 regex = "1"
 uuid = { version = "0.8.1", features = ["v4"] }

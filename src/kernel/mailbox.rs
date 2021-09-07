@@ -4,8 +4,6 @@ use std::sync::{
 };
 use std::thread;
 
-use config::Config;
-
 use crate::{
     actor::actor_cell::ExtendedCell,
     actor::*,
@@ -375,15 +373,25 @@ where
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct MailboxConfig {
     pub msg_process_limit: u32,
 }
 
-impl<'a> From<&'a Config> for MailboxConfig {
-    fn from(cfg: &Config) -> Self {
+impl Default for MailboxConfig {
+    fn default() -> Self {
         MailboxConfig {
-            msg_process_limit: cfg.get_int("mailbox.msg_process_limit").unwrap() as u32,
+            msg_process_limit: 1000,
         }
+    }
+}
+
+impl MailboxConfig {
+    // Option<()> allow to use ? for parsing toml value, ignore it
+    pub fn merge(&mut self, v: &toml::Value) -> Option<()> {
+        let v = v.as_table()?;
+        let msg_process_limit = v.get("msg_process_limit")?.as_integer()?;
+        self.msg_process_limit = msg_process_limit as u32;
+        None
     }
 }

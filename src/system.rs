@@ -135,7 +135,6 @@ use std::{
     time::{SystemTime, Duration, Instant},
 };
 
-use config::Config;
 use futures::{
     channel::oneshot,
     executor::{ThreadPool, ThreadPoolBuilder},
@@ -153,7 +152,7 @@ use crate::{
     system::logger::*,
     system::timer::*,
     validate::{validate_name, InvalidPath},
-    AnyMessage, Message,
+    AnyMessage, Message, Config,
 };
 use slog::{debug, Logger};
 
@@ -309,7 +308,7 @@ impl ActorSystem {
     ) -> Result<ActorSystem, SystemError> {
         validate_name(name).map_err(|_| SystemError::InvalidName(name.into()))?;
         // Process Configuration
-        let debug = cfg.get_bool("debug").unwrap();
+        let debug = cfg.debug;
 
         // Until the logger has started, use println
         if debug {
@@ -325,7 +324,9 @@ impl ActorSystem {
             name: name.to_string(),
             host: Arc::from("localhost"),
             config: cfg.clone(),
-            sys_settings: SystemSettings::from(&cfg),
+            sys_settings: SystemSettings {
+                msg_process_limit: cfg.mailbox.msg_process_limit,
+            },
             started_at: SystemTime::now(),
             started_at_moment: Instant::now(),
         };
@@ -810,30 +811,35 @@ pub struct SystemSettings {
     pub msg_process_limit: u32,
 }
 
-impl<'a> From<&'a Config> for SystemSettings {
-    fn from(config: &Config) -> Self {
-        SystemSettings {
-            msg_process_limit: config.get_int("mailbox.msg_process_limit").unwrap() as u32,
+#[derive(Clone)]
+pub struct ThreadPoolConfig {
+    pub pool_size: usize,
+    pub stack_size: usize,
+}
+
+impl Default for ThreadPoolConfig {
+    fn default() -> Self {
+        ThreadPoolConfig {
+            pool_size: (num_cpus::get() * 2) as _,
+            stack_size: 0,
         }
     }
 }
 
-struct ThreadPoolConfig {
-    pool_size: usize,
-    stack_size: usize,
-}
-
-impl<'a> From<&'a Config> for ThreadPoolConfig {
-    fn from(config: &Config) -> Self {
-        ThreadPoolConfig {
-            pool_size: config.get_int("dispatcher.pool_size").unwrap() as usize,
-            stack_size: config.get_int("dispatcher.stack_size").unwrap() as usize,
-        }
+impl ThreadPoolConfig {
+    // Option<()> allow to use ? for parsing toml value, ignore it
+    pub fn merge(&mut self, v: &toml::Value) -> Option<()> {
+        let v = v.as_table()?;
+        let pool_size = v.get("pool_size")?.as_integer()? as _;
+        self.pool_size = pool_size;
+        let stack_size = v.get("stack_size")?.as_integer()? as _;
+        self.stack_size = stack_size;
+        None
     }
 }
 
 fn default_exec(cfg: &Config) -> ThreadPool {
-    let exec_cfg = ThreadPoolConfig::from(cfg);
+    let exec_cfg = cfg.dispatcher.clone();
     ThreadPoolBuilder::new()
         .pool_size(exec_cfg.pool_size)
         .stack_size(exec_cfg.stack_size)

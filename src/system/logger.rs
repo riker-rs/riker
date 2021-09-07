@@ -3,9 +3,8 @@ use crate::actor::{
     Subscribe, Tell,
 };
 use crate::system::LoggingSystem;
-use config::Config;
+use crate::Config;
 use slog::{info, o, Drain, Level, Logger, Never, OwnedKVList, Record};
-use std::str::FromStr;
 use std::sync::Arc;
 use std::time::SystemTime;
 
@@ -20,28 +19,34 @@ pub struct LoggerConfig {
     level: Level,
 }
 
-impl<'a> From<&'a Config> for LoggerConfig {
-    fn from(config: &Config) -> Self {
+impl Default for LoggerConfig {
+    fn default() -> Self {
         LoggerConfig {
-            time_fmt: config.get_str("log.time_format").unwrap(),
-            date_fmt: config.get_str("log.date_format").unwrap(),
-            log_fmt: config.get_str("log.log_format").unwrap(),
-            filter: config
-                .get_array("log.filter")
-                .unwrap_or_default()
-                .into_iter()
-                .map(|e| e.to_string())
-                .collect(),
-            level: config
-                .get_str("log.level")
-                .map(|l| Level::from_str(&l).unwrap_or(Level::Info))
-                .unwrap_or(Level::Info),
+            time_fmt: "%H:%M:%S%:z".to_string(),
+            date_fmt: "%Y-%m-%d".to_string(),
+            log_fmt: "{date} {time} {level} [{module}] {body}".to_string(),
+            filter: vec![],
+            level: Level::Debug,
         }
     }
 }
 
+impl LoggerConfig {
+    // Option<()> allow to use ? for parsing toml value, ignore it
+    pub fn merge(&mut self, v: &toml::Value) -> Option<()> {
+        let v = v.as_table()?;
+        let time_fmt = v.get("time_fmt")?.as_str()?.to_string();
+        self.time_fmt = time_fmt;
+        let date_fmt = v.get("date_fmt")?.as_str()?.to_string();
+        self.date_fmt = date_fmt;
+        let log_fmt = v.get("log_fmt")?.as_str()?.to_string();
+        self.log_fmt = log_fmt;
+        None
+    }
+}
+
 pub(crate) fn default_log(cfg: &Config) -> LoggingSystem {
-    let cfg = LoggerConfig::from(cfg);
+    let cfg = cfg.log.clone();
 
     let drain = DefaultConsoleLogger::new(cfg.clone())
         .filter_level(cfg.level)

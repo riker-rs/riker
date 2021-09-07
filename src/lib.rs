@@ -11,42 +11,15 @@ mod validate;
 pub mod actor;
 pub mod kernel;
 pub mod system;
+mod config;
 
 use std::any::Any;
-use std::env;
 use std::fmt;
 use std::fmt::Debug;
 
-use config::{Config, File};
-
 use crate::actor::BasicActorRef;
 
-pub fn load_config() -> Config {
-    let mut cfg = Config::new();
-
-    cfg.set_default("debug", true).unwrap();
-    cfg.set_default("log.level", "debug").unwrap();
-    cfg.set_default("log.log_format", "{date} {time} {level} [{module}] {body}")
-        .unwrap();
-    cfg.set_default("log.date_format", "%Y-%m-%d").unwrap();
-    cfg.set_default("log.time_format", "%H:%M:%S%:z").unwrap();
-    cfg.set_default("mailbox.msg_process_limit", 1000).unwrap();
-    cfg.set_default("dispatcher.pool_size", (num_cpus::get() * 2) as i64)
-        .unwrap();
-    cfg.set_default("dispatcher.stack_size", 0).unwrap();
-    cfg.set_default("scheduler.frequency_millis", 50).unwrap();
-
-    // load the system config
-    // riker.toml contains settings for anything related to the actor framework and its modules
-    let path = env::var("RIKER_CONF").unwrap_or_else(|_| "config/riker.toml".into());
-    cfg.merge(File::with_name(&path).required(false)).unwrap();
-
-    // load the user application config
-    // app.toml or app.yaml contains settings specific to the user application
-    let path = env::var("APP_CONF").unwrap_or_else(|_| "config/app".into());
-    cfg.merge(File::with_name(&path).required(false)).unwrap();
-    cfg
-}
+pub use self::config::{Config, load_config};
 
 /// Wraps message and sender
 #[derive(Debug, Clone)]
