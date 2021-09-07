@@ -1,13 +1,14 @@
-use regex::Regex;
 use std::fmt;
 
 pub fn validate_name(name: &str) -> Result<(), InvalidName> {
-    let rgx = Regex::new(r"^[a-zA-Z0-9_-]+$").unwrap();
-    if !rgx.is_match(name) {
-        Err(InvalidName { name: name.into() })
-    } else {
-        Ok(())
+    let alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-";
+    for c in name.chars() {
+        if !alphabet.contains(c) {
+            return Err(InvalidName { name: name.into() });
+        }
     }
+
+    Ok(())
 }
 
 pub struct InvalidName {
@@ -30,12 +31,14 @@ impl fmt::Debug for InvalidName {
 }
 
 pub fn validate_path(path: &str) -> Result<(), InvalidPath> {
-    let rgx = Regex::new(r"^[a-zA-Z0-9/*._-]+$").unwrap();
-    if !rgx.is_match(path) {
-        Err(InvalidPath { path: path.into() })
-    } else {
-        Ok(())
+    let alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-/.*";
+    for c in path.chars() {
+        if !alphabet.contains(c) {
+            return Err(InvalidPath { path: path.into() });
+        }
     }
+
+    Ok(())
 }
 
 pub struct InvalidPath {
