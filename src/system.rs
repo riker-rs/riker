@@ -265,7 +265,7 @@ pub struct ActorSystem {
     log: LoggingSystem,
     debug: bool,
     pub exec: ThreadPool,
-    pub timer: TimerRef,
+    pub timer: Arc<Mutex<TimerRef>>,
     pub sys_channels: Option<SysChannels>,
     pub(crate) provider: Provider,
 }
@@ -337,7 +337,7 @@ impl ActorSystem {
             exec,
             log,
             // event_store: None,
-            timer,
+            timer: Arc::new(Mutex::new(timer)),
             sys_channels: None,
             sys_actors: None,
             provider: prov.clone(),
@@ -713,7 +713,7 @@ impl Timer for ActorSystem {
             msg: AnyMessage::new(msg, false),
         };
 
-        let _ = self.timer.send(Job::Repeat(job));
+        let _ = self.timer.lock().unwrap().send(Job::Repeat(job));
         id
     }
 
@@ -739,12 +739,12 @@ impl Timer for ActorSystem {
             msg: AnyMessage::new(msg, true),
         };
 
-        let _ = self.timer.send(Job::Once(job));
+        let _ = self.timer.lock().unwrap().send(Job::Once(job));
         id
     }
 
     fn cancel_schedule(&self, id: Uuid) {
-        let _ = self.timer.send(Job::Cancel(id));
+        let _ = self.timer.lock().unwrap().send(Job::Cancel(id));
     }
 }
 

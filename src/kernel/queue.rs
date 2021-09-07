@@ -1,16 +1,24 @@
-use std::sync::Mutex;
-use flume::{Sender, Receiver};
+use std::sync::{
+    mpsc::{channel, Receiver, Sender},
+    Arc, Mutex,
+};
 
 use crate::{Envelope, Message};
 
 pub fn queue<Msg: Message>() -> (QueueWriter<Msg>, QueueReader<Msg>) {
-    let (tx, rx) = flume::unbounded::<Envelope<Msg>>();
+    let (tx, rx) = channel::<Envelope<Msg>>();
 
-    let qw = QueueWriter { tx };
+    let qw = QueueWriter {
+        tx: Arc::new(Mutex::new(tx)),
+    };
+
+    let qr = QueueReaderInner {
+        rx,
+        next_item: None,
+    };
 
     let qr = QueueReader {
-        rx,
-        next_item: Mutex::new(None),
+        inner: Mutex::new(qr),
     };
 
     (qw, qr)
@@ -18,12 +26,14 @@ pub fn queue<Msg: Message>() -> (QueueWriter<Msg>, QueueReader<Msg>) {
 
 #[derive(Clone)]
 pub struct QueueWriter<Msg: Message> {
-    tx: Sender<Envelope<Msg>>,
+    tx: Arc<Mutex<Sender<Envelope<Msg>>>>,
 }
 
 impl<Msg: Message> QueueWriter<Msg> {
     pub fn try_enqueue(&self, msg: Envelope<Msg>) -> EnqueueResult<Msg> {
         self.tx
+            .lock()
+            .unwrap()
             .send(msg)
             .map(|_| ())
             .map_err(|e| EnqueueError { msg: e.0 })
@@ -31,38 +41,40 @@ impl<Msg: Message> QueueWriter<Msg> {
 }
 
 pub struct QueueReader<Msg: Message> {
+    inner: Mutex<QueueReaderInner<Msg>>,
+}
+
+struct QueueReaderInner<Msg: Message> {
     rx: Receiver<Envelope<Msg>>,
-    next_item: Mutex<Option<Envelope<Msg>>>,
+    next_item: Option<Envelope<Msg>>,
 }
 
 impl<Msg: Message> QueueReader<Msg> {
     #[allow(dead_code)]
     pub fn dequeue(&self) -> Envelope<Msg> {
-        let mut next_item = self.next_item.lock().unwrap();
-        if let Some(item) = next_item.take() {
+        let mut inner = self.inner.lock().unwrap();
+        if let Some(item) = inner.next_item.take() {
             item
         } else {
-            drop(next_item);
-            self.rx.recv().unwrap()
+            inner.rx.recv().unwrap()
         }
     }
 
     pub fn try_dequeue(&self) -> DequeueResult<Envelope<Msg>> {
-        let mut next_item = self.next_item.lock().unwrap();
-        if let Some(item) = next_item.take() {
+        let mut inner = self.inner.lock().unwrap();
+        if let Some(item) = inner.next_item.take() {
             Ok(item)
         } else {
-            drop(next_item);
-            self.rx.try_recv().map_err(|_| QueueEmpty)
+            inner.rx.try_recv().map_err(|_| QueueEmpty)
         }
     }
 
     pub fn has_msgs(&self) -> bool {
-        let mut next_item = self.next_item.lock().unwrap();
-        next_item.is_some() || {
-            match self.rx.try_recv() {
+        let mut inner = self.inner.lock().unwrap();
+        inner.next_item.is_some() || {
+            match inner.rx.try_recv() {
                 Ok(item) => {
-                    *next_item = Some(item);
+                    inner.next_item = Some(item);
                     true
                 }
                 Err(_) => false,
