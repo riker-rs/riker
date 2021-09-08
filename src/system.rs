@@ -130,7 +130,6 @@ impl fmt::Debug for SystemError {
     }
 }
 use std::{
-    ops::Deref,
     sync::{Arc, Mutex},
     time::{SystemTime, Duration, Instant},
 };
@@ -188,7 +187,6 @@ impl SystemBuilder {
         let exec = self.exec.unwrap_or_else(|| default_exec(&cfg));
         let log = self
             .log
-            .map(|log| LoggingSystem::new(log, None))
             .unwrap_or_else(|| default_log(&cfg));
 
         ActorSystem::create(name.as_ref(), exec, log, cfg)
@@ -223,32 +221,6 @@ impl SystemBuilder {
     }
 }
 
-/// Holds fields related to logging system.
-#[derive(Clone)]
-pub struct LoggingSystem {
-    /// Logger
-    log: Logger,
-    /// Global logger guard
-    global_logger_guard: Option<GlobalLoggerGuard>,
-}
-
-impl LoggingSystem {
-    pub(crate) fn new(log: Logger, global_logger_guard: Option<GlobalLoggerGuard>) -> Self {
-        Self {
-            log,
-            global_logger_guard,
-        }
-    }
-}
-
-impl Deref for LoggingSystem {
-    type Target = Logger;
-
-    fn deref(&self) -> &Self::Target {
-        &self.log
-    }
-}
-
 /// The actor runtime and common services coordinator
 ///
 /// The `ActorSystem` provides a runtime on which actors are executed.
@@ -261,7 +233,7 @@ impl Deref for LoggingSystem {
 pub struct ActorSystem {
     proto: Arc<ProtoSystem>,
     sys_actors: Option<SysActors>,
-    log: LoggingSystem,
+    log: Logger,
     debug: bool,
     pub exec: ThreadPool,
     pub timer: Arc<Mutex<TimerRef>>,
@@ -303,7 +275,7 @@ impl ActorSystem {
     fn create(
         name: &str,
         exec: ThreadPool,
-        log: LoggingSystem,
+        log: Logger,
         cfg: Config,
     ) -> Result<ActorSystem, SystemError> {
         validate_name(name).map_err(|_| SystemError::InvalidName(name.into()))?;
@@ -501,7 +473,7 @@ impl ActorSystem {
     }
 
     #[inline]
-    pub fn log(&self) -> LoggingSystem {
+    pub fn log(&self) -> Logger {
         self.log.clone()
     }
 

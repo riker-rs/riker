@@ -1,8 +1,7 @@
-use slog::trace;
+use slog::{trace, Logger};
 
 use std::{sync::{Arc, RwLock}, collections::HashSet};
 
-use crate::system::LoggingSystem;
 use crate::{
     actor::actor_cell::{ActorCell, ExtendedCell},
     actor::*,
@@ -15,7 +14,7 @@ use crate::{
 #[derive(Clone)]
 pub struct Provider {
     inner: Arc<ProviderInner>,
-    log: LoggingSystem,
+    log: Logger,
 }
 
 struct ProviderInner {
@@ -23,7 +22,7 @@ struct ProviderInner {
 }
 
 impl Provider {
-    pub fn new(log: LoggingSystem) -> Self {
+    pub fn new(log: Logger) -> Self {
         let inner = ProviderInner {
             paths: RwLock::new(HashSet::default()),
         };
@@ -188,11 +187,11 @@ fn guardian(name: &str, path: &str, root: &BasicActorRef, sys: &ActorSystem) -> 
 
 struct Guardian {
     name: String,
-    log: LoggingSystem,
+    log: Logger,
 }
 
-impl ActorFactoryArgs<(String, LoggingSystem)> for Guardian {
-    fn create_args((name, log): (String, LoggingSystem)) -> Self {
+impl ActorFactoryArgs<(String, Logger)> for Guardian {
+    fn create_args((name, log): (String, Logger)) -> Self {
         Guardian { name, log }
     }
 }
