@@ -42,6 +42,21 @@ impl Config {
     }
 }
 
+impl slog::Value for Config {
+    fn serialize(
+        &self,
+        _record: &slog::Record,
+        _: slog::Key,
+        serializer: &mut dyn slog::Serializer,
+    ) -> slog::Result {
+        serializer.emit_arguments("debug", &format_args!("{:?}", self.debug))?;
+        serializer.emit_arguments("log", &format_args!("{:?}", self.log))?;
+        serializer.emit_arguments("mailbox", &format_args!("{:?}", self.mailbox))?;
+        serializer.emit_arguments("dispatcher", &format_args!("{:?}", self.dispatcher))?;
+        serializer.emit_arguments("scheduler", &format_args!("{:?}", self.scheduler))
+    }
+}
+
 /// Original default riker configuration:
 ///
 /// ```ignore

@@ -169,7 +169,7 @@ impl BasicTimer {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct BasicTimerConfig {
     frequency_millis: u64,
 }

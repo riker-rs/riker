@@ -783,7 +783,7 @@ pub struct SystemSettings {
     pub msg_process_limit: u32,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ThreadPoolConfig {
     pub pool_size: usize,
     pub stack_size: usize,

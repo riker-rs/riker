@@ -6,7 +6,7 @@ use crate::Config;
 use slog::{info, o, Drain, Level, Logger, Never, OwnedKVList, Record};
 use std::time::SystemTime;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct LoggerConfig {
     time_fmt: String,
     date_fmt: String,

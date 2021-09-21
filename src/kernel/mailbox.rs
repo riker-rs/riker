@@ -373,7 +373,7 @@ where
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct MailboxConfig {
     pub msg_process_limit: u32,
 }
