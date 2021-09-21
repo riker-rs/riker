@@ -12,13 +12,13 @@ pub struct Config {
     pub scheduler: BasicTimerConfig,
 }
 
-impl Default for Config {
-    fn default() -> Self {
+impl Config {
+    pub fn new(thread_pool_config: ThreadPoolConfig) -> Self {
         Config {
             debug: true,
             log: LoggerConfig::default(),
             mailbox: MailboxConfig::default(),
-            dispatcher: ThreadPoolConfig::default(),
+            dispatcher: thread_pool_config,
             scheduler: BasicTimerConfig::default(),
         }
     }
@@ -42,10 +42,22 @@ impl Config {
     }
 }
 
-pub fn load_config() -> Config {
+/// Original default riker configuration:
+///
+/// ```ignore
+/// ThreadPoolConfig {
+///     pool_size: (num_cpus::get() * 2) as _,
+///     stack_size: 0,
+/// }
+/// ```
+///
+/// ```ignore
+/// ThreadPoolConfig::new((num_cpus::get() * 2), 0)
+/// ```
+pub fn load_config(thread_pool_config: ThreadPoolConfig) -> Config {
     use std::{env, fs::File, io::{self, Read}};
 
-    let mut cfg = Config::default();
+    let mut cfg = Config::new(thread_pool_config);
 
     // load the system config
     // riker.toml contains settings for anything related to the actor framework and its modules

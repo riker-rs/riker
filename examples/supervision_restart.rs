@@ -77,7 +77,7 @@ impl Receive<Panic> for RestartSup {
 }
 
 fn main() {
-    let sys = ActorSystem::new().unwrap();
+    let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
 
     let sup = sys.actor_of::<RestartSup>("supervisor").unwrap();
     // println!("Child not added yet");

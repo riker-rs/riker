@@ -84,7 +84,7 @@ impl Receive<SystemEvent> for SystemActor {
 }
 
 fn main() {
-    let sys = ActorSystem::new().unwrap();
+    let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
 
     let _sub = sys.actor_of::<SystemActor>("system-actor").unwrap();
 

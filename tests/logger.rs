@@ -48,7 +48,7 @@ fn system_create_with_slog() {
         Fuse(common::PrintlnDrain),
         o!("version" => "v1", "run_env" => "test"),
     );
-    let sys = SystemBuilder::new().log(log).create().unwrap();
+    let sys = SystemBuilder::new().log(log).create(ThreadPoolConfig::new(1, 0)).unwrap();
     block_on(sys.shutdown()).unwrap();
 }
 
@@ -56,6 +56,6 @@ fn system_create_with_slog() {
 #[test]
 fn logging_stdlog() {
     log::info!("before the system");
-    let _sys = ActorSystem::new().unwrap();
+    let _sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
     log::info!("system exists");
 }

@@ -78,7 +78,7 @@ impl Receive<PowerStatus> for NavigationActor {
 }
 
 fn main() {
-    let sys = ActorSystem::new().unwrap();
+    let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
     let chan: ChannelRef<PowerStatus> = channel("power-status", &sys).unwrap();
 
     sys.actor_of_args::<GpsActor, _>("gps-actor", chan.clone())

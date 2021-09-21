@@ -37,7 +37,7 @@ impl Props {
     /// #    fn recv(&mut self, _ctx: &Context<String>, _msg: String, _sender: Sender) {}
     /// # }
     /// // main
-    /// let sys = ActorSystem::new().unwrap();
+    /// let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
     ///
     /// let props = Props::new_from(User::actor);
     ///
@@ -77,7 +77,7 @@ impl Props {
     /// #    fn recv(&mut self, _ctx: &Context<String>, _msg: String, _sender: Sender) {}
     /// # }
     /// // main
-    /// let sys = ActorSystem::new().unwrap();
+    /// let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
     ///
     /// let props = Props::new_from_args(User::actor, "Naomi Nagata".into());
     ///
@@ -106,7 +106,7 @@ impl Props {
     /// #    fn recv(&mut self, _ctx: &Context<String>, _msg: String, _sender: Sender) {}
     /// # }
     /// // main
-    /// let sys = ActorSystem::new().unwrap();
+    /// let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
     ///
     /// let props = Props::new_from_args(BankAccount::actor,
     ///                             ("James Holden".into(), "12345678".into()));
@@ -142,7 +142,7 @@ impl Props {
     /// #    fn recv(&mut self, _ctx: &Context<String>, _msg: String, _sender: Sender) {}
     /// # }
     /// // main
-    /// let sys = ActorSystem::new().unwrap();
+    /// let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
     ///
     /// let props = Props::new::<User>();
     ///
@@ -169,7 +169,7 @@ impl Props {
     /// #    fn recv(&mut self, _ctx: &Context<String>, _msg: String, _sender: Sender) {}
     /// # }
     /// // main
-    /// let sys = ActorSystem::new().unwrap();
+    /// let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
     ///
     /// let props = Props::new::<User>();
     ///
@@ -208,7 +208,7 @@ impl Props {
     /// #    fn recv(&mut self, _ctx: &Context<String>, _msg: String, _sender: Sender) {}
     /// # }
     /// // main
-    /// let sys = ActorSystem::new().unwrap();
+    /// let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
     ///
     /// let props = Props::new_args::<User, _>("Naomi Nagata".into());
     ///
@@ -237,7 +237,7 @@ impl Props {
     /// #    fn recv(&mut self, _ctx: &Context<String>, _msg: String, _sender: Sender) {}
     /// # }
     /// // main
-    /// let sys = ActorSystem::new().unwrap();
+    /// let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
     ///
     /// let props = Props::new_from_args(BankAccount::create_args,
     ///                             ("James Holden".into(), "12345678".into()));

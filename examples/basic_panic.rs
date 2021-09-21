@@ -46,7 +46,7 @@ impl Receive<Panic> for PanicActor {
 }
 
 fn main() {
-    let sys = SystemBuilder::new().name("my-app").create().unwrap();
+    let sys = SystemBuilder::new().name("my-app").create(ThreadPoolConfig::new(1, 0)).unwrap();
 
     let sup = sys.actor_of::<PanicActor>("panic_actor").unwrap();
     // println!("Child not added yet");

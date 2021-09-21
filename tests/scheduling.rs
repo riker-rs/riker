@@ -48,7 +48,7 @@ impl Receive<SomeMessage> for ScheduleOnce {
 
 #[test]
 fn schedule_once() {
-    let sys = ActorSystem::new().unwrap();
+    let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
 
     let actor = sys.actor_of::<ScheduleOnce>("schedule-once").unwrap();
 
@@ -109,7 +109,7 @@ impl Receive<SomeMessage> for ScheduleRepeat {
 
 #[test]
 fn schedule_repeat() {
-    let sys = ActorSystem::new().unwrap();
+    let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
 
     let actor = sys.actor_of::<ScheduleRepeat>("schedule-repeat").unwrap();
 

@@ -66,7 +66,7 @@ impl Actor for SelectTest {
 }
 
 fn main() {
-    let sys = ActorSystem::new().unwrap();
+    let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
 
     let actor = sys.actor_of::<SelectTest>("select-actor").unwrap();
 

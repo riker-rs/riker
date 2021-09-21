@@ -100,7 +100,7 @@ impl Receive<Panic> for RestartSup {
 
 #[test]
 fn supervision_restart_failed_actor() {
-    let sys = ActorSystem::new().unwrap();
+    let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
 
     for i in 0..100 {
         let sup = sys
@@ -205,7 +205,7 @@ impl Receive<Panic> for EscRestartSup {
 
 #[test]
 fn supervision_escalate_failed_actor() {
-    let sys = ActorSystem::new().unwrap();
+    let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
 
     let sup = sys.actor_of::<EscRestartSup>("supervisor").unwrap();
 

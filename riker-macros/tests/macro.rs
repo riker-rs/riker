@@ -35,7 +35,7 @@ impl Receive<String> for NewActor {
 
 #[test]
 fn run_derived_actor() {
-    let sys = ActorSystem::new().unwrap();
+    let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
 
     let act = sys.actor_of::<NewActor>("act").unwrap();
 
@@ -82,7 +82,7 @@ impl<A: Send + 'static, B: Send + 'static> Receive<String> for GenericActor<A, B
 
 #[test]
 fn run_derived_generic_actor() {
-    let sys = ActorSystem::new().unwrap();
+    let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
 
     let act = sys.actor_of::<GenericActor<(), ()>>("act").unwrap();
 
@@ -133,7 +133,7 @@ impl Receive<Message<String>> for GenericMsgActor {
 
 #[test]
 fn run_generic_message_actor() {
-    let sys = ActorSystem::new().unwrap();
+    let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
 
     let act = sys.actor_of::<GenericMsgActor>("act").unwrap();
 
@@ -204,7 +204,7 @@ impl Receive<test_mod::Message> for PathMsgActor {
 
 #[test]
 fn run_path_message_actor() {
-    let sys = ActorSystem::new().unwrap();
+    let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
 
     let act = sys.actor_of::<PathMsgActor>("act").unwrap();
 

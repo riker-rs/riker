@@ -116,7 +116,7 @@ impl Receive<Panic> for EscRestartSup {
 }
 
 fn main() {
-    let sys = ActorSystem::new().unwrap();
+    let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
 
     let sup = sys.actor_of::<EscRestartSup>("supervisor").unwrap();
 

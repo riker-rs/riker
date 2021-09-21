@@ -61,7 +61,7 @@ impl Receive<Print> for Counter {
 }
 
 fn main() {
-    let sys = ActorSystem::new().unwrap();
+    let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
 
     let actor = sys.actor_of_args::<Counter, _>("counter", 0).unwrap();
     actor.tell(Add, None);

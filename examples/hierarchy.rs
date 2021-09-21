@@ -35,7 +35,7 @@ impl Actor for MyActor {
 
 // start the system and create an actor
 fn main() {
-    let sys = ActorSystem::new().unwrap();
+    let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
 
     let my_actor = sys.actor_of::<MyActor>("my-actor").unwrap();
 

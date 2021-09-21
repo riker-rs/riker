@@ -3,15 +3,15 @@ use riker::actors::*;
 
 #[test]
 fn system_create() {
-    assert!(ActorSystem::new().is_ok());
-    assert!(ActorSystem::with_name("valid-name").is_ok());
+    assert!(ActorSystem::new(ThreadPoolConfig::new(1, 0)).is_ok());
+    assert!(ActorSystem::with_name("valid-name", ThreadPoolConfig::new(1, 0)).is_ok());
 
-    assert!(ActorSystem::with_name("/").is_err());
-    assert!(ActorSystem::with_name("*").is_err());
-    assert!(ActorSystem::with_name("/a/b/c").is_err());
-    assert!(ActorSystem::with_name("@").is_err());
-    assert!(ActorSystem::with_name("#").is_err());
-    assert!(ActorSystem::with_name("abc*").is_err());
+    assert!(ActorSystem::with_name("/", ThreadPoolConfig::new(1, 0)).is_err());
+    assert!(ActorSystem::with_name("*", ThreadPoolConfig::new(1, 0)).is_err());
+    assert!(ActorSystem::with_name("/a/b/c", ThreadPoolConfig::new(1, 0)).is_err());
+    assert!(ActorSystem::with_name("@", ThreadPoolConfig::new(1, 0)).is_err());
+    assert!(ActorSystem::with_name("#", ThreadPoolConfig::new(1, 0)).is_err());
+    assert!(ActorSystem::with_name("abc*", ThreadPoolConfig::new(1, 0)).is_err());
 }
 
 struct ShutdownTest {
@@ -43,7 +43,7 @@ impl Actor for ShutdownTest {
 #[test]
 #[allow(dead_code)]
 fn system_shutdown() {
-    let sys = ActorSystem::new().unwrap();
+    let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
 
     let _ = sys
         .actor_of_args::<ShutdownTest, _>("test-actor-1", 1)
@@ -54,7 +54,7 @@ fn system_shutdown() {
 
 #[test]
 fn system_futures_exec() {
-    let sys = ActorSystem::new().unwrap();
+    let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
 
     for i in 0..100 {
         let f = sys.run(async move { format!("some_val_{}", i) }).unwrap();
@@ -65,7 +65,7 @@ fn system_futures_exec() {
 
 #[test]
 fn system_futures_panic() {
-    let sys = ActorSystem::new().unwrap();
+    let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
 
     for _ in 0..100 {
         let _ = sys
@@ -84,9 +84,9 @@ fn system_futures_panic() {
 
 #[test]
 fn system_builder() {
-    let sys = SystemBuilder::new().create().unwrap();
+    let sys = SystemBuilder::new().create(ThreadPoolConfig::new(1, 0)).unwrap();
     block_on(sys.shutdown()).unwrap();
 
-    let sys = SystemBuilder::new().name("my-sys").create().unwrap();
+    let sys = SystemBuilder::new().name("my-sys").create(ThreadPoolConfig::new(1, 0)).unwrap();
     block_on(sys.shutdown()).unwrap();
 }

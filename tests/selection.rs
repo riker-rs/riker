@@ -43,7 +43,7 @@ impl Actor for SelectTest {
 
 #[test]
 fn select_child() {
-    let sys = ActorSystem::new().unwrap();
+    let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
 
     sys.actor_of::<SelectTest>("select-actor").unwrap();
 
@@ -59,7 +59,7 @@ fn select_child() {
 
 #[test]
 fn select_child_of_child() {
-    let sys = ActorSystem::new().unwrap();
+    let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
 
     sys.actor_of::<SelectTest>("select-actor").unwrap();
 
@@ -79,7 +79,7 @@ fn select_child_of_child() {
 
 #[test]
 fn select_all_children_of_child() {
-    let sys = ActorSystem::new().unwrap();
+    let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
 
     sys.actor_of::<SelectTest>("select-actor").unwrap();
 
@@ -145,7 +145,7 @@ impl Actor for SelectTest2 {
 
 #[test]
 fn select_from_context() {
-    let sys = ActorSystem::new().unwrap();
+    let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
 
     let actor = sys.actor_of::<SelectTest2>("select-actor").unwrap();
 
@@ -164,7 +164,7 @@ fn select_from_context() {
 
 #[test]
 fn select_paths() {
-    let sys = ActorSystem::new().unwrap();
+    let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
 
     assert!(sys.select("foo/").is_ok());
     assert!(sys.select("/foo/").is_ok());
@@ -211,7 +211,7 @@ fn select_paths() {
 
 // #[test]
 // fn select_no_actors() {
-//     let sys = ActorSystem::new().unwrap();
+//     let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
 
 //     let act = sys.actor_of::<DeadLettersActor>("dl-subscriber").unwrap();
 

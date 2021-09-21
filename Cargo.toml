@@ -19,8 +19,6 @@ toml = { version = "0.5.8" }
 futures = { version = "0.3.4", default-features = false, features = ["std", "thread-pool"] }
 uuid = { version = "0.8.1", features = ["v4"] }
 slog = "2.7"
-num_cpus = "1.13.0"
-
 
 [dev-dependencies]
 riker-testkit = "0.1.0"

@@ -49,7 +49,7 @@ impl Receive<Add> for Counter {
 
 #[test]
 fn actor_create() {
-    let sys = ActorSystem::new().unwrap();
+    let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
 
     assert!(sys.actor_of::<Counter>("valid-name").is_ok());
 
@@ -80,7 +80,7 @@ fn actor_create() {
 
 #[test]
 fn actor_tell() {
-    let sys = ActorSystem::new().unwrap();
+    let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
 
     let actor = sys.actor_of::<Counter>("me").unwrap();
 
@@ -96,7 +96,7 @@ fn actor_tell() {
 
 #[test]
 fn actor_try_tell() {
-    let sys = ActorSystem::new().unwrap();
+    let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
 
     let actor = sys.actor_of::<Counter>("me").unwrap();
     let actor: BasicActorRef = actor.into();
@@ -158,7 +158,7 @@ impl Actor for Child {
 #[test]
 #[allow(dead_code)]
 fn actor_stop() {
-    let system = ActorSystem::new().unwrap();
+    let system = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
 
     let parent = system.actor_of::<Parent>("parent").unwrap();
 

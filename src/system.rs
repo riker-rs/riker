@@ -181,9 +181,9 @@ impl SystemBuilder {
         SystemBuilder::default()
     }
 
-    pub fn create(self) -> Result<ActorSystem, SystemError> {
+    pub fn create(self, thread_pool_config: ThreadPoolConfig) -> Result<ActorSystem, SystemError> {
         let name = self.name.unwrap_or_else(|| "riker".to_string());
-        let cfg = self.cfg.unwrap_or_else(load_config);
+        let cfg = self.cfg.unwrap_or_else(|| load_config(thread_pool_config));
         let exec = self.exec.unwrap_or_else(|| default_exec(&cfg));
         let log = self
             .log
@@ -245,8 +245,8 @@ impl ActorSystem {
     /// Create a new `ActorSystem` instance
     ///
     /// Requires a type that implements the `Model` trait.
-    pub fn new() -> Result<ActorSystem, SystemError> {
-        let cfg = load_config();
+    pub fn new(thread_pool_config: ThreadPoolConfig) -> Result<ActorSystem, SystemError> {
+        let cfg = load_config(thread_pool_config);
         let exec = default_exec(&cfg);
         let log = default_log(&cfg);
 
@@ -256,8 +256,8 @@ impl ActorSystem {
     /// Create a new `ActorSystem` instance with provided name
     ///
     /// Requires a type that implements the `Model` trait.
-    pub fn with_name(name: &str) -> Result<ActorSystem, SystemError> {
-        let cfg = load_config();
+    pub fn with_name(name: &str, thread_pool_config: ThreadPoolConfig) -> Result<ActorSystem, SystemError> {
+        let cfg = load_config(thread_pool_config);
         let exec = default_exec(&cfg);
         let log = default_log(&cfg);
 
@@ -789,11 +789,11 @@ pub struct ThreadPoolConfig {
     pub stack_size: usize,
 }
 
-impl Default for ThreadPoolConfig {
-    fn default() -> Self {
+impl ThreadPoolConfig {
+    pub fn new(pool_size: usize, stack_size: usize) -> Self {
         ThreadPoolConfig {
-            pool_size: (num_cpus::get() * 2) as _,
-            stack_size: 0,
+            pool_size,
+            stack_size,
         }
     }
 }

@@ -256,7 +256,7 @@ impl<A: Actor + ?Sized> Actor for Box<A> {
 /// }
 ///
 /// // main
-/// let sys = ActorSystem::new().unwrap();
+/// let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
 /// let actor = sys.actor_of::<MyActor>("my-actor").unwrap();
 ///
 /// actor.tell(Foo, None);
