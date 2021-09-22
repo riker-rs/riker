@@ -1,6 +1,6 @@
 [package]
 name = "riker"
-version = "0.4.2"
+version = "0.4.2-cleanup-unsafe-2"
 authors = ["Lee Smith <lee@riker.rs>"]
 edition = "2018"
 description = "Easily build fast, highly concurrent and resilient applications. An Actor Framework for Rust."
@@ -17,7 +17,7 @@ travis-ci = { repository = "riker-rs/riker" }
 riker-macros = { path = "riker-macros", version = "0.2.0" }
 toml = { version = "0.5.8" }
 futures = { version = "0.3.4", default-features = false, features = ["std", "thread-pool"] }
-uuid = { version = "0.8.1", features = ["v4"] }
+uuid = { git = "https://github.com/tezedge/uuid", tag = "v0.8.2-cleanup-unsafe-1", default-features = false, features = ["v4"] }
 slog = "2.7"
 
 [dev-dependencies]
