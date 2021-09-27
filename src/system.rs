@@ -137,9 +137,6 @@ use std::{
 use futures::{
     channel::oneshot,
     executor::{ThreadPool, ThreadPoolBuilder},
-    future::RemoteHandle,
-    task::{SpawnError, SpawnExt},
-    Future,
 };
 
 use uuid::Uuid;
@@ -627,25 +624,6 @@ impl ActorSelectionFactory for ActorSystem {
             // self.dead_letters(),
             path_str,
         )
-    }
-}
-
-// futures::task::Spawn::spawn requires &mut self so
-// we'll create a wrapper trait that requires only &self.
-pub trait Run {
-    fn run<Fut>(&self, future: Fut) -> Result<RemoteHandle<<Fut as Future>::Output>, SpawnError>
-    where
-        Fut: Future + Send + 'static,
-        <Fut as Future>::Output: Send;
-}
-
-impl Run for ActorSystem {
-    fn run<Fut>(&self, future: Fut) -> Result<RemoteHandle<<Fut as Future>::Output>, SpawnError>
-    where
-        Fut: Future + Send + 'static,
-        <Fut as Future>::Output: Send,
-    {
-        self.exec.spawn_with_handle(future)
     }
 }
 

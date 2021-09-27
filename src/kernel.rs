@@ -5,7 +5,6 @@ pub(crate) mod queue;
 
 use crate::system::ActorSystem;
 
-#[allow(dead_code)]
 #[derive(Debug)]
 pub enum KernelMsg {
     TerminateActor,

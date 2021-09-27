@@ -89,7 +89,7 @@ impl Debug for AnyMessage {
 pub mod actors {
     pub use crate::actor::*;
     pub use crate::system::{
-        ActorSystem, Run, ScheduleId, SystemBuilder, SystemEvent, SystemMsg, Timer, ThreadPoolConfig,
+        ActorSystem, ScheduleId, SystemBuilder, SystemEvent, SystemMsg, Timer, ThreadPoolConfig,
     };
     pub use crate::{AnyMessage, Message};
 }

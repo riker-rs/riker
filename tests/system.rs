@@ -53,36 +53,6 @@ fn system_shutdown() {
 }
 
 #[test]
-fn system_futures_exec() {
-    let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
-
-    for i in 0..100 {
-        let f = sys.run(async move { format!("some_val_{}", i) }).unwrap();
-
-        assert_eq!(block_on(f), format!("some_val_{}", i));
-    }
-}
-
-#[test]
-fn system_futures_panic() {
-    let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
-
-    for _ in 0..100 {
-        let _ = sys
-            .run(async move {
-                panic!("// TEST PANIC // TEST PANIC // TEST PANIC //");
-            })
-            .unwrap();
-    }
-
-    for i in 0..100 {
-        let f = sys.run(async move { format!("some_val_{}", i) }).unwrap();
-
-        assert_eq!(block_on(f), format!("some_val_{}", i));
-    }
-}
-
-#[test]
 fn system_builder() {
     let sys = SystemBuilder::new().create(ThreadPoolConfig::new(1, 0)).unwrap();
     block_on(sys.shutdown()).unwrap();

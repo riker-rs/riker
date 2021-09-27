@@ -9,7 +9,6 @@ use std::{
     collections::HashMap,
 };
 
-use futures::{future::RemoteHandle, task::SpawnError, Future};
 use uuid::Uuid;
 
 use crate::{
@@ -20,7 +19,7 @@ use crate::{
     },
     system::{
         timer::{Job, OnceJob, RepeatJob, ScheduleId, Timer},
-        ActorSystem, Run, SystemCmd, SystemMsg,
+        ActorSystem, SystemCmd, SystemMsg,
     },
     validate::InvalidPath,
     AnyMessage, Envelope, Message,
@@ -510,19 +509,6 @@ where
             anchor, // self.system.dead_letters(),
             path_str,
         )
-    }
-}
-
-impl<Msg> Run for Context<Msg>
-where
-    Msg: Message,
-{
-    fn run<Fut>(&self, future: Fut) -> Result<RemoteHandle<<Fut as Future>::Output>, SpawnError>
-    where
-        Fut: Future + Send + 'static,
-        <Fut as Future>::Output: Send,
-    {
-        self.system.run(future)
     }
 }
 

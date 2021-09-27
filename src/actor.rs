@@ -7,7 +7,7 @@ pub(crate) mod props;
 pub(crate) mod selection;
 pub(crate) mod uri;
 
-use std::fmt;
+use std::{fmt, error};
 
 use crate::validate::InvalidName;
 
@@ -89,6 +89,8 @@ pub enum CreateError {
     InvalidName(String),
     AlreadyExists(ActorPath),
 }
+
+impl error::Error for CreateError {}
 
 impl fmt::Display for CreateError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
