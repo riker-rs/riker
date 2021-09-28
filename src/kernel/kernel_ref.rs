@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use futures::{channel::mpsc::Sender, task::SpawnExt, SinkExt};
+use tokio::sync::mpsc;
 
 use crate::{
     actor::{MsgError, MsgResult},
@@ -14,7 +14,7 @@ use crate::{
 
 #[derive(Clone)]
 pub struct KernelRef {
-    pub tx: Sender<KernelMsg>,
+    pub tx: mpsc::Sender<KernelMsg>,
 }
 
 impl KernelRef {
@@ -35,12 +35,11 @@ impl KernelRef {
     }
 
     fn send(&self, msg: KernelMsg, sys: &ActorSystem) {
-        let mut tx = self.tx.clone();
+        let tx = self.tx.clone();
         sys.exec
             .spawn(async move {
                 drop(tx.send(msg).await);
-            })
-            .unwrap();
+            });
     }
 }
 

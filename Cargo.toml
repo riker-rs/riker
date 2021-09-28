@@ -15,7 +15,7 @@ travis-ci = { repository = "riker-rs/riker" }
 
 [dependencies]
 riker-macros = { path = "riker-macros", version = "0.2.0" }
-futures = { version = "0.3.4", default-features = false, features = ["std", "thread-pool"] }
+tokio = { version = "1.12", features = ["sync", "rt-multi-thread"] }
 toml = { git = "https://github.com/tezedge/toml-rs.git", tag = "v0.5.8-cleanup-unsafe-1" }
 uuid = { git = "https://github.com/tezedge/uuid", tag = "v0.8.2-cleanup-unsafe-1", default-features = false, features = ["v4"] }
 slog = "2.7"

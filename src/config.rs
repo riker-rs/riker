@@ -1,5 +1,5 @@
 use super::{
-    system::{logger::LoggerConfig, timer::BasicTimerConfig, ThreadPoolConfig},
+    system::{logger::LoggerConfig, timer::BasicTimerConfig},
     kernel::mailbox::MailboxConfig,
 };
 
@@ -8,17 +8,15 @@ pub struct Config {
     pub debug: bool,
     pub log: LoggerConfig,
     pub mailbox: MailboxConfig,
-    pub dispatcher: ThreadPoolConfig,
     pub scheduler: BasicTimerConfig,
 }
 
 impl Config {
-    pub fn new(thread_pool_config: ThreadPoolConfig) -> Self {
+    pub fn new() -> Self {
         Config {
             debug: true,
             log: LoggerConfig::default(),
             mailbox: MailboxConfig::default(),
-            dispatcher: thread_pool_config,
             scheduler: BasicTimerConfig::default(),
         }
     }
@@ -34,8 +32,6 @@ impl Config {
         self.log.merge(log);
         let mailbox = v.get("mailbox")?;
         self.mailbox.merge(mailbox);
-        let dispatcher = v.get("dispatcher")?;
-        self.dispatcher.merge(dispatcher);
         let scheduler = v.get("scheduler")?;
         self.scheduler.merge(scheduler);
         None
@@ -52,7 +48,6 @@ impl slog::Value for Config {
         serializer.emit_arguments("debug", &format_args!("{:?}", self.debug))?;
         serializer.emit_arguments("log", &format_args!("{:?}", self.log))?;
         serializer.emit_arguments("mailbox", &format_args!("{:?}", self.mailbox))?;
-        serializer.emit_arguments("dispatcher", &format_args!("{:?}", self.dispatcher))?;
         serializer.emit_arguments("scheduler", &format_args!("{:?}", self.scheduler))
     }
 }
@@ -69,10 +64,10 @@ impl slog::Value for Config {
 /// ```ignore
 /// ThreadPoolConfig::new((num_cpus::get() * 2), 0)
 /// ```
-pub fn load_config(thread_pool_config: ThreadPoolConfig) -> Config {
+pub fn load_config() -> Config {
     use std::{env, fs::File, io::{self, Read}};
 
-    let mut cfg = Config::new(thread_pool_config);
+    let mut cfg = Config::new();
 
     // load the system config
     // riker.toml contains settings for anything related to the actor framework and its modules

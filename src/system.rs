@@ -134,10 +134,7 @@ use std::{
     time::{SystemTime, Duration, Instant},
 };
 
-use futures::{
-    channel::oneshot,
-    executor::{ThreadPool, ThreadPoolBuilder},
-};
+use tokio::{runtime::Handle, sync::oneshot};
 
 use uuid::Uuid;
 
@@ -170,7 +167,7 @@ pub struct SystemBuilder {
     name: Option<String>,
     cfg: Option<Config>,
     log: Option<Logger>,
-    exec: Option<ThreadPool>,
+    exec: Option<Handle>,
 }
 
 impl SystemBuilder {
@@ -178,10 +175,10 @@ impl SystemBuilder {
         SystemBuilder::default()
     }
 
-    pub fn create(self, thread_pool_config: ThreadPoolConfig) -> Result<ActorSystem, SystemError> {
+    pub fn create(self) -> Result<ActorSystem, SystemError> {
         let name = self.name.unwrap_or_else(|| "riker".to_string());
-        let cfg = self.cfg.unwrap_or_else(|| load_config(thread_pool_config));
-        let exec = self.exec.unwrap_or_else(|| default_exec(&cfg));
+        let cfg = self.cfg.unwrap_or_else(|| load_config());
+        let exec = self.exec.unwrap();
         let log = self
             .log
             .unwrap_or_else(|| default_log(&cfg));
@@ -203,7 +200,7 @@ impl SystemBuilder {
         }
     }
 
-    pub fn exec(self, exec: ThreadPool) -> Self {
+    pub fn exec(self, exec: Handle) -> Self {
         SystemBuilder {
             exec: Some(exec),
             ..self
@@ -232,7 +229,7 @@ pub struct ActorSystem {
     sys_actors: Option<SysActors>,
     log: Logger,
     debug: bool,
-    pub exec: ThreadPool,
+    pub exec: Handle,
     pub timer: Arc<Mutex<TimerRef>>,
     pub sys_channels: Option<SysChannels>,
     temp_storage: Arc<Mutex<Option<(SysActors, SysChannels)>>>,
@@ -243,9 +240,8 @@ impl ActorSystem {
     /// Create a new `ActorSystem` instance
     ///
     /// Requires a type that implements the `Model` trait.
-    pub fn new(thread_pool_config: ThreadPoolConfig) -> Result<ActorSystem, SystemError> {
-        let cfg = load_config(thread_pool_config);
-        let exec = default_exec(&cfg);
+    pub fn new(exec: Handle) -> Result<ActorSystem, SystemError> {
+        let cfg = load_config();
         let log = default_log(&cfg);
 
         ActorSystem::create("riker", exec, log, cfg)
@@ -254,17 +250,15 @@ impl ActorSystem {
     /// Create a new `ActorSystem` instance with provided name
     ///
     /// Requires a type that implements the `Model` trait.
-    pub fn with_name(name: &str, thread_pool_config: ThreadPoolConfig) -> Result<ActorSystem, SystemError> {
-        let cfg = load_config(thread_pool_config);
-        let exec = default_exec(&cfg);
+    pub fn with_name(name: &str, exec: Handle) -> Result<ActorSystem, SystemError> {
+        let cfg = load_config();
         let log = default_log(&cfg);
 
         ActorSystem::create(name, exec, log, cfg)
     }
 
     /// Create a new `ActorSystem` instance bypassing default config behavior
-    pub fn with_config(name: &str, cfg: Config) -> Result<ActorSystem, SystemError> {
-        let exec = default_exec(&cfg);
+    pub fn with_config(name: &str, exec: Handle, cfg: Config) -> Result<ActorSystem, SystemError> {
         let log = default_log(&cfg);
 
         ActorSystem::create(name, exec, log, cfg)
@@ -272,7 +266,7 @@ impl ActorSystem {
 
     fn create(
         name: &str,
-        exec: ThreadPool,
+        exec: Handle,
         log: Logger,
         cfg: Config,
     ) -> Result<ActorSystem, SystemError> {
@@ -765,43 +759,6 @@ fn sys_channels(prov: &Provider, sys: &ActorSystem) -> Result<SysChannels, Syste
 
 pub struct SystemSettings {
     pub msg_process_limit: u32,
-}
-
-#[derive(Clone, Debug)]
-pub struct ThreadPoolConfig {
-    pub pool_size: usize,
-    pub stack_size: usize,
-}
-
-impl ThreadPoolConfig {
-    pub fn new(pool_size: usize, stack_size: usize) -> Self {
-        ThreadPoolConfig {
-            pool_size,
-            stack_size,
-        }
-    }
-}
-
-impl ThreadPoolConfig {
-    // Option<()> allow to use ? for parsing toml value, ignore it
-    pub fn merge(&mut self, v: &toml::Value) -> Option<()> {
-        let v = v.as_table()?;
-        let pool_size = v.get("pool_size")?.as_integer()? as _;
-        self.pool_size = pool_size;
-        let stack_size = v.get("stack_size")?.as_integer()? as _;
-        self.stack_size = stack_size;
-        None
-    }
-}
-
-fn default_exec(cfg: &Config) -> ThreadPool {
-    let exec_cfg = cfg.dispatcher.clone();
-    ThreadPoolBuilder::new()
-        .pool_size(exec_cfg.pool_size)
-        .stack_size(exec_cfg.stack_size)
-        .name_prefix("pool-thread-#")
-        .create()
-        .unwrap()
 }
 
 #[derive(Clone)]

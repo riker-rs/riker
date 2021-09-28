@@ -17,7 +17,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use futures::{channel::mpsc::channel, task::SpawnExt, StreamExt};
+use tokio::sync::mpsc;
 use slog::warn;
 
 use crate::{
@@ -54,7 +54,7 @@ pub fn kernel<A>(
 where
     A: Actor + 'static,
 {
-    let (tx, mut rx) = channel::<KernelMsg>(1000); // todo config?
+    let (tx, mut rx) = mpsc::channel::<KernelMsg>(1000); // todo config?
     let kr = KernelRef { tx };
 
     let mut asys = sys.clone();
@@ -70,7 +70,7 @@ where
     let actor_ref = ActorRef::new(cell);
 
     let f = async move {
-        while let Some(msg) = rx.next().await {
+        while let Some(msg) = rx.recv().await {
             match msg {
                 KernelMsg::RunActor => {
                     let ctx = Context {
@@ -97,7 +97,7 @@ where
         }
     };
 
-    sys.exec.spawn(f).unwrap();
+    sys.exec.spawn(f);
     Ok(kr)
 }
 
