@@ -126,14 +126,14 @@ impl ActorCell {
         let mb = &self.inner.mailbox;
         let k = self.kernel();
 
-        dispatch_any(msg, sender, mb, k, &self.inner.system)
+        dispatch_any(msg, sender, mb, k)
     }
 
     pub(crate) fn send_sys_msg(&self, msg: Envelope<SystemMsg>) -> MsgResult<Envelope<SystemMsg>> {
         let mb = &self.inner.sys_mailbox;
 
         let k = self.kernel();
-        dispatch(msg, mb, k, &self.inner.system)
+        dispatch(msg, mb, k)
     }
 
     pub(crate) fn is_child(&self, actor: &BasicActorRef) -> bool {
@@ -167,7 +167,7 @@ impl ActorCell {
         self.inner.is_terminating.store(true, Ordering::Relaxed);
 
         if !self.has_children() {
-            self.kernel().terminate(&self.inner.system);
+            self.kernel().terminate();
             post_stop(actor);
         } else {
             self.inner.children.for_each(|child| self.stop(child));
@@ -176,7 +176,7 @@ impl ActorCell {
 
     pub fn restart(&self) {
         if !self.has_children() {
-            self.kernel().restart(&self.inner.system);
+            self.kernel().restart();
         } else {
             self.inner.is_restarting.store(true, Ordering::Relaxed);
             self.inner.children.for_each(|child| self.stop(child));
@@ -190,14 +190,14 @@ impl ActorCell {
             if !self.has_children() {
                 // No children exist. Stop this actor's kernel.
                 if self.inner.is_terminating.load(Ordering::Relaxed) {
-                    self.kernel().terminate(&self.inner.system);
+                    self.kernel().terminate();
                     post_stop(actor);
                 }
 
                 // No children exist. Restart the actor.
                 if self.inner.is_restarting.load(Ordering::Relaxed) {
                     self.inner.is_restarting.store(false, Ordering::Relaxed);
-                    self.kernel().restart(&self.inner.system);
+                    self.kernel().restart();
                 }
             }
         }
@@ -358,7 +358,7 @@ where
         let mb = &self.mailbox;
         let k = self.cell.kernel();
 
-        dispatch(msg, mb, k, &self.system()).map_err(|e| {
+        dispatch(msg, mb, k).map_err(|e| {
             let dl = e.clone(); // clone the failed message and send to dead letters
             let dl = DeadLetter {
                 msg: format!("{:?}", dl.msg.msg),

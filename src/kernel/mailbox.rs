@@ -216,7 +216,7 @@ where
 
     let has_msgs = sen.mbox.has_msgs() || sen.mbox.has_sys_msgs();
     if has_msgs && !sen.mbox.is_scheduled() {
-        ctx.kernel.schedule(&ctx.system);
+        ctx.kernel.schedule();
     }
 }
 

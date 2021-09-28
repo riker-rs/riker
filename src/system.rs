@@ -132,22 +132,42 @@ impl fmt::Debug for SystemError {
 use std::{
     sync::{Arc, Mutex},
     time::{SystemTime, Duration, Instant},
+    future::Future,
 };
-
-use tokio::{runtime::Handle, sync::oneshot};
 
 use uuid::Uuid;
 
 use crate::{
     actor::{props::ActorFactory, *},
-    kernel::provider::{create_root, Provider},
+    kernel::{provider::{create_root, Provider}, KernelMsg},
     load_config,
     system::logger::*,
     system::timer::*,
     validate::{validate_name, InvalidPath},
     AnyMessage, Message, Config,
+    tokio_backend::ActorSystemBackendTokio,
 };
 use slog::{debug, Logger};
+
+pub trait SendingBackend {
+    fn send_msg(&self, msg: KernelMsg);
+}
+
+pub trait ActorSystemBackend {
+    type Tx: SendingBackend;
+
+    type Rx;
+
+    type ShutdownFuture: Future;
+
+    fn channel(&self, capacity: usize) -> (Self::Tx, Self::Rx);
+
+    fn spawn_receiver<F: FnMut(KernelMsg) -> bool + Send + 'static>(&self, rx: Self::Rx, f: F);
+
+    fn get_shutdown_future(&self) -> Self::ShutdownFuture;
+
+    fn shutdown(&self);
+}
 
 // 0. error results on any
 // 1. visibility
@@ -167,7 +187,7 @@ pub struct SystemBuilder {
     name: Option<String>,
     cfg: Option<Config>,
     log: Option<Logger>,
-    exec: Option<Handle>,
+    backend: Option<ActorSystemBackendTokio>,
 }
 
 impl SystemBuilder {
@@ -178,12 +198,12 @@ impl SystemBuilder {
     pub fn create(self) -> Result<ActorSystem, SystemError> {
         let name = self.name.unwrap_or_else(|| "riker".to_string());
         let cfg = self.cfg.unwrap_or_else(|| load_config());
-        let exec = self.exec.unwrap();
+        let backend = self.backend.unwrap();
         let log = self
             .log
             .unwrap_or_else(|| default_log(&cfg));
 
-        ActorSystem::create(name.as_ref(), exec, log, cfg)
+        ActorSystem::create(name.as_ref(), backend, log, cfg)
     }
 
     pub fn name(self, name: &str) -> Self {
@@ -200,9 +220,9 @@ impl SystemBuilder {
         }
     }
 
-    pub fn exec(self, exec: Handle) -> Self {
+    pub fn exec(self, backend: ActorSystemBackendTokio) -> Self {
         SystemBuilder {
-            exec: Some(exec),
+            backend: Some(backend),
             ..self
         }
     }
@@ -229,7 +249,7 @@ pub struct ActorSystem {
     sys_actors: Option<SysActors>,
     log: Logger,
     debug: bool,
-    pub exec: Handle,
+    pub backend: ActorSystemBackendTokio,
     pub timer: Arc<Mutex<TimerRef>>,
     pub sys_channels: Option<SysChannels>,
     temp_storage: Arc<Mutex<Option<(SysActors, SysChannels)>>>,
@@ -240,33 +260,33 @@ impl ActorSystem {
     /// Create a new `ActorSystem` instance
     ///
     /// Requires a type that implements the `Model` trait.
-    pub fn new(exec: Handle) -> Result<ActorSystem, SystemError> {
+    pub fn new(backend: ActorSystemBackendTokio) -> Result<ActorSystem, SystemError> {
         let cfg = load_config();
         let log = default_log(&cfg);
 
-        ActorSystem::create("riker", exec, log, cfg)
+        ActorSystem::create("riker", backend, log, cfg)
     }
 
     /// Create a new `ActorSystem` instance with provided name
     ///
     /// Requires a type that implements the `Model` trait.
-    pub fn with_name(name: &str, exec: Handle) -> Result<ActorSystem, SystemError> {
+    pub fn with_name(name: &str, backend: ActorSystemBackendTokio) -> Result<ActorSystem, SystemError> {
         let cfg = load_config();
         let log = default_log(&cfg);
 
-        ActorSystem::create(name, exec, log, cfg)
+        ActorSystem::create(name, backend, log, cfg)
     }
 
     /// Create a new `ActorSystem` instance bypassing default config behavior
-    pub fn with_config(name: &str, exec: Handle, cfg: Config) -> Result<ActorSystem, SystemError> {
+    pub fn with_config(name: &str, backend: ActorSystemBackendTokio, cfg: Config) -> Result<ActorSystem, SystemError> {
         let log = default_log(&cfg);
 
-        ActorSystem::create(name, exec, log, cfg)
+        ActorSystem::create(name, backend, log, cfg)
     }
 
     fn create(
         name: &str,
-        exec: Handle,
+        backend: ActorSystemBackendTokio,
         log: Logger,
         cfg: Config,
     ) -> Result<ActorSystem, SystemError> {
@@ -299,7 +319,7 @@ impl ActorSystem {
         let mut sys = ActorSystem {
             proto: Arc::new(proto),
             debug,
-            exec,
+            backend,
             log,
             // event_store: None,
             timer: Arc::new(Mutex::new(timer)),
@@ -326,7 +346,7 @@ impl ActorSystem {
         )?;
 
         *sys.temp_storage.lock().unwrap() = Some((sys_actors, sys_channels));
-        sys.sys_actors.as_ref().unwrap().user.sys_init(&sys);
+        sys.sys_actors.as_ref().unwrap().user.sys_init();
 
         debug!(sys.log, "Actor system [{}] [{}] started", sys.id(), name);
 
@@ -481,13 +501,9 @@ impl ActorSystem {
     ///
     /// Does not block. Returns a future which is completed when all
     /// actors have successfully stopped.
-    pub fn shutdown(&self) -> Shutdown {
-        let (tx, rx) = oneshot::channel::<()>();
-        let tx = Arc::new(Mutex::new(Some(tx)));
-
-        self.tmp_actor_of_args::<ShutdownActor, _>(tx).unwrap();
-
-        rx
+    pub fn shutdown(&self) -> <ActorSystemBackendTokio as ActorSystemBackend>::ShutdownFuture {
+        self.tmp_actor_of::<ShutdownActor>().unwrap();
+        self.backend.get_shutdown_future()
     }
 }
 
@@ -775,24 +791,8 @@ pub struct SysChannels {
     pub dead_letters: ActorRef<DLChannelMsg>,
 }
 
-pub type Shutdown = oneshot::Receiver<()>;
-
-#[derive(Clone)]
-struct ShutdownActor {
-    tx: Arc<Mutex<Option<oneshot::Sender<()>>>>,
-}
-
-impl ActorFactoryArgs<Arc<Mutex<Option<oneshot::Sender<()>>>>> for ShutdownActor {
-    fn create_args(tx: Arc<Mutex<Option<oneshot::Sender<()>>>>) -> Self {
-        ShutdownActor::new(tx)
-    }
-}
-
-impl ShutdownActor {
-    fn new(tx: Arc<Mutex<Option<oneshot::Sender<()>>>>) -> Self {
-        ShutdownActor { tx }
-    }
-}
+#[derive(Default, Clone)]
+struct ShutdownActor;
 
 impl Actor for ShutdownActor {
     type Msg = SystemEvent;
@@ -841,11 +841,7 @@ impl Receive<ActorTerminated> for ShutdownActor {
         _sender: Option<BasicActorRef>,
     ) {
         if &msg.actor == ctx.system.user_root() {
-            if let Ok(ref mut tx) = self.tx.lock() {
-                if let Some(tx) = tx.take() {
-                    tx.send(()).unwrap();
-                }
-            }
+            ctx.system.backend.shutdown();
         }
     }
 }

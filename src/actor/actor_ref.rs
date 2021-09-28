@@ -7,7 +7,7 @@ use crate::{
         Actor, ActorPath, ActorUri, BoxActorProd, CreateError,
     },
     kernel::mailbox::AnyEnqueueError,
-    system::{ActorSystem, SystemMsg},
+    system::SystemMsg,
     AnyMessage, Envelope, Message,
 };
 
@@ -182,8 +182,8 @@ impl BasicActorRef {
         ActorRef { cell }
     }
 
-    pub(crate) fn sys_init(&self, sys: &ActorSystem) {
-        self.cell.kernel().sys_init(sys);
+    pub(crate) fn sys_init(&self) {
+        self.cell.kernel().sys_init();
     }
 
     /// Send a message to this actor

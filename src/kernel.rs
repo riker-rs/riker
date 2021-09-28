@@ -17,7 +17,6 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use tokio::sync::mpsc;
 use slog::warn;
 
 use crate::{
@@ -27,7 +26,7 @@ use crate::{
         kernel_ref::KernelRef,
         mailbox::{flush_to_deadletters, run_mailbox, Mailbox},
     },
-    system::{ActorRestarted, ActorTerminated, SystemMsg},
+    system::{ActorRestarted, ActorTerminated, SystemMsg, ActorSystemBackend},
     Message,
 };
 
@@ -54,8 +53,8 @@ pub fn kernel<A>(
 where
     A: Actor + 'static,
 {
-    let (tx, mut rx) = mpsc::channel::<KernelMsg>(1000); // todo config?
-    let kr = KernelRef { tx };
+    let (tx, rx) = sys.backend.channel(1000); // todo config?
+    let kr = KernelRef { tx: Arc::new(tx) };
 
     let mut asys = sys.clone();
     let akr = kr.clone();
@@ -69,35 +68,34 @@ where
 
     let actor_ref = ActorRef::new(cell);
 
-    let f = async move {
-        while let Some(msg) = rx.recv().await {
-            match msg {
-                KernelMsg::RunActor => {
-                    let ctx = Context {
-                        myself: actor_ref.clone(),
-                        system: asys.clone(),
-                        kernel: akr.clone(),
-                    };
+    let f = move |msg| {
+        match msg {
+            KernelMsg::RunActor => {
+                let ctx = Context {
+                    myself: actor_ref.clone(),
+                    system: asys.clone(),
+                    kernel: akr.clone(),
+                };
 
-                    let _ = std::panic::catch_unwind(AssertUnwindSafe(|| {
-                        run_mailbox(&mailbox, ctx, &mut dock)
-                    })); //.unwrap();
-                }
-                KernelMsg::RestartActor => {
-                    restart_actor(&dock, actor_ref.clone().into(), &props, &asys);
-                }
-                KernelMsg::TerminateActor => {
-                    terminate_actor(&mailbox, actor_ref.clone().into(), &asys);
-                    break;
-                }
-                KernelMsg::Sys => {
-                    asys.complete_start();
-                }
+                let _ = std::panic::catch_unwind(AssertUnwindSafe(|| {
+                    run_mailbox(&mailbox, ctx, &mut dock)
+                })); //.unwrap();
+            }
+            KernelMsg::RestartActor => {
+                restart_actor(&dock, actor_ref.clone().into(), &props, &asys);
+            }
+            KernelMsg::TerminateActor => {
+                terminate_actor(&mailbox, actor_ref.clone().into(), &asys);
+                return false;
+            }
+            KernelMsg::Sys => {
+                asys.complete_start();
             }
         }
+        true
     };
 
-    sys.exec.spawn(f);
+    sys.backend.spawn_receiver(rx, f);
     Ok(kr)
 }
 

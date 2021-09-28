@@ -11,6 +11,7 @@ mod validate;
 pub mod actor;
 pub mod kernel;
 pub mod system;
+mod tokio_backend;
 mod config;
 
 use std::any::Any;
@@ -90,6 +91,8 @@ pub mod actors {
     pub use crate::actor::*;
     pub use crate::system::{
         ActorSystem, ScheduleId, SystemBuilder, SystemEvent, SystemMsg, Timer,
+        ActorSystemBackend, SendingBackend,
     };
+    pub use crate::tokio_backend::ActorSystemBackendTokio;
     pub use crate::{AnyMessage, Message};
 }
