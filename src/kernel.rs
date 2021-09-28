@@ -10,7 +10,7 @@ pub enum KernelMsg {
     TerminateActor,
     RestartActor,
     RunActor,
-    Sys(ActorSystem),
+    Sys,
 }
 use std::{
     panic::{catch_unwind, AssertUnwindSafe},
@@ -90,8 +90,8 @@ where
                     terminate_actor(&mailbox, actor_ref.clone().into(), &asys);
                     break;
                 }
-                KernelMsg::Sys(s) => {
-                    asys = s;
+                KernelMsg::Sys => {
+                    asys.complete_start();
                 }
             }
         }

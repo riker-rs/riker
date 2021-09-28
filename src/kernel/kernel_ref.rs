@@ -31,7 +31,7 @@ impl KernelRef {
     }
 
     pub(crate) fn sys_init(&self, sys: &ActorSystem) {
-        self.send(KernelMsg::Sys(sys.clone()), sys);
+        self.send(KernelMsg::Sys, sys);
     }
 
     fn send(&self, msg: KernelMsg, sys: &ActorSystem) {

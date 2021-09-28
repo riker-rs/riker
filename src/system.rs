@@ -235,6 +235,7 @@ pub struct ActorSystem {
     pub exec: ThreadPool,
     pub timer: Arc<Mutex<TimerRef>>,
     pub sys_channels: Option<SysChannels>,
+    temp_storage: Arc<Mutex<Option<(SysActors, SysChannels)>>>,
     pub(crate) provider: Provider,
 }
 
@@ -310,15 +311,17 @@ impl ActorSystem {
             timer: Arc::new(Mutex::new(timer)),
             sys_channels: None,
             sys_actors: None,
+            temp_storage: Arc::new(Mutex::new(None)),
             provider: prov.clone(),
         };
 
         // 3. create initial actor hierarchy
         let sys_actors = create_root(&sys);
-        sys.sys_actors = Some(sys_actors);
+        sys.sys_actors = Some(sys_actors.clone());
 
         // 4. start system channels
-        sys.sys_channels = Some(sys_channels(&prov, &sys)?);
+        let sys_channels = sys_channels(&prov, &sys)?;
+        sys.sys_channels = Some(sys_channels.clone());
 
         // 5. start dead letter logger
         let _dl_logger = sys_actor_of_args::<DeadLetterLogger, _>(
@@ -328,15 +331,18 @@ impl ActorSystem {
             (sys.dead_letters().clone(), sys.log()),
         )?;
 
-        sys.complete_start();
+        *sys.temp_storage.lock().unwrap() = Some((sys_actors, sys_channels));
+        sys.sys_actors.as_ref().unwrap().user.sys_init(&sys);
 
         debug!(sys.log, "Actor system [{}] [{}] started", sys.id(), name);
 
         Ok(sys)
     }
 
-    fn complete_start(&self) {
-        self.sys_actors.as_ref().unwrap().user.sys_init(self);
+    pub(crate) fn complete_start(&mut self) {
+        let (sys_actors, sys_channels) = self.temp_storage.lock().unwrap().clone().unwrap();
+        self.sys_actors = Some(sys_actors);
+        self.sys_channels = Some(sys_channels);
     }
 
     /// Returns the system start moment
@@ -386,8 +392,8 @@ impl ActorSystem {
             }
         }
 
-        let root = &self.sys_actors.as_ref().unwrap().root;
-        print_node(self, &root, "");
+        let root = self.root();
+        print_node(self, root, "");
     }
 
     /// Returns the system root's actor reference
