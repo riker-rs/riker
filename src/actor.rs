@@ -20,7 +20,7 @@ pub use self::{
     },
     channel::{
         channel, All, Channel, ChannelMsg, ChannelRef, DLChannelMsg, DeadLetter, EventsChannel,
-        Publish, Subscribe, SysTopic, Topic, Unsubscribe, UnsubscribeAll,
+        Publish, Subscribe, SubscribeWithResponse, SubscribedResponse, SysTopic, Topic, Unsubscribe, UnsubscribeAll,
     },
     macros::actor,
     props::{ActorArgs, ActorFactory, ActorFactoryArgs, ActorProducer, BoxActorProd, Props},

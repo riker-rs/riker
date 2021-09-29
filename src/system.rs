@@ -804,8 +804,20 @@ impl ActorFactoryArgs<Arc<dyn SendingBackend + Send + Sync + 'static>> for Shutd
     }
 }
 
+#[derive(Debug, Clone)]
+pub enum ShutdownActorMsg {
+    SystemEvent(SystemEvent),
+    SubscribedResponse(SubscribedResponse),
+}
+
+impl From<SystemEvent> for ShutdownActorMsg {
+    fn from(se: SystemEvent) -> Self {
+        ShutdownActorMsg::SystemEvent(se)
+    }
+}
+
 impl Actor for ShutdownActor {
-    type Msg = SystemEvent;
+    type Msg = ShutdownActorMsg;
 
     fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
         let sub = Subscribe {
@@ -813,45 +825,45 @@ impl Actor for ShutdownActor {
             actor: Box::new(ctx.myself.clone()),
         };
         ctx.system.sys_events().tell(sub, None);
-
-        // todo this is prone to failing since there is no
-        // confirmation that ShutdownActor has subscribed to
-        // the ActorTerminated events yet.
-        // It may be that the user root actor is Sterminated
-        // before the subscription is complete.
-
-        // std::thread::sleep_ms(1000);
-        // send stop to all /user children
-        ctx.system.stop(ctx.system.user_root());
     }
 
     fn sys_recv(
         &mut self,
         ctx: &Context<Self::Msg>,
         msg: SystemMsg,
-        sender: Option<BasicActorRef>,
+        _sender: Option<BasicActorRef>,
     ) {
         if let SystemMsg::Event(evt) = msg {
             if let SystemEvent::ActorTerminated(terminated) = evt {
-                self.receive(ctx, terminated, sender);
+                if &terminated.actor == ctx.system.user_root() {
+                    self.tx.send_msg(KernelMsg::TerminateActor)
+                }
             }
         }
     }
 
-    fn recv(&mut self, _: &Context<Self::Msg>, _: Self::Msg, _: Option<BasicActorRef>) {}
+    fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Option<BasicActorRef>) {
+        if let ShutdownActorMsg::SubscribedResponse(msg) = msg {
+            self.receive(ctx, msg, sender)
+        }
+    }
 }
 
-impl Receive<ActorTerminated> for ShutdownActor {
-    type Msg = SystemEvent;
+impl Receive<SubscribedResponse> for ShutdownActor {
+    type Msg = ShutdownActorMsg;
 
     fn receive(
         &mut self,
         ctx: &Context<Self::Msg>,
-        msg: ActorTerminated,
+        msg: SubscribedResponse,
         _sender: Option<BasicActorRef>,
     ) {
-        if &msg.actor == ctx.system.user_root() {
-            self.tx.send_msg(KernelMsg::TerminateActor)
+        if msg.topic == SysTopic::ActorTerminated.into() {
+            // confirmation that ShutdownActor has subscribed to
+            // the ActorTerminated events yet.
+
+            // send stop to all /user children
+            ctx.system.stop(ctx.system.user_root());
         }
     }
 }

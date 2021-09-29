@@ -80,6 +80,7 @@ where
         match msg {
             ChannelMsg::Publish(p) => self.receive(ctx, p, sender),
             ChannelMsg::Subscribe(sub) => self.receive(ctx, sub, sender),
+            ChannelMsg::SubscribeWithResponse(sub) => self.receive(ctx, sub, sender),
             ChannelMsg::Unsubscribe(unsub) => self.receive(ctx, unsub, sender),
             ChannelMsg::UnsubscribeAll(unsub) => self.receive(ctx, unsub, sender),
         }
@@ -95,6 +96,24 @@ where
     fn receive(&mut self, ctx: &ChannelCtx<Msg>, msg: Subscribe<Msg>, sender: Sender) {
         let subs = self.subs.entry(msg.topic).or_default();
         subs.push(msg.actor);
+    }
+}
+
+impl<Msg> Receive<SubscribeWithResponse<Msg>> for Channel<Msg>
+where
+    Msg: Message,
+{
+    type Msg = ChannelMsg<Msg>;
+
+    fn receive(&mut self, ctx: &ChannelCtx<Msg>, msg: SubscribeWithResponse<Msg>, sender: Sender) {
+        let subs = self.subs.entry(msg.topic.clone()).or_default();
+        subs.push(msg.actor);
+
+        if let Some(sender) = sender {
+            let _ = sender.try_tell(SubscribedResponse {
+                topic: msg.topic
+            }, None);
+        }
     }
 }
 
@@ -195,6 +214,7 @@ impl Receive<ChannelMsg<SystemEvent>> for EventsChannel {
         match msg {
             ChannelMsg::Publish(p) => self.receive(ctx, p, sender),
             ChannelMsg::Subscribe(sub) => self.0.receive(ctx, sub, sender),
+            ChannelMsg::SubscribeWithResponse(sub) => self.0.receive(ctx, sub, sender),
             ChannelMsg::Unsubscribe(unsub) => self.0.receive(ctx, unsub, sender),
             ChannelMsg::UnsubscribeAll(unsub) => self.0.receive(ctx, unsub, sender),
         }
@@ -245,6 +265,17 @@ pub struct Subscribe<Msg: Message> {
 }
 
 #[derive(Debug, Clone)]
+pub struct SubscribeWithResponse<Msg: Message> {
+    pub topic: Topic,
+    pub actor: BoxedTell<Msg>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SubscribedResponse {
+    pub topic: Topic,
+}
+
+#[derive(Debug, Clone)]
 pub struct Unsubscribe<Msg: Message> {
     pub topic: Topic,
     pub actor: BoxedTell<Msg>,
@@ -269,6 +300,9 @@ pub enum ChannelMsg<Msg: Message> {
     /// Subscribe given `ActorRef` to a topic on a channel
     Subscribe(Subscribe<Msg>),
 
+    /// Subscribe given `ActorRef` to a topic on a channel and send response back after subscribe
+    SubscribeWithResponse(SubscribeWithResponse<Msg>),
+
     /// Unsubscribe the given `ActorRef` from a topic on a channel
     Unsubscribe(Unsubscribe<Msg>),
 
@@ -287,6 +321,13 @@ impl<Msg: Message> Into<ChannelMsg<Msg>> for Publish<Msg> {
 impl<Msg: Message> Into<ChannelMsg<Msg>> for Subscribe<Msg> {
     fn into(self) -> ChannelMsg<Msg> {
         ChannelMsg::Subscribe(self)
+    }
+}
+
+// subscribe with response
+impl<Msg: Message> Into<ChannelMsg<Msg>> for SubscribeWithResponse<Msg> {
+    fn into(self) -> ChannelMsg<Msg> {
+        ChannelMsg::SubscribeWithResponse(self)
     }
 }
 
