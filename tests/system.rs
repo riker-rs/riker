@@ -1,17 +1,19 @@
-use futures::executor::block_on;
+use tokio::runtime::Handle;
 use riker::actors::*;
 
-#[test]
-fn system_create() {
-    assert!(ActorSystem::new(ThreadPoolConfig::new(1, 0)).is_ok());
-    assert!(ActorSystem::with_name("valid-name", ThreadPoolConfig::new(1, 0)).is_ok());
+#[tokio::test]
+async fn system_create() {
+    let backend = || Handle::current().into();
 
-    assert!(ActorSystem::with_name("/", ThreadPoolConfig::new(1, 0)).is_err());
-    assert!(ActorSystem::with_name("*", ThreadPoolConfig::new(1, 0)).is_err());
-    assert!(ActorSystem::with_name("/a/b/c", ThreadPoolConfig::new(1, 0)).is_err());
-    assert!(ActorSystem::with_name("@", ThreadPoolConfig::new(1, 0)).is_err());
-    assert!(ActorSystem::with_name("#", ThreadPoolConfig::new(1, 0)).is_err());
-    assert!(ActorSystem::with_name("abc*", ThreadPoolConfig::new(1, 0)).is_err());
+    assert!(ActorSystem::new(backend()).is_ok());
+    assert!(ActorSystem::with_name("valid-name", backend()).is_ok());
+
+    assert!(ActorSystem::with_name("/", backend()).is_err());
+    assert!(ActorSystem::with_name("*", backend()).is_err());
+    assert!(ActorSystem::with_name("/a/b/c", backend()).is_err());
+    assert!(ActorSystem::with_name("@", backend()).is_err());
+    assert!(ActorSystem::with_name("#", backend()).is_err());
+    assert!(ActorSystem::with_name("abc*", backend()).is_err());
 }
 
 struct ShutdownTest {
@@ -40,23 +42,28 @@ impl Actor for ShutdownTest {
     fn recv(&mut self, _: &Context<Self::Msg>, _: Self::Msg, _: Sender) {}
 }
 
-#[test]
+#[tokio::test]
 #[allow(dead_code)]
-fn system_shutdown() {
-    let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
+async fn system_shutdown() {
+    let backend = Handle::current().into();
+    let sys = ActorSystem::new(backend).unwrap();
 
     let _ = sys
         .actor_of_args::<ShutdownTest, _>("test-actor-1", 1)
         .unwrap();
 
-    block_on(sys.shutdown()).unwrap();
+    sys.shutdown().await;
 }
 
-#[test]
-fn system_builder() {
-    let sys = SystemBuilder::new().create(ThreadPoolConfig::new(1, 0)).unwrap();
-    block_on(sys.shutdown()).unwrap();
+#[tokio::test]
+async fn system_builder() {
+    use Handle;
 
-    let sys = SystemBuilder::new().name("my-sys").create(ThreadPoolConfig::new(1, 0)).unwrap();
-    block_on(sys.shutdown()).unwrap();
+    let backend = Handle::current().into();
+    let sys = SystemBuilder::new().exec(backend).create().unwrap();
+    sys.shutdown().await;
+
+    let backend = Handle::current().into();
+    let sys = SystemBuilder::new().name("my-sys").exec(backend).create().unwrap();
+    sys.shutdown().await;
 }

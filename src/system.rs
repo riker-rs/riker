@@ -133,6 +133,7 @@ use std::{
     sync::{Arc, Mutex},
     time::{SystemTime, Duration, Instant},
     future::Future,
+    pin::Pin,
 };
 
 use uuid::Uuid;
@@ -154,19 +155,15 @@ pub trait SendingBackend {
 }
 
 pub trait ActorSystemBackend {
-    type Tx: SendingBackend;
+    type Tx: SendingBackend + Send + Sync + 'static;
 
     type Rx;
-
-    type ShutdownFuture: Future;
 
     fn channel(&self, capacity: usize) -> (Self::Tx, Self::Rx);
 
     fn spawn_receiver<F: FnMut(KernelMsg) -> bool + Send + 'static>(&self, rx: Self::Rx, f: F);
 
-    fn get_shutdown_future(&self) -> Self::ShutdownFuture;
-
-    fn shutdown(&self);
+    fn receiver_future(&self, rx: Self::Rx) -> Pin<Box<dyn Future<Output = ()>>>;
 }
 
 // 0. error results on any
@@ -501,9 +498,10 @@ impl ActorSystem {
     ///
     /// Does not block. Returns a future which is completed when all
     /// actors have successfully stopped.
-    pub fn shutdown(&self) -> <ActorSystemBackendTokio as ActorSystemBackend>::ShutdownFuture {
-        self.tmp_actor_of::<ShutdownActor>().unwrap();
-        self.backend.get_shutdown_future()
+    pub fn shutdown(&self) -> Pin<Box<dyn Future<Output = ()>>> {
+        let (tx, rx) = self.backend.channel(1);
+        self.tmp_actor_of_args::<ShutdownActor, _>(Arc::new(tx)).unwrap();
+        self.backend.receiver_future(rx)
     }
 }
 
@@ -791,8 +789,16 @@ pub struct SysChannels {
     pub dead_letters: ActorRef<DLChannelMsg>,
 }
 
-#[derive(Default, Clone)]
-struct ShutdownActor;
+#[derive(Clone)]
+struct ShutdownActor {
+    tx: Arc<dyn SendingBackend + Send + Sync + 'static>,
+}
+
+impl ActorFactoryArgs<Arc<dyn SendingBackend + Send + Sync + 'static>> for ShutdownActor {
+    fn create_args(tx: Arc<dyn SendingBackend + Send + Sync + 'static>) -> Self {
+        ShutdownActor { tx }
+    }
+}
 
 impl Actor for ShutdownActor {
     type Msg = SystemEvent;
@@ -841,7 +847,7 @@ impl Receive<ActorTerminated> for ShutdownActor {
         _sender: Option<BasicActorRef>,
     ) {
         if &msg.actor == ctx.system.user_root() {
-            ctx.system.backend.shutdown();
+            self.tx.send_msg(KernelMsg::TerminateActor)
         }
     }
 }

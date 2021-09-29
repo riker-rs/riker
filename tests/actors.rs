@@ -47,9 +47,10 @@ impl Receive<Add> for Counter {
     }
 }
 
-#[test]
-fn actor_create() {
-    let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
+#[tokio::test]
+async fn actor_create() {
+    let backend = tokio::runtime::Handle::current().into();
+    let sys = ActorSystem::new(backend).unwrap();
 
     assert!(sys.actor_of::<Counter>("valid-name").is_ok());
 
@@ -78,9 +79,10 @@ fn actor_create() {
     assert!(sys.actor_of::<Counter>("!").is_err());
 }
 
-#[test]
-fn actor_tell() {
-    let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
+#[tokio::test]
+async fn actor_tell() {
+    let backend = tokio::runtime::Handle::current().into();
+    let sys = ActorSystem::new(backend).unwrap();
 
     let actor = sys.actor_of::<Counter>("me").unwrap();
 
@@ -94,9 +96,10 @@ fn actor_tell() {
     p_assert_eq!(listen, ());
 }
 
-#[test]
-fn actor_try_tell() {
-    let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
+#[tokio::test]
+async fn actor_try_tell() {
+    let backend = tokio::runtime::Handle::current().into();
+    let sys = ActorSystem::new(backend).unwrap();
 
     let actor = sys.actor_of::<Counter>("me").unwrap();
     let actor: BasicActorRef = actor.into();
@@ -155,10 +158,11 @@ impl Actor for Child {
     fn recv(&mut self, _: &Context<Self::Msg>, _: Self::Msg, _: Sender) {}
 }
 
-#[test]
+#[tokio::test]
 #[allow(dead_code)]
-fn actor_stop() {
-    let system = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
+async fn actor_stop() {
+    let backend = tokio::runtime::Handle::current().into();
+    let system = ActorSystem::new(backend).unwrap();
 
     let parent = system.actor_of::<Parent>("parent").unwrap();
 

@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::{future::Future, pin::Pin, sync::{Arc, Mutex}};
 use tokio::{runtime::Handle, sync::{oneshot, mpsc}};
 use super::{
     system::{ActorSystemBackend, SendingBackend},
@@ -25,8 +25,6 @@ impl ActorSystemBackend for ActorSystemBackendTokio {
 
     type Rx = mpsc::Receiver<KernelMsg>;
 
-    type ShutdownFuture = oneshot::Receiver<()>;
-
     fn channel(&self, capacity: usize) -> (Self::Tx, Self::Rx) {
         let (tx, rx) = mpsc::channel(capacity);
         (SendingBackendTokio { tx, handle: self.handle.clone() }, rx)
@@ -43,16 +41,8 @@ impl ActorSystemBackend for ActorSystemBackendTokio {
         });
     }
 
-    fn get_shutdown_future(&self) -> Self::ShutdownFuture {
-        let (tx, rx) = oneshot::channel();
-        *self.s_tx.lock().unwrap() = Some(tx);
-        rx
-    }
-
-    fn shutdown(&self) {
-        if let Some(tx) = self.s_tx.lock().unwrap().take() {
-            tx.send(()).unwrap();
-        }
+    fn receiver_future(&self, mut rx: Self::Rx) -> Pin<Box<dyn Future<Output = ()>>> {
+        Box::pin(async move { drop(rx.recv().await) })
     }
 }
 
