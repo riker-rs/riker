@@ -148,7 +148,8 @@ impl ActorCell {
         self.inner.children.add(actor);
     }
 
-    pub fn remove_child(&self, actor: &BasicActorRef) {
+    /// return true if there is no children left
+    pub fn remove_child_is_empty(&self, actor: &BasicActorRef) -> bool {
         self.inner.children.remove(actor)
     }
 
@@ -184,21 +185,17 @@ impl ActorCell {
     }
 
     pub fn death_watch<A: Actor>(&self, terminated: &BasicActorRef, actor: &mut Option<A>) {
-        if self.is_child(&terminated) {
-            self.remove_child(terminated);
+        if self.remove_child_is_empty(terminated) {
+            // No children exist. Stop this actor's kernel.
+            if self.inner.is_terminating.load(Ordering::Relaxed) {
+                self.kernel().terminate();
+                post_stop(actor);
+            }
 
-            if !self.has_children() {
-                // No children exist. Stop this actor's kernel.
-                if self.inner.is_terminating.load(Ordering::Relaxed) {
-                    self.kernel().terminate();
-                    post_stop(actor);
-                }
-
-                // No children exist. Restart the actor.
-                if self.inner.is_restarting.load(Ordering::Relaxed) {
-                    self.inner.is_restarting.store(false, Ordering::Relaxed);
-                    self.kernel().restart();
-                }
+            // No children exist. Restart the actor.
+            if self.inner.is_restarting.load(Ordering::Relaxed) {
+                self.inner.is_restarting.store(false, Ordering::Relaxed);
+                self.kernel().restart();
             }
         }
     }
@@ -233,45 +230,6 @@ impl<Msg: Message> From<ExtendedCell<Msg>> for ActorCell {
 impl fmt::Debug for ActorCell {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "ActorCell[{:?}]", self.uri())
-    }
-}
-
-impl TmpActorRefFactory for ActorCell {
-    fn tmp_actor_of_props<A: Actor>(
-        &self,
-        _props: BoxActorProd<A>,
-    ) -> Result<ActorRef<A::Msg>, CreateError> {
-        let _name = Uuid::new_v4().to_string();
-
-        // self.inner
-        //     .kernel
-        //     .create_actor(props, &name, &self.inner.system.temp_root())
-        unimplemented!()
-    }
-
-    fn tmp_actor_of<A: ActorFactory>(&self) -> Result<ActorRef<<A as Actor>::Msg>, CreateError> {
-        let _name = Uuid::new_v4().to_string();
-
-        // self.inner
-        //     .kernel
-        //     .create_actor(props, &name, &self.inner.system.temp_root())
-        unimplemented!()
-    }
-
-    fn tmp_actor_of_args<A, Args>(
-        &self,
-        _args: Args,
-    ) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-    where
-        Args: ActorArgs,
-        A: ActorFactoryArgs<Args>,
-    {
-        let _name = Uuid::new_v4().to_string();
-
-        // self.inner
-        //     .kernel
-        //     .create_actor(props, &name, &self.inner.system.temp_root())
-        unimplemented!()
     }
 }
 
@@ -599,8 +557,10 @@ impl Children {
         self.actors.write().unwrap().insert(actor.name().to_string(), actor);
     }
 
-    pub fn remove(&self, actor: &BasicActorRef) {
-        self.actors.write().unwrap().remove(actor.name());
+    pub fn remove(&self, actor: &BasicActorRef) -> bool {
+        let mut g = self.actors.write().unwrap();
+        g.remove(actor.name());
+        g.is_empty()
     }
 
     pub fn len(&self) -> usize {

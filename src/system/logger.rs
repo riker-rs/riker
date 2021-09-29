@@ -3,7 +3,7 @@ use crate::actor::{
     Subscribe, Tell,
 };
 use crate::Config;
-use slog::{info, o, Drain, Level, Logger, Never, OwnedKVList, Record};
+use slog::{Drain, Level, Logger, Never, OwnedKVList, Record};
 use std::time::SystemTime;
 
 #[derive(Clone, Debug)]
@@ -47,7 +47,7 @@ pub(crate) fn default_log(cfg: &Config) -> Logger {
     let drain = DefaultConsoleLogger::new(cfg.clone())
         .filter_level(cfg.level)
         .fuse();
-    Logger::root(drain, o!())
+    Logger::root(drain, slog::o!())
 }
 
 struct DefaultConsoleLogger {
@@ -114,7 +114,7 @@ impl Actor for DeadLetterLogger {
     }
 
     fn recv(&mut self, _: &Context<Self::Msg>, msg: Self::Msg, _: Option<BasicActorRef>) {
-        info!(
+        slog::info!(
             self.logger,
             "DeadLetter: {:?} => {:?} ({:?})", msg.sender, msg.recipient, msg.msg
         )

@@ -194,13 +194,13 @@ where
     let mut actor = dock.actor.lock().unwrap().take();
     let cell = &mut dock.cell;
 
-    process_sys_msgs(&sen.mbox, &ctx, cell, &mut actor);
+    process_sys_msgs(sen.mbox, &ctx, cell, &mut actor);
 
     if actor.is_some() && !sen.mbox.is_suspended() {
-        process_msgs(&sen.mbox, &ctx, cell, &mut actor);
+        process_msgs(sen.mbox, &ctx, cell, &mut actor);
     }
 
-    process_sys_msgs(&sen.mbox, &ctx, cell, &mut actor);
+    process_sys_msgs(sen.mbox, &ctx, cell, &mut actor);
 
     if actor.is_some() {
         let mut a = dock.actor.lock().unwrap();
@@ -231,7 +231,7 @@ fn process_msgs<A>(
                 Ok(msg) => {
                     let (msg, sender) = (msg.msg, msg.sender);
                     actor.as_mut().unwrap().recv(ctx, msg, sender);
-                    process_sys_msgs(&mbox, &ctx, cell, actor);
+                    process_sys_msgs(mbox, ctx, cell, actor);
 
                     count += 1;
                 }

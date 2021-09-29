@@ -3,7 +3,8 @@
 // #![deny(clippy::pedantic)]
 // #![deny(clippy::nursery)]
 #![allow(clippy::new_ret_no_self)]
-#![allow(clippy::large_enum_variant)]
+#![allow(clippy::from_over_into)]
+#![allow(clippy::new_without_default)]
 #![forbid(unsafe_code)]
 
 mod validate;

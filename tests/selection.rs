@@ -41,9 +41,10 @@ impl Actor for SelectTest {
     }
 }
 
-#[test]
-fn select_child() {
-    let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
+#[tokio::test(flavor = "multi_thread")]
+async fn select_child() {
+    let backend = tokio::runtime::Handle::current().into();
+    let sys = ActorSystem::new(backend).unwrap();
 
     sys.actor_of::<SelectTest>("select-actor").unwrap();
 
@@ -57,9 +58,10 @@ fn select_child() {
     p_assert_eq!(listen, ());
 }
 
-#[test]
-fn select_child_of_child() {
-    let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
+#[tokio::test(flavor = "multi_thread")]
+async fn select_child_of_child() {
+    let backend = tokio::runtime::Handle::current().into();
+    let sys = ActorSystem::new(backend).unwrap();
 
     sys.actor_of::<SelectTest>("select-actor").unwrap();
 
@@ -77,9 +79,10 @@ fn select_child_of_child() {
     p_assert_eq!(listen, ());
 }
 
-#[test]
-fn select_all_children_of_child() {
-    let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
+#[tokio::test(flavor = "multi_thread")]
+async fn select_all_children_of_child() {
+    let backend = tokio::runtime::Handle::current().into();
+    let sys = ActorSystem::new(backend).unwrap();
 
     sys.actor_of::<SelectTest>("select-actor").unwrap();
 
@@ -143,9 +146,10 @@ impl Actor for SelectTest2 {
     }
 }
 
-#[test]
-fn select_from_context() {
-    let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
+#[tokio::test(flavor = "multi_thread")]
+async fn select_from_context() {
+    let backend = tokio::runtime::Handle::current().into();
+    let sys = ActorSystem::new(backend).unwrap();
 
     let actor = sys.actor_of::<SelectTest2>("select-actor").unwrap();
 
@@ -162,9 +166,10 @@ fn select_from_context() {
     p_assert_eq!(listen, ());
 }
 
-#[test]
-fn select_paths() {
-    let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
+#[tokio::test]
+async fn select_paths() {
+    let backend = tokio::runtime::Handle::current().into();
+    let sys = ActorSystem::new(backend).unwrap();
 
     assert!(sys.select("foo/").is_ok());
     assert!(sys.select("/foo/").is_ok());

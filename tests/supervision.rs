@@ -98,9 +98,10 @@ impl Receive<Panic> for RestartSup {
     }
 }
 
-#[test]
-fn supervision_restart_failed_actor() {
-    let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
+#[tokio::test(flavor = "multi_thread")]
+async fn supervision_restart_failed_actor() {
+    let backend = tokio::runtime::Handle::current().into();
+    let sys = ActorSystem::new(backend).unwrap();
 
     for i in 0..100 {
         let sup = sys
@@ -203,9 +204,10 @@ impl Receive<Panic> for EscRestartSup {
     }
 }
 
-#[test]
-fn supervision_escalate_failed_actor() {
-    let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
+#[tokio::test(flavor = "multi_thread")]
+async fn supervision_escalate_failed_actor() {
+    let backend = tokio::runtime::Handle::current().into();
+    let sys = ActorSystem::new(backend).unwrap();
 
     let sup = sys.actor_of::<EscRestartSup>("supervisor").unwrap();
 

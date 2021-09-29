@@ -58,13 +58,11 @@ where
     // to this system event. This allows us to remove actors that have been
     // terminated but did not explicity unsubscribe before terminating.
     fn sys_recv(&mut self, _: &ChannelCtx<Msg>, msg: SystemMsg, sender: Sender) {
-        if let SystemMsg::Event(evt) = msg {
-            if let SystemEvent::ActorTerminated(terminated) = evt {
-                let subs = self.subs.clone();
+        if let SystemMsg::Event(SystemEvent::ActorTerminated(terminated)) = msg {
+            let subs = self.subs.clone();
 
-                for topic in subs.keys() {
-                    unsubscribe(&mut self.subs, topic, &terminated.actor);
-                }
+            for topic in subs.keys() {
+                unsubscribe(&mut self.subs, topic, &terminated.actor);
             }
         }
     }

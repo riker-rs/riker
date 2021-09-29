@@ -17,8 +17,6 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use slog::warn;
-
 use crate::{
     actor::actor_cell::ExtendedCell,
     actor::*,
@@ -115,7 +113,7 @@ fn restart_actor<A>(
             sys.publish_event(ActorRestarted { actor: actor_ref }.into());
         }
         Err(_) => {
-            warn!(sys.log(), "Actor failed to restart: {:?}", actor_ref);
+            slog::warn!(sys.log(), "Actor failed to restart: {:?}", actor_ref);
         }
     }
 }

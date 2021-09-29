@@ -148,7 +148,7 @@ use crate::{
     AnyMessage, Message, Config,
     tokio_backend::ActorSystemBackendTokio,
 };
-use slog::{debug, Logger};
+use slog::Logger;
 
 pub trait SendingBackend {
     fn send_msg(&self, msg: KernelMsg);
@@ -194,7 +194,7 @@ impl SystemBuilder {
 
     pub fn create(self) -> Result<ActorSystem, SystemError> {
         let name = self.name.unwrap_or_else(|| "riker".to_string());
-        let cfg = self.cfg.unwrap_or_else(|| load_config());
+        let cfg = self.cfg.unwrap_or_else(load_config);
         let backend = self.backend.unwrap();
         let log = self
             .log
@@ -251,6 +251,7 @@ pub struct ActorSystem {
     pub sys_channels: Option<SysChannels>,
     temp_storage: Arc<Mutex<Option<(SysActors, SysChannels)>>>,
     pub(crate) provider: Provider,
+    shutdown_rx: Arc<Mutex<Option<<ActorSystemBackendTokio as ActorSystemBackend>::Rx>>>,
 }
 
 impl ActorSystem {
@@ -293,7 +294,7 @@ impl ActorSystem {
 
         // Until the logger has started, use println
         if debug {
-            debug!(log, "Starting actor system: System[{}]", name);
+            slog::debug!(log, "Starting actor system: System[{}]", name);
         }
 
         let prov = Provider::new(log.clone());
@@ -312,6 +313,8 @@ impl ActorSystem {
             started_at_moment: Instant::now(),
         };
 
+        let (shutdown_tx, shutdown_rx) = backend.channel(1);
+
         // 2. create uninitialized system
         let mut sys = ActorSystem {
             proto: Arc::new(proto),
@@ -324,10 +327,11 @@ impl ActorSystem {
             sys_actors: None,
             temp_storage: Arc::new(Mutex::new(None)),
             provider: prov.clone(),
+            shutdown_rx: Arc::new(Mutex::new(Some(shutdown_rx))),
         };
 
         // 3. create initial actor hierarchy
-        let sys_actors = create_root(&sys);
+        let sys_actors = create_root(&sys, Arc::new(shutdown_tx));
         sys.sys_actors = Some(sys_actors.clone());
 
         // 4. start system channels
@@ -345,7 +349,7 @@ impl ActorSystem {
         *sys.temp_storage.lock().unwrap() = Some((sys_actors, sys_channels));
         sys.sys_actors.as_ref().unwrap().user.sys_init();
 
-        debug!(sys.log, "Actor system [{}] [{}] started", sys.id(), name);
+        slog::debug!(sys.log, "Actor system [{}] [{}] started", sys.id(), name);
 
         Ok(sys)
     }
@@ -389,14 +393,12 @@ impl ActorSystem {
     pub fn print_tree(&self) -> Vec<String> {
         fn print_node(sys: &ActorSystem, node: &BasicActorRef, indent: &str, log: &mut Vec<String>) {
             if node.is_root() {
-                // println!("{}", sys.name());
-                log.push(format!("{}", sys.name()));
+                log.push(sys.name());
 
                 for actor in node.children() {
                     print_node(sys, &actor, "", log);
                 }
             } else {
-                // println!("{}└─ {}", indent, node.name());
                 log.push(format!("{}└─ {}", indent, node.name()));
 
                 for actor in node.children() {
@@ -466,7 +468,7 @@ impl ActorSystem {
         A: Actor,
     {
         self.provider
-            .create_actor(props, name, &self.sys_root(), self)
+            .create_actor(props, name, self.sys_root(), self)
     }
 
     pub fn sys_actor_of<A>(&self, name: &str) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
@@ -474,7 +476,7 @@ impl ActorSystem {
         A: ActorFactory,
     {
         self.provider
-            .create_actor(Props::new::<A>(), name, &self.sys_root(), self)
+            .create_actor(Props::new::<A>(), name, self.sys_root(), self)
     }
 
     pub fn sys_actor_of_args<A, Args>(
@@ -487,7 +489,7 @@ impl ActorSystem {
         A: ActorFactoryArgs<Args>,
     {
         self.provider
-            .create_actor(Props::new_args::<A, _>(args), name, &self.sys_root(), self)
+            .create_actor(Props::new_args::<A, _>(args), name, self.sys_root(), self)
     }
 
     #[inline]
@@ -503,9 +505,8 @@ impl ActorSystem {
     /// Does not block. Returns a future which is completed when all
     /// actors have successfully stopped.
     pub fn shutdown(&self) -> Pin<Box<dyn Future<Output = ()>>> {
-        let (tx, rx) = self.backend.channel(1);
-        self.tmp_actor_of_args::<ShutdownActor, _>(Arc::new(tx)).unwrap();
-        self.backend.receiver_future(rx)
+        self.stop(self.user_root());
+        self.backend.receiver_future(self.shutdown_rx.lock().unwrap().take().expect("shutdown was already called"))
     }
 }
 
@@ -519,7 +520,7 @@ impl ActorRefFactory for ActorSystem {
         A: Actor,
     {
         self.provider
-            .create_actor(props, name, &self.user_root(), self)
+            .create_actor(props, name, self.user_root(), self)
     }
 
     fn actor_of<A>(&self, name: &str) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
@@ -527,7 +528,7 @@ impl ActorRefFactory for ActorSystem {
         A: ActorFactory,
     {
         self.provider
-            .create_actor(Props::new::<A>(), name, &self.user_root(), self)
+            .create_actor(Props::new::<A>(), name, self.user_root(), self)
     }
 
     fn actor_of_args<A, Args>(
@@ -540,7 +541,7 @@ impl ActorRefFactory for ActorSystem {
         A: ActorFactoryArgs<Args>,
     {
         self.provider
-            .create_actor(Props::new_args::<A, _>(args), name, &self.user_root(), self)
+            .create_actor(Props::new_args::<A, _>(args), name, self.user_root(), self)
     }
 
     fn stop(&self, actor: impl ActorReference) {
@@ -558,7 +559,7 @@ impl ActorRefFactory for &ActorSystem {
         A: Actor,
     {
         self.provider
-            .create_actor(props, name, &self.user_root(), self)
+            .create_actor(props, name, self.user_root(), self)
     }
 
     fn actor_of<A>(&self, name: &str) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
@@ -566,7 +567,7 @@ impl ActorRefFactory for &ActorSystem {
         A: ActorFactory,
     {
         self.provider
-            .create_actor(Props::new::<A>(), name, &self.user_root(), self)
+            .create_actor(Props::new::<A>(), name, self.user_root(), self)
     }
 
     fn actor_of_args<A, Args>(
@@ -579,7 +580,7 @@ impl ActorRefFactory for &ActorSystem {
         A: ActorFactoryArgs<Args>,
     {
         self.provider
-            .create_actor(Props::new_args::<A, _>(args), name, &self.user_root(), self)
+            .create_actor(Props::new_args::<A, _>(args), name, self.user_root(), self)
     }
 
     fn stop(&self, actor: impl ActorReference) {
@@ -594,7 +595,7 @@ impl TmpActorRefFactory for ActorSystem {
     {
         let name = Uuid::new_v4().to_string();
         self.provider
-            .create_actor(props, &name, &self.temp_root(), self)
+            .create_actor(props, &name, self.temp_root(), self)
     }
 
     fn tmp_actor_of<A>(&self) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
@@ -603,7 +604,7 @@ impl TmpActorRefFactory for ActorSystem {
     {
         let name = Uuid::new_v4().to_string();
         self.provider
-            .create_actor(Props::new::<A>(), &name, &self.temp_root(), self)
+            .create_actor(Props::new::<A>(), &name, self.temp_root(), self)
     }
 
     fn tmp_actor_of_args<A, Args>(
@@ -618,7 +619,7 @@ impl TmpActorRefFactory for ActorSystem {
         self.provider.create_actor(
             Props::new_args::<A, _>(args),
             &name,
-            &self.temp_root(),
+            self.temp_root(),
             self,
         )
     }
@@ -728,7 +729,7 @@ fn sys_actor_of_props<A>(
 where
     A: Actor,
 {
-    prov.create_actor(props, name, &sys.sys_root(), sys)
+    prov.create_actor(props, name, sys.sys_root(), sys)
         .map_err(|_| SystemError::ModuleFailed(name.into()))
 }
 
@@ -740,7 +741,7 @@ fn sys_actor_of<A>(
 where
     A: ActorFactory,
 {
-    prov.create_actor(Props::new::<A>(), name, &sys.sys_root(), sys)
+    prov.create_actor(Props::new::<A>(), name, sys.sys_root(), sys)
         .map_err(|_| SystemError::ModuleFailed(name.into()))
 }
 
@@ -755,7 +756,7 @@ where
     Args: ActorArgs,
     A: ActorFactoryArgs<Args>,
 {
-    prov.create_actor(Props::new_args::<A, _>(args), name, &sys.sys_root(), sys)
+    prov.create_actor(Props::new_args::<A, _>(args), name, sys.sys_root(), sys)
         .map_err(|_| SystemError::ModuleFailed(name.into()))
 }
 
@@ -791,79 +792,4 @@ pub struct SysActors {
 pub struct SysChannels {
     pub sys_events: ActorRef<ChannelMsg<SystemEvent>>,
     pub dead_letters: ActorRef<DLChannelMsg>,
-}
-
-#[derive(Clone)]
-struct ShutdownActor {
-    tx: Arc<dyn SendingBackend + Send + Sync + 'static>,
-}
-
-impl ActorFactoryArgs<Arc<dyn SendingBackend + Send + Sync + 'static>> for ShutdownActor {
-    fn create_args(tx: Arc<dyn SendingBackend + Send + Sync + 'static>) -> Self {
-        ShutdownActor { tx }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum ShutdownActorMsg {
-    SystemEvent(SystemEvent),
-    SubscribedResponse(SubscribedResponse),
-}
-
-impl From<SystemEvent> for ShutdownActorMsg {
-    fn from(se: SystemEvent) -> Self {
-        ShutdownActorMsg::SystemEvent(se)
-    }
-}
-
-impl Actor for ShutdownActor {
-    type Msg = ShutdownActorMsg;
-
-    fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
-        let sub = Subscribe {
-            topic: SysTopic::ActorTerminated.into(),
-            actor: Box::new(ctx.myself.clone()),
-        };
-        ctx.system.sys_events().tell(sub, None);
-    }
-
-    fn sys_recv(
-        &mut self,
-        ctx: &Context<Self::Msg>,
-        msg: SystemMsg,
-        _sender: Option<BasicActorRef>,
-    ) {
-        if let SystemMsg::Event(evt) = msg {
-            if let SystemEvent::ActorTerminated(terminated) = evt {
-                if &terminated.actor == ctx.system.user_root() {
-                    self.tx.send_msg(KernelMsg::TerminateActor)
-                }
-            }
-        }
-    }
-
-    fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Option<BasicActorRef>) {
-        if let ShutdownActorMsg::SubscribedResponse(msg) = msg {
-            self.receive(ctx, msg, sender)
-        }
-    }
-}
-
-impl Receive<SubscribedResponse> for ShutdownActor {
-    type Msg = ShutdownActorMsg;
-
-    fn receive(
-        &mut self,
-        ctx: &Context<Self::Msg>,
-        msg: SubscribedResponse,
-        _sender: Option<BasicActorRef>,
-    ) {
-        if msg.topic == SysTopic::ActorTerminated.into() {
-            // confirmation that ShutdownActor has subscribed to
-            // the ActorTerminated events yet.
-
-            // send stop to all /user children
-            ctx.system.stop(ctx.system.user_root());
-        }
-    }
 }

@@ -79,7 +79,7 @@ async fn actor_create() {
     assert!(sys.actor_of::<Counter>("!").is_err());
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn actor_tell() {
     let backend = tokio::runtime::Handle::current().into();
     let sys = ActorSystem::new(backend).unwrap();
@@ -96,7 +96,7 @@ async fn actor_tell() {
     p_assert_eq!(listen, ());
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn actor_try_tell() {
     let backend = tokio::runtime::Handle::current().into();
     let sys = ActorSystem::new(backend).unwrap();
@@ -158,7 +158,7 @@ impl Actor for Child {
     fn recv(&mut self, _: &Context<Self::Msg>, _: Self::Msg, _: Sender) {}
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 #[allow(dead_code)]
 async fn actor_stop() {
     let backend = tokio::runtime::Handle::current().into();

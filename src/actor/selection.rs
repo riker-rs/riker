@@ -105,7 +105,7 @@ impl ActorSelection {
                         }
                     } else if path_vec.peek().is_some() && child.is_some() {
                         walk(
-                            &child.as_ref().unwrap(),
+                            child.as_ref().unwrap(),
                             // dl,
                             path_vec,
                             msg,
@@ -165,7 +165,7 @@ impl ActorSelection {
                         }
                     } else if path_vec.peek().is_some() && child.is_some() {
                         walk(
-                            &child.as_ref().unwrap(),
+                            child.as_ref().unwrap(),
                             // dl,
                             path_vec,
                             msg,

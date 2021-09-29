@@ -1,17 +1,15 @@
-use futures::executor::block_on;
-
 use riker::actors::*;
-use slog::{o, Fuse, Logger};
+use slog::{Fuse, Logger};
 
 mod common {
     use std::{fmt, result};
 
-    use slog::*;
+    use slog::{Drain, Record, OwnedKVList, KV};
 
     pub struct PrintlnSerializer;
 
-    impl Serializer for PrintlnSerializer {
-        fn emit_arguments(&mut self, key: Key, val: &fmt::Arguments) -> Result {
+    impl slog::Serializer for PrintlnSerializer {
+        fn emit_arguments(&mut self, key: slog::Key, val: &fmt::Arguments) -> slog::Result {
             print!(", {}={}", key, val);
             Ok(())
         }
@@ -42,20 +40,23 @@ mod common {
     }
 }
 
-#[test]
-fn system_create_with_slog() {
+#[tokio::test]
+async fn system_create_with_slog() {
     let log = Logger::root(
         Fuse(common::PrintlnDrain),
-        o!("version" => "v1", "run_env" => "test"),
+        slog::o!("version" => "v1", "run_env" => "test"),
     );
-    let sys = SystemBuilder::new().log(log).create(ThreadPoolConfig::new(1, 0)).unwrap();
-    block_on(sys.shutdown()).unwrap();
+    let backend = tokio::runtime::Handle::current().into();
+    let sys = ActorSystem::new(backend).unwrap();
+    sys.shutdown().await;
+    let _ = log;
 }
 
 // a test that logging without slog using "log" crate works
-#[test]
-fn logging_stdlog() {
+#[tokio::test]
+async fn logging_stdlog() {
     log::info!("before the system");
-    let _sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
+    let backend = tokio::runtime::Handle::current().into();
+    let _sys = ActorSystem::new(backend).unwrap();
     log::info!("system exists");
 }

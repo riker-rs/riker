@@ -24,3 +24,4 @@ slog = "2.7"
 riker-testkit = "0.1.0"
 log = "0.4"
 tokio = { version = "1.12", features = ["sync", "rt-multi-thread", "macros", "time"] }
+tokio-test = { version = "0.4.2" }

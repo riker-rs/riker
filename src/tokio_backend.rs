@@ -54,6 +54,6 @@ pub struct SendingBackendTokio {
 impl SendingBackend for SendingBackendTokio {
     fn send_msg(&self, msg: KernelMsg) {
         let tx = self.tx.clone();
-        let _ = self.handle.spawn(async move { drop(tx.send(msg).await) });
+        self.handle.spawn(async move { drop(tx.send(msg).await) });
     }
 }
