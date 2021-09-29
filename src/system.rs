@@ -386,25 +386,29 @@ impl ActorSystem {
         self.proto.name.clone()
     }
 
-    pub fn print_tree(&self) {
-        fn print_node(sys: &ActorSystem, node: &BasicActorRef, indent: &str) {
+    pub fn print_tree(&self) -> Vec<String> {
+        fn print_node(sys: &ActorSystem, node: &BasicActorRef, indent: &str, log: &mut Vec<String>) {
             if node.is_root() {
-                println!("{}", sys.name());
+                // println!("{}", sys.name());
+                log.push(format!("{}", sys.name()));
 
                 for actor in node.children() {
-                    print_node(sys, &actor, "");
+                    print_node(sys, &actor, "", log);
                 }
             } else {
-                println!("{}└─ {}", indent, node.name());
+                // println!("{}└─ {}", indent, node.name());
+                log.push(format!("{}└─ {}", indent, node.name()));
 
                 for actor in node.children() {
-                    print_node(sys, &actor, &(indent.to_string() + "   "));
+                    print_node(sys, &actor, &(indent.to_string() + "   "), log);
                 }
             }
         }
 
+        let mut log: Vec<String> = Vec::new();
         let root = self.root();
-        print_node(self, root, "");
+        print_node(self, root, "", &mut log);
+        log
     }
 
     /// Returns the system root's actor reference

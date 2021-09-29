@@ -103,11 +103,6 @@ pub struct MailboxInner<Msg: Message> {
 }
 
 impl<Msg: Message> Mailbox<Msg> {
-    #[allow(dead_code)]
-    pub fn dequeue(&self) -> Envelope<Msg> {
-        self.inner.queue.dequeue()
-    }
-
     pub fn try_dequeue(&self) -> Result<Envelope<Msg>, QueueEmpty> {
         self.inner.queue.try_dequeue()
     }
