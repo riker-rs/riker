@@ -1,6 +1,6 @@
 [package]
 name = "riker"
-version = "0.4.2-cleanup-unsafe-3"
+version = "0.4.2-cleanup-unsafe-6"
 authors = ["Lee Smith <lee@riker.rs>"]
 edition = "2018"
 description = "Easily build fast, highly concurrent and resilient applications. An Actor Framework for Rust."

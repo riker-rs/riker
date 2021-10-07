@@ -8,7 +8,7 @@ use crate::{
         CreateError, Receive, Sender,
     },
     system::{SystemEvent, SystemMsg},
-    Message,
+    Message, AnyMessage,
 };
 
 type Subs<Msg> = HashMap<Topic, Vec<BoxedTell<Msg>>>;
@@ -103,14 +103,16 @@ where
 {
     type Msg = ChannelMsg<Msg>;
 
-    fn receive(&mut self, ctx: &ChannelCtx<Msg>, msg: SubscribeWithResponse<Msg>, sender: Sender) {
+    fn receive(&mut self, ctx: &ChannelCtx<Msg>, mut msg: SubscribeWithResponse<Msg>, sender: Sender) {
         let subs = self.subs.entry(msg.topic.clone()).or_default();
-        subs.push(msg.actor);
+        subs.push(msg.actor.clone());
 
         if let Some(sender) = sender {
-            let _ = sender.try_tell(SubscribedResponse {
-                topic: msg.topic
-            }, None);
+            if let Err(e) = sender.try_tell_any(&mut msg.response, None) {
+                slog::warn!(ctx.system.log(), "Actor {:?} does not support receiveing of message {:?} -> {:?}, reason: {:?}", sender, msg.response, msg.response.msg, e);
+            }
+        } else {
+            slog::warn!(ctx.system.log(), "Actor {:?} is trying to subscribe with response for topic {:?}, but sender is not set, so we dont know where to send the response, please set 'sender'", msg.actor, msg.topic);
         }
     }
 }
@@ -266,6 +268,7 @@ pub struct Subscribe<Msg: Message> {
 pub struct SubscribeWithResponse<Msg: Message> {
     pub topic: Topic,
     pub actor: BoxedTell<Msg>,
+    pub response: AnyMessage,
 }
 
 #[derive(Debug, Clone)]
