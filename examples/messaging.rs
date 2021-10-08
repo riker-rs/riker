@@ -70,7 +70,9 @@ async fn main() {
     actor.tell(Add, None);
     actor.tell(Sub, None);
     actor.tell(Print, None);
-    sys.print_tree();
+    for line in sys.print_tree() {
+        println!("{}", line);
+    }
     // force main to wait before exiting program
     tokio::time::sleep(Duration::from_millis(500)).await;
 }

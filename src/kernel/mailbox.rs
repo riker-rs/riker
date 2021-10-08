@@ -267,7 +267,7 @@ fn process_sys_msgs<A>(
             SystemMsg::ActorInit => handle_init(mbox, ctx, cell, actor),
             SystemMsg::Command(cmd) => cell.receive_cmd(cmd, actor),
             SystemMsg::Event(evt) => handle_evt(evt, ctx, cell, actor),
-            SystemMsg::Failed(failed) => handle_failed(failed, cell, actor),
+            SystemMsg::Failed(failed) => handle_failed(failed, cell),
         }
     }
 }
@@ -295,11 +295,11 @@ fn handle_init<A>(
     actor.as_mut().unwrap().post_start(ctx);
 }
 
-fn handle_failed<A>(failed: BasicActorRef, cell: &ExtendedCell<A::Msg>, actor: &mut Option<A>)
+fn handle_failed<Msg>(failed: BasicActorRef, cell: &ExtendedCell<Msg>)
 where
-    A: Actor,
+    Msg: Message,
 {
-    cell.handle_failure(failed, actor.as_mut().unwrap().supervisor_strategy())
+    cell.handle_failure(failed)
 }
 
 fn handle_evt<A>(

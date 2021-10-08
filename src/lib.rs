@@ -89,7 +89,14 @@ impl Debug for AnyMessage {
 }
 
 pub mod actors {
-    pub use crate::actor::*;
+    pub use crate::actor::{
+        Context, Actor, actor, Receive, CreateError,
+        ActorRef, ActorRefFactory, ActorReference, BasicActorRef, BoxedTell, Sender, Tell,
+        channel, All, Channel, ChannelMsg, ChannelRef, DLChannelMsg, DeadLetter, EventsChannel,
+        Publish, Subscribe, SubscribeWithResponse, SubscribedResponse, SysTopic, Topic, Unsubscribe, UnsubscribeAll,
+        ActorArgs, ActorFactory, ActorFactoryArgs, ActorProducer, BoxActorProd, Props,
+        ActorPath, ActorUri,
+    };
     pub use crate::system::{
         ActorSystem, ScheduleId, SystemBuilder, SystemEvent, SystemMsg, Timer,
         ActorSystemBackend, SendingBackend,

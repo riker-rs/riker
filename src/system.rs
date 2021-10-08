@@ -144,7 +144,7 @@ use crate::{
     load_config,
     system::logger::*,
     system::timer::*,
-    validate::{validate_name, InvalidPath},
+    validate::validate_name,
     AnyMessage, Message, Config,
     tokio_backend::ActorSystemBackendTokio,
 };
@@ -239,7 +239,6 @@ impl SystemBuilder {
 /// The `ActorSystem` is the heart of a Riker application,
 /// starting several threads when it is created. Create only one instance
 /// of `ActorSystem` per application.
-#[allow(dead_code)]
 #[derive(Clone)]
 pub struct ActorSystem {
     proto: Arc<ProtoSystem>,
@@ -248,9 +247,9 @@ pub struct ActorSystem {
     debug: bool,
     pub backend: ActorSystemBackendTokio,
     pub timer: Arc<Mutex<TimerRef>>,
-    pub sys_channels: Option<SysChannels>,
+    sys_channels: Option<SysChannels>,
     temp_storage: Arc<Mutex<Option<(SysActors, SysChannels)>>>,
-    pub(crate) provider: Provider,
+    pub(super) provider: Provider,
     shutdown_rx: Arc<Mutex<Option<<ActorSystemBackendTokio as ActorSystemBackend>::Rx>>>,
 }
 
@@ -414,7 +413,6 @@ impl ActorSystem {
     }
 
     /// Returns the system root's actor reference
-    #[allow(dead_code)]
     fn root(&self) -> &BasicActorRef {
         &self.sys_actors.as_ref().unwrap().root
     }
@@ -427,11 +425,6 @@ impl ActorSystem {
     /// Returns the system root actor reference
     pub fn sys_root(&self) -> &BasicActorRef {
         &self.sys_actors.as_ref().unwrap().sysm
-    }
-
-    /// Reutrns the temp root actor reference
-    pub fn temp_root(&self) -> &BasicActorRef {
-        &self.sys_actors.as_ref().unwrap().temp
     }
 
     /// Returns a reference to the system events channel
@@ -456,40 +449,6 @@ impl ActorSystem {
 
     pub(crate) fn sys_settings(&self) -> &SystemSettings {
         &self.proto.sys_settings
-    }
-
-    /// Create an actor under the system root
-    pub fn sys_actor_of_props<A>(
-        &self,
-        name: &str,
-        props: BoxActorProd<A>,
-    ) -> Result<ActorRef<A::Msg>, CreateError>
-    where
-        A: Actor,
-    {
-        self.provider
-            .create_actor(props, name, self.sys_root(), self)
-    }
-
-    pub fn sys_actor_of<A>(&self, name: &str) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-    where
-        A: ActorFactory,
-    {
-        self.provider
-            .create_actor(Props::new::<A>(), name, self.sys_root(), self)
-    }
-
-    pub fn sys_actor_of_args<A, Args>(
-        &self,
-        name: &str,
-        args: Args,
-    ) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-    where
-        Args: ActorArgs,
-        A: ActorFactoryArgs<Args>,
-    {
-        self.provider
-            .create_actor(Props::new_args::<A, _>(args), name, self.sys_root(), self)
     }
 
     #[inline]
@@ -588,64 +547,6 @@ impl ActorRefFactory for &ActorSystem {
     }
 }
 
-impl TmpActorRefFactory for ActorSystem {
-    fn tmp_actor_of_props<A>(&self, props: BoxActorProd<A>) -> Result<ActorRef<A::Msg>, CreateError>
-    where
-        A: Actor,
-    {
-        let name = Uuid::new_v4().to_string();
-        self.provider
-            .create_actor(props, &name, self.temp_root(), self)
-    }
-
-    fn tmp_actor_of<A>(&self) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-    where
-        A: ActorFactory,
-    {
-        let name = Uuid::new_v4().to_string();
-        self.provider
-            .create_actor(Props::new::<A>(), &name, self.temp_root(), self)
-    }
-
-    fn tmp_actor_of_args<A, Args>(
-        &self,
-        args: Args,
-    ) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-    where
-        Args: ActorArgs,
-        A: ActorFactoryArgs<Args>,
-    {
-        let name = Uuid::new_v4().to_string();
-        self.provider.create_actor(
-            Props::new_args::<A, _>(args),
-            &name,
-            self.temp_root(),
-            self,
-        )
-    }
-}
-
-impl ActorSelectionFactory for ActorSystem {
-    fn select(&self, path: &str) -> Result<ActorSelection, InvalidPath> {
-        let anchor = self.user_root();
-        let (anchor, path_str) = if path.starts_with('/') {
-            let anchor = self.user_root();
-            let anchor_path = format!("{}/", anchor.path());
-            let path = path.to_string().replace(&anchor_path, "");
-
-            (anchor, path)
-        } else {
-            (anchor, path.to_string())
-        };
-
-        ActorSelection::new(
-            anchor.clone(),
-            // self.dead_letters(),
-            path_str,
-        )
-    }
-}
-
 impl fmt::Debug for ActorSystem {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
@@ -718,21 +619,6 @@ impl Timer for ActorSystem {
     }
 }
 
-// helper functions
-#[allow(unused)]
-fn sys_actor_of_props<A>(
-    prov: &Provider,
-    sys: &ActorSystem,
-    name: &str,
-    props: BoxActorProd<A>,
-) -> Result<ActorRef<A::Msg>, SystemError>
-where
-    A: Actor,
-{
-    prov.create_actor(props, name, sys.sys_root(), sys)
-        .map_err(|_| SystemError::ModuleFailed(name.into()))
-}
-
 fn sys_actor_of<A>(
     prov: &Provider,
     sys: &ActorSystem,
@@ -785,11 +671,10 @@ pub struct SysActors {
     pub root: BasicActorRef,
     pub user: BasicActorRef,
     pub sysm: BasicActorRef,
-    pub temp: BasicActorRef,
 }
 
 #[derive(Clone)]
 pub struct SysChannels {
-    pub sys_events: ActorRef<ChannelMsg<SystemEvent>>,
-    pub dead_letters: ActorRef<DLChannelMsg>,
+    sys_events: ActorRef<ChannelMsg<SystemEvent>>,
+    dead_letters: ActorRef<DLChannelMsg>,
 }

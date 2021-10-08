@@ -81,5 +81,7 @@ async fn main() {
     println!("Sending SomeMessage to stopped actor");
     dumb.tell(SomeMessage, None);
     tokio::time::sleep(Duration::from_millis(500)).await;
-    sys.print_tree();
+    for line in sys.print_tree() {
+        println!("{}", line);
+    }
 }

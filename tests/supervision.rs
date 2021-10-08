@@ -73,10 +73,6 @@ impl Actor for RestartSup {
         self.actor_to_fail = ctx.actor_of::<PanicActor>("actor-to-fail").ok();
     }
 
-    fn supervisor_strategy(&self) -> Strategy {
-        Strategy::Restart
-    }
-
     fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender) {
         self.receive(ctx, msg, sender)
     }
@@ -115,108 +111,4 @@ async fn supervision_restart_failed_actor() {
         sup.tell(TestProbe(probe), None);
         p_assert_eq!(listen, ());
     }
-}
-
-// Test Escalate Strategy
-#[actor(TestProbe, Panic)]
-#[derive(Default)]
-struct EscalateSup {
-    actor_to_fail: Option<ActorRef<PanicActorMsg>>,
-}
-
-impl Actor for EscalateSup {
-    type Msg = EscalateSupMsg;
-
-    fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
-        self.actor_to_fail = ctx.actor_of::<PanicActor>("actor-to-fail").ok();
-    }
-
-    fn supervisor_strategy(&self) -> Strategy {
-        Strategy::Escalate
-    }
-
-    fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender) {
-        self.receive(ctx, msg, sender);
-        // match msg {
-        //     // We just resend the messages to the actor that we're concerned about testing
-        //     TestMsg::Panic => self.actor_to_fail.try_tell(msg, None).unwrap(),
-        //     TestMsg::Probe(_) => self.actor_to_fail.try_tell(msg, None).unwrap(),
-        // };
-    }
-}
-
-impl Receive<TestProbe> for EscalateSup {
-    type Msg = EscalateSupMsg;
-
-    fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: TestProbe, sender: Sender) {
-        self.actor_to_fail.as_ref().unwrap().tell(msg, sender);
-    }
-}
-
-impl Receive<Panic> for EscalateSup {
-    type Msg = EscalateSupMsg;
-
-    fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: Panic, _sender: Sender) {
-        self.actor_to_fail.as_ref().unwrap().tell(Panic, None);
-    }
-}
-
-#[actor(TestProbe, Panic)]
-#[derive(Default)]
-struct EscRestartSup {
-    escalator: Option<ActorRef<EscalateSupMsg>>,
-}
-
-impl Actor for EscRestartSup {
-    type Msg = EscRestartSupMsg;
-
-    fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
-        self.escalator = ctx.actor_of::<EscalateSup>("escalate-supervisor").ok();
-    }
-
-    fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender) {
-        self.receive(ctx, msg, sender);
-        // match msg {
-        //     // We resend the messages to the parent of the actor that is/has panicked
-        //     TestMsg::Panic => self.escalator.try_tell(msg, None).unwrap(),
-        //     TestMsg::Probe(_) => self.escalator.try_tell(msg, None).unwrap(),
-        // };
-    }
-
-    fn supervisor_strategy(&self) -> Strategy {
-        Strategy::Restart
-    }
-}
-
-impl Receive<TestProbe> for EscRestartSup {
-    type Msg = EscRestartSupMsg;
-
-    fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: TestProbe, sender: Sender) {
-        self.escalator.as_ref().unwrap().tell(msg, sender);
-    }
-}
-
-impl Receive<Panic> for EscRestartSup {
-    type Msg = EscRestartSupMsg;
-
-    fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: Panic, _sender: Sender) {
-        self.escalator.as_ref().unwrap().tell(Panic, None);
-    }
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn supervision_escalate_failed_actor() {
-    let backend = tokio::runtime::Handle::current().into();
-    let sys = ActorSystem::new(backend).unwrap();
-
-    let sup = sys.actor_of::<EscRestartSup>("supervisor").unwrap();
-
-    // Make the test actor panic
-    sup.tell(Panic, None);
-
-    let (probe, listen) = probe::<()>();
-    std::thread::sleep(std::time::Duration::from_millis(2000));
-    sup.tell(TestProbe(probe), None);
-    p_assert_eq!(listen, ());
-    sys.print_tree();
 }

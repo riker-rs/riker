@@ -44,9 +44,13 @@ async fn main() {
     my_actor.tell("Hello my actor!".to_string(), None);
 
     println!("Child not added yet");
-    sys.print_tree();
+    for line in sys.print_tree() {
+        println!("{}", line);
+    }
 
     println!("Child added already");
     tokio::time::sleep(Duration::from_millis(500)).await;
-    sys.print_tree();
+    for line in sys.print_tree() {
+        println!("{}", line);
+    }
 }

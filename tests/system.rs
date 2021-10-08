@@ -43,7 +43,6 @@ impl Actor for ShutdownTest {
 }
 
 #[tokio::test]
-#[allow(dead_code)]
 async fn system_shutdown() {
     let backend = Handle::current().into();
     let sys = ActorSystem::new(backend).unwrap();

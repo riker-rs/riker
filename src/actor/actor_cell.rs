@@ -21,7 +21,6 @@ use crate::{
         timer::{Job, OnceJob, RepeatJob, ScheduleId, Timer},
         ActorSystem, SystemCmd, SystemMsg,
     },
-    validate::InvalidPath,
     AnyMessage, Envelope, Message,
 };
 
@@ -200,12 +199,8 @@ impl ActorCell {
         }
     }
 
-    pub fn handle_failure(&self, failed: BasicActorRef, strategy: Strategy) {
-        match strategy {
-            Strategy::Stop => self.stop(&failed),
-            Strategy::Restart => self.restart_child(&failed),
-            Strategy::Escalate => self.escalate_failure(),
-        }
+    pub fn handle_failure(&self, failed: BasicActorRef) {
+        self.restart_child(&failed)
     }
 
     pub fn restart_child(&self, actor: &BasicActorRef) {
@@ -344,8 +339,8 @@ where
         &self.cell.inner.system
     }
 
-    pub(crate) fn handle_failure(&self, failed: BasicActorRef, strategy: Strategy) {
-        self.cell.handle_failure(failed, strategy)
+    pub(crate) fn handle_failure(&self, failed: BasicActorRef) {
+        self.cell.handle_failure(failed)
     }
 
     pub(crate) fn receive_cmd<A: Actor>(&self, cmd: SystemCmd, actor: &mut Option<A>) {
@@ -445,28 +440,6 @@ impl<Msg: Message> ActorRefFactory for Context<Msg> {
 
     fn stop(&self, actor: impl ActorReference) {
         actor.sys_tell(SystemCmd::Stop.into());
-    }
-}
-
-impl<Msg> ActorSelectionFactory for Context<Msg>
-where
-    Msg: Message,
-{
-    fn select(&self, path: &str) -> Result<ActorSelection, InvalidPath> {
-        let (anchor, path_str) = if path.starts_with('/') {
-            let anchor = self.system.user_root().clone();
-            let anchor_path = format!("{}/", anchor.path());
-            let path = path.to_string().replace(&anchor_path, "");
-
-            (anchor, path)
-        } else {
-            (self.myself.clone().into(), path.to_string())
-        };
-
-        ActorSelection::new(
-            anchor, // self.system.dead_letters(),
-            path_str,
-        )
     }
 }
 

@@ -159,7 +159,6 @@ impl Actor for Child {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[allow(dead_code)]
 async fn actor_stop() {
     let backend = tokio::runtime::Handle::current().into();
     let system = ActorSystem::new(backend).unwrap();

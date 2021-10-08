@@ -104,5 +104,7 @@ async fn main() {
     );
     // sleep another half seconds to process messages
     tokio::time::sleep(Duration::from_millis(500)).await;
-    sys.print_tree();
+    for line in sys.print_tree() {
+        println!("{}", line);
+    }
 }

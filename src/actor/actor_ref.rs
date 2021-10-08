@@ -538,25 +538,3 @@ pub trait ActorRefFactory {
 
     fn stop(&self, actor: impl ActorReference);
 }
-
-/// Produces `ActorRef`s under the `temp` guardian actor.
-pub trait TmpActorRefFactory {
-    fn tmp_actor_of_props<A>(
-        &self,
-        props: BoxActorProd<A>,
-    ) -> Result<ActorRef<A::Msg>, CreateError>
-    where
-        A: Actor;
-
-    fn tmp_actor_of<A>(&self) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-    where
-        A: ActorFactory + Actor;
-
-    fn tmp_actor_of_args<A, Args>(
-        &self,
-        args: Args,
-    ) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-    where
-        Args: ActorArgs,
-        A: ActorFactoryArgs<Args>;
-}

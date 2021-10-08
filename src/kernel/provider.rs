@@ -100,7 +100,6 @@ pub fn create_root(sys: &ActorSystem, shutdown_tx: Arc<dyn SendingBackend + Send
     SysActors {
         user: guardian("user", "/user", &root, sys, Some(shutdown_tx)),
         sysm: guardian("system", "/system", &root, sys, None),
-        temp: guardian("temp", "/temp", &root, sys, None),
         root,
     }
 }

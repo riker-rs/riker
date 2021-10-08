@@ -1,10 +1,8 @@
-#![allow(unused_variables)]
 pub(crate) mod actor_cell;
 pub(crate) mod actor_ref;
 pub(crate) mod channel;
 pub(crate) mod macros;
 pub(crate) mod props;
-pub(crate) mod selection;
 pub(crate) mod uri;
 
 use std::{fmt, error};
@@ -16,7 +14,6 @@ pub use self::{
     actor_cell::Context,
     actor_ref::{
         ActorRef, ActorRefFactory, ActorReference, BasicActorRef, BoxedTell, Sender, Tell,
-        TmpActorRefFactory,
     },
     channel::{
         channel, All, Channel, ChannelMsg, ChannelRef, DLChannelMsg, DeadLetter, EventsChannel,
@@ -24,13 +21,11 @@ pub use self::{
     },
     macros::actor,
     props::{ActorArgs, ActorFactory, ActorFactoryArgs, ActorProducer, BoxActorProd, Props},
-    selection::{ActorSelection, ActorSelectionFactory},
     uri::{ActorPath, ActorUri},
 };
 
 use crate::{system::SystemMsg, Message};
 
-#[allow(unused)]
 pub type MsgResult<T> = Result<(), MsgError<T>>;
 
 /// Internal message error when a message can't be added to an actor's mailbox
@@ -132,6 +127,7 @@ impl fmt::Debug for RestartError {
     }
 }
 
+#[allow(unused_variables)]
 pub trait Actor: Send + 'static {
     type Msg: Message;
 
@@ -154,11 +150,6 @@ pub trait Actor: Send + 'static {
 
     /// Invoked after an actor has been stopped.
     fn post_stop(&mut self) {}
-
-    /// Return a supervisor strategy that will be used when handling failed child actors.
-    fn supervisor_strategy(&self) -> Strategy {
-        Strategy::Restart
-    }
 
     /// Invoked when an actor receives a system message
     ///
@@ -195,10 +186,6 @@ impl<A: Actor + ?Sized> Actor for Box<A> {
         sender: Option<BasicActorRef>,
     ) {
         (**self).sys_recv(ctx, msg, sender)
-    }
-
-    fn supervisor_strategy(&self) -> Strategy {
-        (**self).supervisor_strategy()
     }
 
     fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender) {
@@ -277,21 +264,4 @@ pub trait Receive<Msg: Message> {
     /// It is guaranteed that only one message in the actor's mailbox is processed
     /// at any one time, including `receive`, `other_receive` and `system_receive`.
     fn receive(&mut self, ctx: &Context<Self::Msg>, msg: Msg, sender: Sender);
-}
-
-/// The actor trait object
-pub type BoxActor<Msg> = Box<dyn Actor<Msg = Msg> + Send>;
-
-/// Supervision strategy
-///
-/// Returned in `Actor.supervision_strategy`
-pub enum Strategy {
-    /// Stop the child actor
-    Stop,
-
-    /// Attempt to restart the child actor
-    Restart,
-
-    /// Escalate the failure to a parent
-    Escalate,
 }
