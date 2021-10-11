@@ -1,0 +1,18 @@
+kind: pipeline
+type: docker
+name: tests
+
+steps:
+  - name: tests
+    image: rust:1.55-buster
+    commands:
+      - rustup update nightly-2021-08-04
+      - rustup default nightly-2021-08-04
+      - cargo test
+      - cargo install cargo-geiger
+      - git checkout master
+      - echo "before"
+      - cargo geiger
+      - git checkout cleanup-unsafe
+      - echo "after"
+      - cargo geiger
