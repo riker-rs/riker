@@ -1,4 +1,4 @@
-use riker::actors::*;
+use tezedge_actor_system::actors::*;
 
 #[actor(String, u32)]
 #[derive(Clone, Default)]

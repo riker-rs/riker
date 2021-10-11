@@ -1,5 +1,5 @@
 use tokio::runtime::Handle;
-use riker::actors::*;
+use tezedge_actor_system::actors::*;
 
 #[tokio::test]
 async fn system_create() {

@@ -1,4 +1,3 @@
-#![crate_name = "riker"]
 #![deny(clippy::all)]
 // #![deny(clippy::pedantic)]
 // #![deny(clippy::nursery)]

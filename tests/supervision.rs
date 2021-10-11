@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate riker_testkit;
 
-use riker::actors::*;
+use tezedge_actor_system::actors::*;
 
 use riker_testkit::probe::channel::{probe, ChannelProbe};
 use riker_testkit::probe::{Probe, ProbeReceive};

@@ -5,7 +5,7 @@ use std::fmt;
 
 use crate::actor::BasicActorRef;
 
-// Public riker::system API (plus the pub data types in this file)
+// Public API (plus the pub data types in this file)
 pub use self::timer::{BasicTimer, ScheduleId, Timer};
 
 #[derive(Clone, Debug)]
@@ -193,7 +193,7 @@ impl SystemBuilder {
     }
 
     pub fn create(self) -> Result<ActorSystem, SystemError> {
-        let name = self.name.unwrap_or_else(|| "riker".to_string());
+        let name = self.name.unwrap_or_else(|| "tezedge-actor-system".to_string());
         let cfg = self.cfg.unwrap_or_else(load_config);
         let backend = self.backend.unwrap();
         let log = self
@@ -261,7 +261,7 @@ impl ActorSystem {
         let cfg = load_config();
         let log = default_log(&cfg);
 
-        ActorSystem::create("riker", backend, log, cfg)
+        ActorSystem::create("tezedge-actor-system", backend, log, cfg)
     }
 
     /// Create a new `ActorSystem` instance with provided name

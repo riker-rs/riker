@@ -22,7 +22,7 @@ impl Props {
     /// # Examples
     ///
     /// ```
-    /// # use riker::actors::*;
+    /// # use tezedge_actor_system::actors::*;
     ///
     /// struct User;
     ///
@@ -63,7 +63,7 @@ impl Props {
     /// # Examples
     /// An actor requiring a single parameter.
     /// ```
-    /// # use riker::actors::*;
+    /// # use tezedge_actor_system::actors::*;
     ///
     /// struct User {
     ///     name: String,
@@ -95,7 +95,7 @@ impl Props {
     /// ```
     /// An actor requiring multiple parameters.
     /// ```
-    /// # use riker::actors::*;
+    /// # use tezedge_actor_system::actors::*;
     ///
     /// struct BankAccount {
     ///     name: String,
@@ -147,7 +147,7 @@ impl Props {
     /// # Examples
     ///
     /// ```
-    /// # use riker::actors::*;
+    /// # use tezedge_actor_system::actors::*;
     ///
     /// #[derive(Default)]
     /// struct User;
@@ -174,7 +174,7 @@ impl Props {
     /// # Examples
     ///
     /// ```
-    /// # use riker::actors::*;
+    /// # use tezedge_actor_system::actors::*;
     ///
     /// struct User;
     ///
@@ -214,7 +214,7 @@ impl Props {
     /// # Examples
     /// An actor requiring a single parameter.
     /// ```
-    /// # use riker::actors::*;
+    /// # use tezedge_actor_system::actors::*;
     ///
     /// struct User {
     ///     name: String,
@@ -246,7 +246,7 @@ impl Props {
     /// ```
     /// An actor requiring multiple parameters.
     /// ```
-    /// # use riker::actors::*;
+    /// # use tezedge_actor_system::actors::*;
     ///
     /// struct BankAccount {
     ///     name: String,

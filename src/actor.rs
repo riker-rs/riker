@@ -9,7 +9,7 @@ use std::{fmt, error};
 
 use crate::validate::InvalidName;
 
-// Public riker::actor API (plus the pub data types in this file)
+// Public API (plus the pub data types in this file)
 pub use self::{
     actor_cell::Context,
     actor_ref::{
@@ -201,7 +201,7 @@ impl<A: Actor + ?Sized> Actor for Box<A> {
 /// # Examples
 ///
 /// ```
-/// # use riker::actors::*;
+/// # use tezedge_actor_system::actors::*;
 ///
 /// #[derive(Clone, Debug)]
 /// pub struct Foo;

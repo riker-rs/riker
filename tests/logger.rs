@@ -1,4 +1,4 @@
-use riker::actors::*;
+use tezedge_actor_system::actors::*;
 use slog::{Fuse, Logger};
 
 mod common {

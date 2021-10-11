@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        project: [./, ./riker-macros/]
+        project: [./, ./tezedge-actor-system-macros/]
         os: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:

@@ -4,15 +4,25 @@ name: tests
 
 steps:
   - name: tests
-    image: rust:1.55-buster
+    image: tezedge/tezedge-ci-builder:nightly-2021-08-04-v9.5-tezos
+    user: root
     commands:
-      - rustup update nightly-2021-08-04
-      - rustup default nightly-2021-08-04
       - cargo test
+
+  - name: geiger-after
+    image: tezedge/tezedge-ci-builder:nightly-2021-08-04-v9.5-tezos
+    user: root
+    commands:
       - cargo install cargo-geiger
-      - git checkout master
-      - echo "before"
+      - cargo update
       - cargo geiger
-      - git checkout cleanup-unsafe
-      - echo "after"
+
+  - name: geiger-before
+    image: tezedge/tezedge-ci-builder:nightly-2021-08-04-v9.5-tezos
+    user: root
+    commands:
+      - cargo install cargo-geiger
+      - mkdir target && cd target && git clone https://github.com/tezedge/tezedge-actor-system --branch master
+      - cd tezedge-actor-system
+      - cargo update
       - cargo geiger

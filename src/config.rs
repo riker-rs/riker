@@ -52,7 +52,7 @@ impl slog::Value for Config {
     }
 }
 
-/// Original default riker configuration:
+/// Original default configuration:
 ///
 /// ```ignore
 /// ThreadPoolConfig {

@@ -1,7 +1,6 @@
-extern crate riker;
-use riker::actors::*;
+use tezedge_actor_system::actors::*;
 
-use riker::system::ActorSystem;
+use tezedge_actor_system::system::ActorSystem;
 use std::time::Duration;
 
 #[derive(Clone, Debug)]

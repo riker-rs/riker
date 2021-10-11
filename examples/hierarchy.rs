@@ -1,5 +1,4 @@
-extern crate riker;
-use riker::actors::*;
+use tezedge_actor_system::actors::*;
 
 use std::time::Duration;
 
