@@ -9,20 +9,19 @@ steps:
     commands:
       - cargo test
 
-  - name: geiger-after
-    image: tezedge/tezedge-ci-builder:nightly-2021-08-04-v9.5-tezos
-    user: root
+  - name: geiger
+    image: rust:1.55-buster
     commands:
       - cargo install cargo-geiger
-      - cargo update
       - cargo geiger
 
   - name: geiger-before
-    image: tezedge/tezedge-ci-builder:nightly-2021-08-04-v9.5-tezos
-    user: root
+    image: rust:1.55-buster
     commands:
       - cargo install cargo-geiger
-      - mkdir target && cd target && git clone https://github.com/tezedge/tezedge-actor-system --branch master
-      - cd tezedge-actor-system
-      - cargo update
+      - git remote add first_origin https://github.com/riker-rs/riker
+      - git fetch first_origin +refs/heads/master
+      - git checkout master
+      - git reset --hard first_origin/master
+      - rm -Rf target
       - cargo geiger

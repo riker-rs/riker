@@ -1,6 +1,6 @@
 use super::{
-    system::{logger::LoggerConfig, timer::BasicTimerConfig},
     kernel::mailbox::MailboxConfig,
+    system::{logger::LoggerConfig, timer::BasicTimerConfig},
 };
 
 #[derive(Clone)]
@@ -65,7 +65,11 @@ impl slog::Value for Config {
 /// ThreadPoolConfig::new((num_cpus::get() * 2), 0)
 /// ```
 pub fn load_config() -> Config {
-    use std::{env, fs::File, io::{self, Read}};
+    use std::{
+        env,
+        fs::File,
+        io::{self, Read},
+    };
 
     let mut cfg = Config::new();
 
@@ -79,8 +83,7 @@ pub fn load_config() -> Config {
             Ok(s)
         })
         .and_then(|s| {
-            toml::from_str::<toml::Value>(&s)
-                .map_err(|e| io::Error::new(io::ErrorKind::Other, e))
+            toml::from_str::<toml::Value>(&s).map_err(|e| io::Error::new(io::ErrorKind::Other, e))
         });
     if let Ok(cfg_amendment) = cfg_amendment {
         cfg.merge(&cfg_amendment);

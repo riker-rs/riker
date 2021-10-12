@@ -1,3 +1,6 @@
+[workspace]
+members = [".", "tezedge-actor-system-macros"]
+
 [package]
 name = "tezedge-actor-system"
 version = "0.4.2-cleanup-unsafe-8"
@@ -7,7 +10,7 @@ description = "Easily build fast, highly concurrent and resilient applications. 
 repository = "https://github.com/tezedge/tezedge-actor-system"
 license = "MIT"
 readme = "README.md"
-keywords = ["actors", "actor-model", "async", "cqrs", "event_sourcing"]
+keywords = ["actors", "actor-model", "async", "event_sourcing"]
 
 [dependencies]
 tezedge-actor-system-macros = { path = "tezedge-actor-system-macros", version = "0.2.0" }

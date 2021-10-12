@@ -1,6 +1,9 @@
 use slog::Logger;
 
-use std::{sync::{Arc, RwLock}, collections::HashSet};
+use std::{
+    collections::HashSet,
+    sync::{Arc, RwLock},
+};
 
 use crate::{
     actor::actor_cell::{ActorCell, ExtendedCell},
@@ -94,7 +97,10 @@ impl Provider {
     }
 }
 
-pub fn create_root(sys: &ActorSystem, shutdown_tx: Arc<dyn SendingBackend + Send + Sync + 'static>) -> SysActors {
+pub fn create_root(
+    sys: &ActorSystem,
+    shutdown_tx: Arc<dyn SendingBackend + Send + Sync + 'static>,
+) -> SysActors {
     let root = root(sys);
 
     SysActors {
@@ -155,7 +161,13 @@ fn root(sys: &ActorSystem) -> BasicActorRef {
     BasicActorRef::from(actor_ref)
 }
 
-fn guardian(name: &str, path: &str, root: &BasicActorRef, sys: &ActorSystem, shutdown_tx: Option<Arc<dyn SendingBackend + Send + Sync + 'static>>) -> BasicActorRef {
+fn guardian(
+    name: &str,
+    path: &str,
+    root: &BasicActorRef,
+    sys: &ActorSystem,
+    shutdown_tx: Option<Arc<dyn SendingBackend + Send + Sync + 'static>>,
+) -> BasicActorRef {
     let uri = ActorUri {
         name: Arc::from(name),
         path: ActorPath::new(path),
@@ -191,9 +203,25 @@ struct Guardian {
     shutdown_tx: Option<Arc<dyn SendingBackend + Send + Sync + 'static>>,
 }
 
-impl ActorFactoryArgs<(String, Logger, Option<Arc<dyn SendingBackend + Send + Sync + 'static>>)> for Guardian {
-    fn create_args((name, log, shutdown_tx): (String, Logger, Option<Arc<dyn SendingBackend + Send + Sync + 'static>>)) -> Self {
-        Guardian { name, log, shutdown_tx }
+impl
+    ActorFactoryArgs<(
+        String,
+        Logger,
+        Option<Arc<dyn SendingBackend + Send + Sync + 'static>>,
+    )> for Guardian
+{
+    fn create_args(
+        (name, log, shutdown_tx): (
+            String,
+            Logger,
+            Option<Arc<dyn SendingBackend + Send + Sync + 'static>>,
+        ),
+    ) -> Self {
+        Guardian {
+            name,
+            log,
+            shutdown_tx,
+        }
     }
 }
 

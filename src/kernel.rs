@@ -24,7 +24,7 @@ use crate::{
         kernel_ref::KernelRef,
         mailbox::{flush_to_deadletters, run_mailbox, Mailbox},
     },
-    system::{ActorRestarted, ActorTerminated, SystemMsg, ActorSystemBackend},
+    system::{ActorRestarted, ActorSystemBackend, ActorTerminated, SystemMsg},
     Message,
 };
 

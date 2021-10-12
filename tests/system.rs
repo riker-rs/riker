@@ -1,5 +1,5 @@
-use tokio::runtime::Handle;
 use tezedge_actor_system::actors::*;
+use tokio::runtime::Handle;
 
 #[tokio::test]
 async fn system_create() {
@@ -63,6 +63,10 @@ async fn system_builder() {
     sys.shutdown().await;
 
     let backend = Handle::current().into();
-    let sys = SystemBuilder::new().name("my-sys").exec(backend).create().unwrap();
+    let sys = SystemBuilder::new()
+        .name("my-sys")
+        .exec(backend)
+        .create()
+        .unwrap();
     sys.shutdown().await;
 }

@@ -1,7 +1,7 @@
 use tezedge_actor_system::actors::*;
 
-use tezedge_actor_system::system::ActorSystem;
 use std::time::Duration;
+use tezedge_actor_system::system::ActorSystem;
 
 #[derive(Clone, Debug)]
 pub struct PowerStatus;

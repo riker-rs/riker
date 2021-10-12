@@ -1,6 +1,9 @@
 # Tezedge Actor System
 
 [![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+[![Drone status](http://ci.tezedge.com/api/badges/tezedge/tezedge-actor-system/status.svg)](http://ci.tezedge.com/tezedge/tezedge-actor-system)
+[![Build and run tests](https://github.com/tezedge/tezedge-actor-system/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/tezedge/tezedge-actor-system/actions/workflows/build-and-test.yml)
+[![Audit](https://github.com/tezedge/tezedge-actor-system/actions/workflows/audit.yml/badge.svg)](https://github.com/tezedge/tezedge-actor-system/actions/workflows/audit.yml)
 [![pre-commit](https://github.com/tezedge/tezedge-actor-system/actions/workflows/pre-commit.yml/badge.svg)](https://github.com/tezedge/tezedge-actor-system/actions/workflows/pre-commit.yml)
 
 ## Overview
@@ -77,3 +80,69 @@ TezEdge Actor System adds to this by providing a familiar actor model API which 
 ## Rust Version
 
 TezEdge Actor System is currently built using the Rust version `nightly-2021-08-04`, like other TezEdge projects do.
+
+## pre-commit
+
+Before you commit your code [pre-commit](https://pre-commit.com/) integrates as a git hook to automatically check your code.
+Please don't skip git hooks (even if you do the travis TravisCI build will still fail).
+
+There are two different approaches you can use to run pre-commit
+
+#### direct approach
+
+```bash
+pre-commit run -a
+```
+
+#### with yarn or npm
+
+```bash
+yarn
+yarn lint
+```
+
+```bash
+npm run install
+npn run lint
+```
+
+## Cargo Geiger Safety Report
+
+```
+
+Metric output format: x/y
+    x = unsafe code used by the build
+    y = total unsafe code found in the crate
+
+Symbols:
+    🔒  = No `unsafe` usage found, declares #![forbid(unsafe_code)]
+    ❓  = No `unsafe` usage found, missing #![forbid(unsafe_code)]
+    ☢️  = `unsafe` usage found
+
+Functions  Expressions  Impls  Traits  Methods  Dependency
+
+0/0        0/0          0/0    0/0     0/0      🔒  tezedge-actor-system 0.4.2-cleanup-unsafe-8
+0/0        0/0          0/0    0/0     0/0      ❓  ├── slog 2.7.0
+0/0        0/0          0/0    0/0     0/0      ❓  ├── tezedge-actor-system-macros 0.2.0
+0/0        0/0          0/0    0/0     0/0      ❓  │   ├── proc-macro2 1.0.30
+0/0        0/0          0/0    0/0     0/0      🔒  │   │   └── unicode-xid 0.2.2
+0/0        0/0          0/0    0/0     0/0      ❓  │   ├── quote 1.0.10
+0/0        0/0          0/0    0/0     0/0      ❓  │   │   └── proc-macro2 1.0.30
+0/0        45/45        3/3    0/0     2/2      ☢️  │   └── syn 1.0.80
+0/0        0/0          0/0    0/0     0/0      ❓  │       ├── proc-macro2 1.0.30
+0/0        0/0          0/0    0/0     0/0      ❓  │       ├── quote 1.0.10
+0/0        0/0          0/0    0/0     0/0      🔒  │       └── unicode-xid 0.2.2
+20/25      1269/1804    82/102 1/1     59/69    ☢️  └── tokio 1.12.0
+0/17       0/630        0/13   0/1     0/19     ❓      ├── bytes 1.1.0
+0/20       12/319       0/0    0/0     2/30     ☢️      ├── libc 0.2.103
+0/0        72/72        0/0    0/0     0/0      ☢️      ├── num_cpus 1.13.0
+0/20       12/319       0/0    0/0     2/30     ☢️      │   └── libc 0.2.103
+0/0        8/167        0/0    0/0     0/0      ☢️      ├── pin-project-lite 0.2.7
+0/0        0/0          0/0    0/0     0/0      ❓      └── tokio-macros 1.4.1
+0/0        0/0          0/0    0/0     0/0      ❓          ├── proc-macro2 1.0.30
+0/0        0/0          0/0    0/0     0/0      ❓          ├── quote 1.0.10
+0/0        45/45        3/3    0/0     2/2      ☢️          └── syn 1.0.80
+
+20/62      1406/3037    85/118 1/2     63/120
+
+```

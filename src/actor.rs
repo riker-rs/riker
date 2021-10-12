@@ -5,7 +5,7 @@ pub(crate) mod macros;
 pub(crate) mod props;
 pub(crate) mod uri;
 
-use std::{fmt, error};
+use std::{error, fmt};
 
 use crate::validate::InvalidName;
 
@@ -17,7 +17,8 @@ pub use self::{
     },
     channel::{
         channel, All, Channel, ChannelMsg, ChannelRef, DLChannelMsg, DeadLetter, EventsChannel,
-        Publish, Subscribe, SubscribeWithResponse, SubscribedResponse, SysTopic, Topic, Unsubscribe, UnsubscribeAll,
+        Publish, Subscribe, SubscribeWithResponse, SubscribedResponse, SysTopic, Topic,
+        Unsubscribe, UnsubscribeAll,
     },
     macros::actor,
     props::{ActorArgs, ActorFactory, ActorFactoryArgs, ActorProducer, BoxActorProd, Props},

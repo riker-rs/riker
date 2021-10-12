@@ -1,8 +1,15 @@
-use std::{future::Future, pin::Pin, sync::{Arc, Mutex}};
-use tokio::{runtime::Handle, sync::{oneshot, mpsc}};
 use super::{
-    system::{ActorSystemBackend, SendingBackend},
     kernel::KernelMsg,
+    system::{ActorSystemBackend, SendingBackend},
+};
+use std::{
+    future::Future,
+    pin::Pin,
+    sync::{Arc, Mutex},
+};
+use tokio::{
+    runtime::Handle,
+    sync::{mpsc, oneshot},
 };
 
 #[derive(Clone)]
@@ -27,7 +34,13 @@ impl ActorSystemBackend for ActorSystemBackendTokio {
 
     fn channel(&self, capacity: usize) -> (Self::Tx, Self::Rx) {
         let (tx, rx) = mpsc::channel(capacity);
-        (SendingBackendTokio { tx, handle: self.handle.clone() }, rx)
+        (
+            SendingBackendTokio {
+                tx,
+                handle: self.handle.clone(),
+            },
+            rx,
+        )
     }
 
     fn spawn_receiver<F: FnMut(KernelMsg) -> bool + Send + 'static>(&self, rx: Self::Rx, mut f: F) {

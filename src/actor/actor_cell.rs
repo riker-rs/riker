@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     fmt,
     ops::Deref,
     sync::{
@@ -6,7 +7,6 @@ use std::{
         Arc, RwLock,
     },
     time::{Duration, Instant},
-    collections::HashMap,
 };
 
 use uuid::Uuid;
@@ -471,11 +471,7 @@ where
             msg: AnyMessage::new(msg, false),
         };
 
-        let _ = self.system
-            .timer
-            .lock()
-            .unwrap()
-            .send(Job::Repeat(job));
+        let _ = self.system.timer.lock().unwrap().send(Job::Repeat(job));
         id
     }
 
@@ -501,11 +497,7 @@ where
             msg: AnyMessage::new(msg, true),
         };
 
-        let _ = self.system
-            .timer
-            .lock()
-            .unwrap()
-            .send(Job::Once(job));
+        let _ = self.system.timer.lock().unwrap().send(Job::Once(job));
         id
     }
 
@@ -527,7 +519,10 @@ impl Children {
     }
 
     pub fn add(&self, actor: BasicActorRef) {
-        self.actors.write().unwrap().insert(actor.name().to_string(), actor);
+        self.actors
+            .write()
+            .unwrap()
+            .insert(actor.name().to_string(), actor);
     }
 
     pub fn remove(&self, actor: &BasicActorRef) -> bool {
@@ -548,10 +543,20 @@ impl Children {
     }
 
     pub fn any(&self, actor: &BasicActorRef) -> bool {
-        self.actors.read().unwrap().values().any(|child| *child == *actor)
+        self.actors
+            .read()
+            .unwrap()
+            .values()
+            .any(|child| *child == *actor)
     }
 
     pub fn iter(&self) -> impl Iterator<Item = BasicActorRef> {
-        self.actors.read().unwrap().values().cloned().collect::<Vec<_>>().into_iter()
+        self.actors
+            .read()
+            .unwrap()
+            .values()
+            .cloned()
+            .collect::<Vec<_>>()
+            .into_iter()
     }
 }

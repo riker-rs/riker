@@ -1,10 +1,10 @@
-use tezedge_actor_system::actors::*;
 use slog::{Fuse, Logger};
+use tezedge_actor_system::actors::*;
 
 mod common {
     use std::{fmt, result};
 
-    use slog::{Drain, Record, OwnedKVList, KV};
+    use slog::{Drain, OwnedKVList, Record, KV};
 
     pub struct PrintlnSerializer;
 

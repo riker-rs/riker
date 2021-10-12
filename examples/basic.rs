@@ -1,5 +1,5 @@
-use tezedge_actor_system::actors::*;
 use std::time::Duration;
+use tezedge_actor_system::actors::*;
 
 #[derive(Default)]
 struct MyActor;

@@ -19,3 +19,4 @@ proc-macro2 = "1.0"
 
 [dev-dependencies]
 tezedge-actor-system = { path = ".." }
+tokio = { version = "1.12", features = ["sync", "rt-multi-thread", "macros", "time"] }

@@ -15,7 +15,7 @@ jobs:
       fail-fast: false
       matrix:
         project: [./, ./tezedge-actor-system-macros/]
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest]
 
     steps:
     - uses: actions/checkout@v2
@@ -29,10 +29,6 @@ jobs:
     - name: Get current date
       if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
       run: echo "CURRENT_DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
-
-    - name: Get current date
-      if: matrix.os == 'windows-latest'
-      run: echo "CURRENT_DATE=$(Get-Date -Format "yyyy-MM-dd")" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8
 
     - name: Cache cargo registry
       uses: actions/cache@v2

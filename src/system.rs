@@ -130,23 +130,26 @@ impl fmt::Debug for SystemError {
     }
 }
 use std::{
-    sync::{Arc, Mutex},
-    time::{SystemTime, Duration, Instant},
     future::Future,
     pin::Pin,
+    sync::{Arc, Mutex},
+    time::{Duration, Instant, SystemTime},
 };
 
 use uuid::Uuid;
 
 use crate::{
     actor::{props::ActorFactory, *},
-    kernel::{provider::{create_root, Provider}, KernelMsg},
+    kernel::{
+        provider::{create_root, Provider},
+        KernelMsg,
+    },
     load_config,
     system::logger::*,
     system::timer::*,
-    validate::validate_name,
-    AnyMessage, Message, Config,
     tokio_backend::ActorSystemBackendTokio,
+    validate::validate_name,
+    AnyMessage, Config, Message,
 };
 use slog::Logger;
 
@@ -193,12 +196,12 @@ impl SystemBuilder {
     }
 
     pub fn create(self) -> Result<ActorSystem, SystemError> {
-        let name = self.name.unwrap_or_else(|| "tezedge-actor-system".to_string());
+        let name = self
+            .name
+            .unwrap_or_else(|| "tezedge-actor-system".to_string());
         let cfg = self.cfg.unwrap_or_else(load_config);
         let backend = self.backend.unwrap();
-        let log = self
-            .log
-            .unwrap_or_else(|| default_log(&cfg));
+        let log = self.log.unwrap_or_else(|| default_log(&cfg));
 
         ActorSystem::create(name.as_ref(), backend, log, cfg)
     }
@@ -267,7 +270,10 @@ impl ActorSystem {
     /// Create a new `ActorSystem` instance with provided name
     ///
     /// Requires a type that implements the `Model` trait.
-    pub fn with_name(name: &str, backend: ActorSystemBackendTokio) -> Result<ActorSystem, SystemError> {
+    pub fn with_name(
+        name: &str,
+        backend: ActorSystemBackendTokio,
+    ) -> Result<ActorSystem, SystemError> {
         let cfg = load_config();
         let log = default_log(&cfg);
 
@@ -275,7 +281,11 @@ impl ActorSystem {
     }
 
     /// Create a new `ActorSystem` instance bypassing default config behavior
-    pub fn with_config(name: &str, backend: ActorSystemBackendTokio, cfg: Config) -> Result<ActorSystem, SystemError> {
+    pub fn with_config(
+        name: &str,
+        backend: ActorSystemBackendTokio,
+        cfg: Config,
+    ) -> Result<ActorSystem, SystemError> {
         let log = default_log(&cfg);
 
         ActorSystem::create(name, backend, log, cfg)
@@ -390,7 +400,12 @@ impl ActorSystem {
     }
 
     pub fn print_tree(&self) -> Vec<String> {
-        fn print_node(sys: &ActorSystem, node: &BasicActorRef, indent: &str, log: &mut Vec<String>) {
+        fn print_node(
+            sys: &ActorSystem,
+            node: &BasicActorRef,
+            indent: &str,
+            log: &mut Vec<String>,
+        ) {
             if node.is_root() {
                 log.push(sys.name());
 
@@ -465,7 +480,13 @@ impl ActorSystem {
     /// actors have successfully stopped.
     pub fn shutdown(&self) -> Pin<Box<dyn Future<Output = ()>>> {
         self.stop(self.user_root());
-        self.backend.receiver_future(self.shutdown_rx.lock().unwrap().take().expect("shutdown was already called"))
+        self.backend.receiver_future(
+            self.shutdown_rx
+                .lock()
+                .unwrap()
+                .take()
+                .expect("shutdown was already called"),
+        )
     }
 }
 

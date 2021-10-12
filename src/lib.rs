@@ -9,10 +9,10 @@
 mod validate;
 
 pub mod actor;
+mod config;
 pub mod kernel;
 pub mod system;
 mod tokio_backend;
-mod config;
 
 use std::any::Any;
 use std::fmt;
@@ -20,7 +20,7 @@ use std::fmt::Debug;
 
 use crate::actor::BasicActorRef;
 
-pub use self::config::{Config, load_config};
+pub use self::config::{load_config, Config};
 
 /// Wraps message and sender
 #[derive(Debug, Clone)]
@@ -89,16 +89,15 @@ impl Debug for AnyMessage {
 
 pub mod actors {
     pub use crate::actor::{
-        Context, Actor, actor, Receive, CreateError,
-        ActorRef, ActorRefFactory, ActorReference, BasicActorRef, BoxedTell, Sender, Tell,
-        channel, All, Channel, ChannelMsg, ChannelRef, DLChannelMsg, DeadLetter, EventsChannel,
-        Publish, Subscribe, SubscribeWithResponse, SubscribedResponse, SysTopic, Topic, Unsubscribe, UnsubscribeAll,
-        ActorArgs, ActorFactory, ActorFactoryArgs, ActorProducer, BoxActorProd, Props,
-        ActorPath, ActorUri,
+        actor, channel, Actor, ActorArgs, ActorFactory, ActorFactoryArgs, ActorPath, ActorProducer,
+        ActorRef, ActorRefFactory, ActorReference, ActorUri, All, BasicActorRef, BoxActorProd,
+        BoxedTell, Channel, ChannelMsg, ChannelRef, Context, CreateError, DLChannelMsg, DeadLetter,
+        EventsChannel, Props, Publish, Receive, Sender, Subscribe, SubscribeWithResponse,
+        SubscribedResponse, SysTopic, Tell, Topic, Unsubscribe, UnsubscribeAll,
     };
     pub use crate::system::{
-        ActorSystem, ScheduleId, SystemBuilder, SystemEvent, SystemMsg, Timer,
-        ActorSystemBackend, SendingBackend,
+        ActorSystem, ActorSystemBackend, ScheduleId, SendingBackend, SystemBuilder, SystemEvent,
+        SystemMsg, Timer,
     };
     pub use crate::tokio_backend::ActorSystemBackendTokio;
     pub use crate::{AnyMessage, Message};

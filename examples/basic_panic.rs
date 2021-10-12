@@ -47,7 +47,11 @@ impl Receive<Panic> for PanicActor {
 #[tokio::main]
 async fn main() {
     let backend = tokio::runtime::Handle::current().into();
-    let sys = SystemBuilder::new().name("my-app").exec(backend).create().unwrap();
+    let sys = SystemBuilder::new()
+        .name("my-app")
+        .exec(backend)
+        .create()
+        .unwrap();
 
     let sup = sys.actor_of::<PanicActor>("panic_actor").unwrap();
     // println!("Child not added yet");

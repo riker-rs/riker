@@ -8,7 +8,7 @@ use crate::{
         CreateError, Receive, Sender,
     },
     system::{SystemEvent, SystemMsg},
-    Message, AnyMessage,
+    AnyMessage, Message,
 };
 
 type Subs<Msg> = HashMap<Topic, Vec<BoxedTell<Msg>>>;
@@ -103,13 +103,25 @@ where
 {
     type Msg = ChannelMsg<Msg>;
 
-    fn receive(&mut self, ctx: &ChannelCtx<Msg>, mut msg: SubscribeWithResponse<Msg>, sender: Sender) {
+    fn receive(
+        &mut self,
+        ctx: &ChannelCtx<Msg>,
+        mut msg: SubscribeWithResponse<Msg>,
+        sender: Sender,
+    ) {
         let subs = self.subs.entry(msg.topic.clone()).or_default();
         subs.push(msg.actor.clone());
 
         if let Some(sender) = sender {
             if let Err(e) = sender.try_tell_any(&mut msg.response, None) {
-                slog::warn!(ctx.system.log(), "Actor {:?} does not support receiveing of message {:?} -> {:?}, reason: {:?}", sender, msg.response, msg.response.msg, e);
+                slog::warn!(
+                    ctx.system.log(),
+                    "Actor {:?} does not support receiveing of message {:?} -> {:?}, reason: {:?}",
+                    sender,
+                    msg.response,
+                    msg.response.msg,
+                    e
+                );
             }
         } else {
             slog::warn!(ctx.system.log(), "Actor {:?} is trying to subscribe with response for topic {:?}, but sender is not set, so we dont know where to send the response, please set 'sender'", msg.actor, msg.topic);

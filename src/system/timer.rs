@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use crate::{
     actor::{ActorRef, BasicActorRef, Sender},
-    AnyMessage, Message, Config,
+    AnyMessage, Config, Message,
 };
 
 pub type TimerRef = mpsc::Sender<Job>;

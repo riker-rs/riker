@@ -103,7 +103,7 @@ fn intos(name: &Ident, types: &MsgTypes) -> TokenStream {
     let intos = types
         .types
         .iter()
-        .map(|t| impl_into(&name, &t.name, &t.mtype));
+        .map(|t| impl_into(name, &t.name, &t.mtype));
     quote! {
         #(#intos)*
     }

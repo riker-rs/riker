@@ -2,6 +2,7 @@
 **/*.rs.bk
 .vscode
 .idea
+Cargo.lock
 
 # Project dependencies
 .cache

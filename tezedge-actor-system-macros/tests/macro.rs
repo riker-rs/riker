@@ -7,10 +7,6 @@ struct NewActor;
 impl Actor for NewActor {
     type Msg = NewActorMsg;
 
-    fn supervisor_strategy(&self) -> Strategy {
-        Strategy::Stop
-    }
-
     fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender) {
         self.receive(ctx, msg, sender);
         ctx.stop(&ctx.myself);
@@ -33,9 +29,10 @@ impl Receive<String> for NewActor {
     }
 }
 
-#[test]
-fn run_derived_actor() {
-    let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
+#[tokio::test]
+async fn run_derived_actor() {
+    let backend = tokio::runtime::Handle::current().into();
+    let sys = ActorSystem::new(backend).unwrap();
 
     let act = sys.actor_of::<NewActor>("act").unwrap();
 
@@ -45,7 +42,7 @@ fn run_derived_actor() {
     // wait until all direct children of the user root are terminated
     while sys.user_root().has_children() {
         // in order to lower cpu usage, sleep here
-        std::thread::sleep(std::time::Duration::from_millis(50));
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     }
 }
 
@@ -62,10 +59,6 @@ where
 impl<A: Send + 'static, B: Send + 'static> Actor for GenericActor<A, B> {
     type Msg = GenericActorMsg;
 
-    fn supervisor_strategy(&self) -> Strategy {
-        Strategy::Stop
-    }
-
     fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender) {
         self.receive(ctx, msg, sender);
         ctx.stop(&ctx.myself);
@@ -80,9 +73,10 @@ impl<A: Send + 'static, B: Send + 'static> Receive<String> for GenericActor<A, B
     }
 }
 
-#[test]
-fn run_derived_generic_actor() {
-    let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
+#[tokio::test]
+async fn run_derived_generic_actor() {
+    let backend = tokio::runtime::Handle::current().into();
+    let sys = ActorSystem::new(backend).unwrap();
 
     let act = sys.actor_of::<GenericActor<(), ()>>("act").unwrap();
 
@@ -92,7 +86,7 @@ fn run_derived_generic_actor() {
     // wait until all direct children of the user root are terminated
     while sys.user_root().has_children() {
         // in order to lower cpu usage, sleep here
-        std::thread::sleep(std::time::Duration::from_millis(50));
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     }
 }
 
@@ -107,10 +101,6 @@ struct GenericMsgActor;
 
 impl Actor for GenericMsgActor {
     type Msg = GenericMsgActorMsg;
-
-    fn supervisor_strategy(&self) -> Strategy {
-        Strategy::Stop
-    }
 
     fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender) {
         self.receive(ctx, msg, sender);
@@ -131,9 +121,10 @@ impl Receive<Message<String>> for GenericMsgActor {
     }
 }
 
-#[test]
-fn run_generic_message_actor() {
-    let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
+#[tokio::test]
+async fn run_generic_message_actor() {
+    let backend = tokio::runtime::Handle::current().into();
+    let sys = ActorSystem::new(backend).unwrap();
 
     let act = sys.actor_of::<GenericMsgActor>("act").unwrap();
 
@@ -145,7 +136,7 @@ fn run_generic_message_actor() {
     // wait until all direct children of the user root are terminated
     while sys.user_root().has_children() {
         // in order to lower cpu usage, sleep here
-        std::thread::sleep(std::time::Duration::from_millis(50));
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     }
 }
 
@@ -165,10 +156,6 @@ struct PathMsgActor;
 
 impl Actor for PathMsgActor {
     type Msg = PathMsgActorMsg;
-
-    fn supervisor_strategy(&self) -> Strategy {
-        Strategy::Stop
-    }
 
     fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender) {
         self.receive(ctx, msg, sender);
@@ -202,9 +189,10 @@ impl Receive<test_mod::Message> for PathMsgActor {
     }
 }
 
-#[test]
-fn run_path_message_actor() {
-    let sys = ActorSystem::new(ThreadPoolConfig::new(1, 0)).unwrap();
+#[tokio::test]
+async fn run_path_message_actor() {
+    let backend = tokio::runtime::Handle::current().into();
+    let sys = ActorSystem::new(backend).unwrap();
 
     let act = sys.actor_of::<PathMsgActor>("act").unwrap();
 
@@ -219,6 +207,6 @@ fn run_path_message_actor() {
     // wait until all direct children of the user root are terminated
     while sys.user_root().has_children() {
         // in order to lower cpu usage, sleep here
-        std::thread::sleep(std::time::Duration::from_millis(50));
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     }
 }
