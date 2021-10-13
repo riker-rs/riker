@@ -1,5 +1,4 @@
-extern crate riker;
-use riker::actors::*;
+use tezedge_actor_system::actors::*;
 
 use std::time::Duration;
 
@@ -62,22 +61,26 @@ impl Receive<DeadLetter> for DeadLetterActor {
     }
 }
 
-fn main() {
-    let sys = ActorSystem::new().unwrap();
+#[tokio::main]
+async fn main() {
+    let backend = tokio::runtime::Handle::current().into();
+    let sys = ActorSystem::new(backend).unwrap();
 
     let _sub = sys.actor_of::<DeadLetterActor>("system-actor").unwrap();
 
-    std::thread::sleep(Duration::from_millis(500));
+    tokio::time::sleep(Duration::from_millis(500)).await;
 
     println!("Creating dump actor");
     let dumb = sys.actor_of::<DumbActor>("dumb-actor").unwrap();
 
     println!("Stopping dump actor");
     sys.stop(&dumb);
-    std::thread::sleep(Duration::from_millis(500));
+    tokio::time::sleep(Duration::from_millis(500)).await;
 
     println!("Sending SomeMessage to stopped actor");
     dumb.tell(SomeMessage, None);
-    std::thread::sleep(Duration::from_millis(500));
-    sys.print_tree();
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    for line in sys.print_tree() {
+        println!("{}", line);
+    }
 }

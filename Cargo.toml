@@ -1,34 +1,26 @@
+[workspace]
+members = [".", "tezedge-actor-system-macros"]
+
 [package]
-name = "riker"
-version = "0.4.2"
+name = "tezedge-actor-system"
+version = "0.4.2-cleanup-unsafe-8"
 authors = ["Lee Smith <lee@riker.rs>"]
 edition = "2018"
 description = "Easily build fast, highly concurrent and resilient applications. An Actor Framework for Rust."
-homepage = "https://riker.rs"
-repository = "https://github.com/riker-rs/riker"
+repository = "https://github.com/tezedge/tezedge-actor-system"
 license = "MIT"
 readme = "README.md"
-keywords = ["actors", "actor-model", "async", "cqrs", "event_sourcing"]
-
-[badges]
-travis-ci = { repository = "riker-rs/riker" }
+keywords = ["actors", "actor-model", "async", "event_sourcing"]
 
 [dependencies]
-riker-macros = { path = "riker-macros", version = "0.2.0" }
-chrono = "0.4"
-config = "0.10.1"
-futures = { version = "0.3.4", features = ["thread-pool"] }
-rand = "0.7"
-regex = "1"
-uuid = { version = "0.8.1", features = ["v4"] }
-pin-utils = "0.1.0"
-slog = "2.5"
-slog-stdlog = "4.0"
-slog-scope = "4.3.0"
-num_cpus = "1.13.0"
-dashmap = "3"
-
+tezedge-actor-system-macros = { path = "tezedge-actor-system-macros", version = "0.2.0" }
+tokio = { version = "1.12", features = ["sync", "rt-multi-thread"] }
+toml = { git = "https://github.com/tezedge/toml-rs.git", tag = "v0.5.8-cleanup-unsafe-1" }
+uuid = { git = "https://github.com/tezedge/uuid", tag = "v0.8.2-cleanup-unsafe-1", default-features = false, features = ["v4"] }
+slog = "2.7"
 
 [dev-dependencies]
 riker-testkit = "0.1.0"
 log = "0.4"
+tokio = { version = "1.12", features = ["sync", "rt-multi-thread", "macros", "time"] }
+tokio-test = { version = "0.4.2" }

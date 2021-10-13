@@ -8,7 +8,7 @@ use crate::{
         CreateError, Receive, Sender,
     },
     system::{SystemEvent, SystemMsg},
-    Message,
+    AnyMessage, Message,
 };
 
 type Subs<Msg> = HashMap<Topic, Vec<BoxedTell<Msg>>>;
@@ -58,13 +58,11 @@ where
     // to this system event. This allows us to remove actors that have been
     // terminated but did not explicity unsubscribe before terminating.
     fn sys_recv(&mut self, _: &ChannelCtx<Msg>, msg: SystemMsg, sender: Sender) {
-        if let SystemMsg::Event(evt) = msg {
-            if let SystemEvent::ActorTerminated(terminated) = evt {
-                let subs = self.subs.clone();
+        if let SystemMsg::Event(SystemEvent::ActorTerminated(terminated)) = msg {
+            let subs = self.subs.clone();
 
-                for topic in subs.keys() {
-                    unsubscribe(&mut self.subs, topic, &terminated.actor);
-                }
+            for topic in subs.keys() {
+                unsubscribe(&mut self.subs, topic, &terminated.actor);
             }
         }
     }
@@ -80,6 +78,7 @@ where
         match msg {
             ChannelMsg::Publish(p) => self.receive(ctx, p, sender),
             ChannelMsg::Subscribe(sub) => self.receive(ctx, sub, sender),
+            ChannelMsg::SubscribeWithResponse(sub) => self.receive(ctx, sub, sender),
             ChannelMsg::Unsubscribe(unsub) => self.receive(ctx, unsub, sender),
             ChannelMsg::UnsubscribeAll(unsub) => self.receive(ctx, unsub, sender),
         }
@@ -95,6 +94,38 @@ where
     fn receive(&mut self, ctx: &ChannelCtx<Msg>, msg: Subscribe<Msg>, sender: Sender) {
         let subs = self.subs.entry(msg.topic).or_default();
         subs.push(msg.actor);
+    }
+}
+
+impl<Msg> Receive<SubscribeWithResponse<Msg>> for Channel<Msg>
+where
+    Msg: Message,
+{
+    type Msg = ChannelMsg<Msg>;
+
+    fn receive(
+        &mut self,
+        ctx: &ChannelCtx<Msg>,
+        mut msg: SubscribeWithResponse<Msg>,
+        sender: Sender,
+    ) {
+        let subs = self.subs.entry(msg.topic.clone()).or_default();
+        subs.push(msg.actor.clone());
+
+        if let Some(sender) = sender {
+            if let Err(e) = sender.try_tell_any(&mut msg.response, None) {
+                slog::warn!(
+                    ctx.system.log(),
+                    "Actor {:?} does not support receiveing of message {:?} -> {:?}, reason: {:?}",
+                    sender,
+                    msg.response,
+                    msg.response.msg,
+                    e
+                );
+            }
+        } else {
+            slog::warn!(ctx.system.log(), "Actor {:?} is trying to subscribe with response for topic {:?}, but sender is not set, so we dont know where to send the response, please set 'sender'", msg.actor, msg.topic);
+        }
     }
 }
 
@@ -195,6 +226,7 @@ impl Receive<ChannelMsg<SystemEvent>> for EventsChannel {
         match msg {
             ChannelMsg::Publish(p) => self.receive(ctx, p, sender),
             ChannelMsg::Subscribe(sub) => self.0.receive(ctx, sub, sender),
+            ChannelMsg::SubscribeWithResponse(sub) => self.0.receive(ctx, sub, sender),
             ChannelMsg::Unsubscribe(unsub) => self.0.receive(ctx, unsub, sender),
             ChannelMsg::UnsubscribeAll(unsub) => self.0.receive(ctx, unsub, sender),
         }
@@ -245,6 +277,18 @@ pub struct Subscribe<Msg: Message> {
 }
 
 #[derive(Debug, Clone)]
+pub struct SubscribeWithResponse<Msg: Message> {
+    pub topic: Topic,
+    pub actor: BoxedTell<Msg>,
+    pub response: AnyMessage,
+}
+
+#[derive(Debug, Clone)]
+pub struct SubscribedResponse {
+    pub topic: Topic,
+}
+
+#[derive(Debug, Clone)]
 pub struct Unsubscribe<Msg: Message> {
     pub topic: Topic,
     pub actor: BoxedTell<Msg>,
@@ -269,6 +313,9 @@ pub enum ChannelMsg<Msg: Message> {
     /// Subscribe given `ActorRef` to a topic on a channel
     Subscribe(Subscribe<Msg>),
 
+    /// Subscribe given `ActorRef` to a topic on a channel and send response back after subscribe
+    SubscribeWithResponse(SubscribeWithResponse<Msg>),
+
     /// Unsubscribe the given `ActorRef` from a topic on a channel
     Unsubscribe(Unsubscribe<Msg>),
 
@@ -287,6 +334,13 @@ impl<Msg: Message> Into<ChannelMsg<Msg>> for Publish<Msg> {
 impl<Msg: Message> Into<ChannelMsg<Msg>> for Subscribe<Msg> {
     fn into(self) -> ChannelMsg<Msg> {
         ChannelMsg::Subscribe(self)
+    }
+}
+
+// subscribe with response
+impl<Msg: Message> Into<ChannelMsg<Msg>> for SubscribeWithResponse<Msg> {
+    fn into(self) -> ChannelMsg<Msg> {
+        ChannelMsg::SubscribeWithResponse(self)
     }
 }
 

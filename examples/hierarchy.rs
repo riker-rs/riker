@@ -1,5 +1,4 @@
-extern crate riker;
-use riker::actors::*;
+use tezedge_actor_system::actors::*;
 
 use std::time::Duration;
 
@@ -34,17 +33,23 @@ impl Actor for MyActor {
 }
 
 // start the system and create an actor
-fn main() {
-    let sys = ActorSystem::new().unwrap();
+#[tokio::main]
+async fn main() {
+    let backend = tokio::runtime::Handle::current().into();
+    let sys = ActorSystem::new(backend).unwrap();
 
     let my_actor = sys.actor_of::<MyActor>("my-actor").unwrap();
 
     my_actor.tell("Hello my actor!".to_string(), None);
 
     println!("Child not added yet");
-    sys.print_tree();
+    for line in sys.print_tree() {
+        println!("{}", line);
+    }
 
     println!("Child added already");
-    std::thread::sleep(Duration::from_millis(500));
-    sys.print_tree();
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    for line in sys.print_tree() {
+        println!("{}", line);
+    }
 }

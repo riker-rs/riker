@@ -1,32 +1,34 @@
-use dashmap::DashMap;
-use slog::trace;
+use slog::Logger;
 
-use std::sync::Arc;
+use std::{
+    collections::HashSet,
+    sync::{Arc, RwLock},
+};
 
-use crate::system::LoggingSystem;
 use crate::{
     actor::actor_cell::{ActorCell, ExtendedCell},
     actor::*,
     kernel::kernel,
     kernel::mailbox::mailbox,
-    system::{ActorSystem, SysActors, SystemMsg},
+    kernel::KernelMsg,
+    system::{ActorSystem, SendingBackend, SysActors, SystemMsg},
     validate::validate_name,
 };
 
 #[derive(Clone)]
 pub struct Provider {
     inner: Arc<ProviderInner>,
-    log: LoggingSystem,
+    log: Logger,
 }
 
 struct ProviderInner {
-    paths: DashMap<ActorPath, ()>,
+    paths: RwLock<HashSet<ActorPath>>,
 }
 
 impl Provider {
-    pub fn new(log: LoggingSystem) -> Self {
+    pub fn new(log: Logger) -> Self {
         let inner = ProviderInner {
-            paths: DashMap::new(),
+            paths: RwLock::new(HashSet::default()),
         };
 
         Provider {
@@ -48,7 +50,7 @@ impl Provider {
         validate_name(name)?;
 
         let path = ActorPath::new(&format!("{}/{}", parent.path(), name));
-        trace!(sys.log(), "Attempting to create actor at: {}", path);
+        slog::trace!(sys.log(), "Attempting to create actor at: {}", path);
 
         self.register(&path)?;
 
@@ -82,8 +84,8 @@ impl Provider {
     }
 
     fn register(&self, path: &ActorPath) -> Result<(), CreateError> {
-        let old = self.inner.paths.insert(path.clone(), ());
-        if old.is_some() {
+        let not_present = self.inner.paths.write().unwrap().insert(path.clone());
+        if !not_present {
             Err(CreateError::AlreadyExists(path.clone()))
         } else {
             Ok(())
@@ -91,17 +93,19 @@ impl Provider {
     }
 
     pub fn unregister(&self, path: &ActorPath) {
-        self.inner.paths.remove(path);
+        self.inner.paths.write().unwrap().remove(path);
     }
 }
 
-pub fn create_root(sys: &ActorSystem) -> SysActors {
+pub fn create_root(
+    sys: &ActorSystem,
+    shutdown_tx: Arc<dyn SendingBackend + Send + Sync + 'static>,
+) -> SysActors {
     let root = root(sys);
 
     SysActors {
-        user: guardian("user", "/user", &root, sys),
-        sysm: guardian("system", "/system", &root, sys),
-        temp: guardian("temp", "/temp", &root, sys),
+        user: guardian("user", "/user", &root, sys, Some(shutdown_tx)),
+        sysm: guardian("system", "/system", &root, sys, None),
         root,
     }
 }
@@ -137,7 +141,7 @@ fn root(sys: &ActorSystem) -> BasicActorRef {
 
     // root
     let props: BoxActorProd<Guardian> =
-        Props::new_args::<Guardian, _>(("root".to_string(), sys.log()));
+        Props::new_args::<Guardian, _>(("root".to_string(), sys.log(), None));
     let (sender, sys_sender, mb) = mailbox::<SystemMsg>(100);
 
     let cell = ExtendedCell::new(
@@ -157,7 +161,13 @@ fn root(sys: &ActorSystem) -> BasicActorRef {
     BasicActorRef::from(actor_ref)
 }
 
-fn guardian(name: &str, path: &str, root: &BasicActorRef, sys: &ActorSystem) -> BasicActorRef {
+fn guardian(
+    name: &str,
+    path: &str,
+    root: &BasicActorRef,
+    sys: &ActorSystem,
+    shutdown_tx: Option<Arc<dyn SendingBackend + Send + Sync + 'static>>,
+) -> BasicActorRef {
     let uri = ActorUri {
         name: Arc::from(name),
         path: ActorPath::new(path),
@@ -165,7 +175,7 @@ fn guardian(name: &str, path: &str, root: &BasicActorRef, sys: &ActorSystem) -> 
     };
 
     let props: BoxActorProd<Guardian> =
-        Props::new_args::<Guardian, _>((name.to_string(), sys.log()));
+        Props::new_args::<Guardian, _>((name.to_string(), sys.log(), shutdown_tx));
     let (sender, sys_sender, mb) = mailbox::<SystemMsg>(100);
 
     let cell = ExtendedCell::new(
@@ -189,12 +199,29 @@ fn guardian(name: &str, path: &str, root: &BasicActorRef, sys: &ActorSystem) -> 
 
 struct Guardian {
     name: String,
-    log: LoggingSystem,
+    log: Logger,
+    shutdown_tx: Option<Arc<dyn SendingBackend + Send + Sync + 'static>>,
 }
 
-impl ActorFactoryArgs<(String, LoggingSystem)> for Guardian {
-    fn create_args((name, log): (String, LoggingSystem)) -> Self {
-        Guardian { name, log }
+impl
+    ActorFactoryArgs<(
+        String,
+        Logger,
+        Option<Arc<dyn SendingBackend + Send + Sync + 'static>>,
+    )> for Guardian
+{
+    fn create_args(
+        (name, log, shutdown_tx): (
+            String,
+            Logger,
+            Option<Arc<dyn SendingBackend + Send + Sync + 'static>>,
+        ),
+    ) -> Self {
+        Guardian {
+            name,
+            log,
+            shutdown_tx,
+        }
     }
 }
 
@@ -204,6 +231,9 @@ impl Actor for Guardian {
     fn recv(&mut self, _: &Context<Self::Msg>, _: Self::Msg, _: Option<BasicActorRef>) {}
 
     fn post_stop(&mut self) {
-        trace!(self.log, "{} guardian stopped", self.name);
+        if let Some(tx) = self.shutdown_tx.as_ref() {
+            tx.send_msg(KernelMsg::Sys);
+        }
+        slog::trace!(self.log, "{} guardian stopped", self.name);
     }
 }

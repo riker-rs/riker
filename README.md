@@ -1,29 +1,22 @@
-# Riker
+# Tezedge Actor System
 
-[![Build status](https://github.com/riker-rs/riker/workflows/Build%20and%20run%20tests/badge.svg)](https://github.com/riker-rs/riker/actions?query=workflow%3A%22Build+and+run+tests%22)
 [![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
-[![crates.io](https://meritbadge.herokuapp.com/riker)](https://crates.io/crates/riker)
-[![Released API docs](https://docs.rs/riker/badge.svg)](https://docs.rs/riker)
-[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
-[![code style: prettier](https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square)](https://github.com/prettier/prettier)
+[![Drone status](http://ci.tezedge.com/api/badges/tezedge/tezedge-actor-system/status.svg)](http://ci.tezedge.com/tezedge/tezedge-actor-system)
+[![Build and run tests](https://github.com/tezedge/tezedge-actor-system/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/tezedge/tezedge-actor-system/actions/workflows/build-and-test.yml)
+[![Audit](https://github.com/tezedge/tezedge-actor-system/actions/workflows/audit.yml/badge.svg)](https://github.com/tezedge/tezedge-actor-system/actions/workflows/audit.yml)
+[![pre-commit](https://github.com/tezedge/tezedge-actor-system/actions/workflows/pre-commit.yml/badge.svg)](https://github.com/tezedge/tezedge-actor-system/actions/workflows/pre-commit.yml)
 
 ## Overview
 
-Riker is a framework for building modern, concurrent and resilient systems using the Rust language. Riker aims to make working with state and behavior in concurrent systems as easy and scalable as possible. The Actor Model has been chosen to realize this because of the familiar and inherent simplicity it provides while also providing strong guarantees that are easy to reason about. The Actor Model also provides a firm foundation for resilient systems through the use of the actor hierarchy and actor supervision.
+TezEdge Actor System is a fork of riker. It is a framework for building safe, modern, concurrent and resilient systems using the Rust language. It focuses on simplicity and safety. TezEdge Actor System aims to make working with state and behavior in concurrent systems as easy and scalable as possible. The Actor Model has been chosen to realize this because of the familiar and inherent simplicity it provides while also providing strong guarantees that are easy to reason about.
 
-Riker provides:
+TezEdge Actor System provides:
 
 - An Actor based execution runtime
-- Actor supervision to isolate and recover from failures
-- A modular system
-- Concurrency built on `futures::execution::ThreadPool`
+- Concurrency built on `tokio`
 - Publish/Subscribe messaging via actor channels
 - Message scheduling
 - Out-of-the-box, configurable, non-blocking logging
-- Command Query Responsibility Segregation (CQRS)
-- Easily run futures
-
-[Website](https://riker.rs) | [API Docs](https://docs.rs/riker)
 
 ## Example
 
@@ -31,14 +24,14 @@ Riker provides:
 
 ```toml
 [dependencies]
-riker = "0.4.1"
+tezedge-actor-system = { git = "https://github.com/tezedge/tezedge-actor-system.git", tag = "v0.4.2-cleanup-unsafe-8" }
 ```
 
 `main.rs`:
 
 ```rust
 use std::time::Duration;
-use riker::actors::*;
+use tezedge_actor_system::actors::*;
 
 #[derive(Default)]
 struct MyActor;
@@ -57,14 +50,16 @@ impl Actor for MyActor {
 }
 
 // start the system and create an actor
-fn main() {
-    let sys = ActorSystem::new().unwrap();
+#[tokio::main]
+async fn main() {
+    let backend = tokio::runtime::Handle::current().into();
+    let sys = ActorSystem::new(backend).unwrap();
 
     let my_actor = sys.actor_of::<MyActor>("my-actor").unwrap();
 
     my_actor.tell("Hello my actor!".to_string(), None);
 
-    std::thread::sleep(Duration::from_millis(500));
+    tokio::time::sleep(Duration::from_millis(500)).await;
 }
 ```
 
@@ -72,43 +67,21 @@ fn main() {
 
 Official crates that provide additional functionality:
 
-- [riker-cqrs](https://github.com/riker-rs/riker-cqrs): Command Query Responsibility Separation support
 - [riker-testkit](https://github.com/riker-rs/riker-testkit): Tools to make testing easier
-- [riker-patterns](https://github.com/riker-rs/riker-patterns): Common actor patterns, including `transform!` and 'ask'
 
-## Roadmap & Currently in Development
+## Why TezEdge Actor System
 
-The next major theme on the project roadmap is clustering and location transparency:
-
-- Remote actors
-- Support for TCP and UDP
-- Clustering (using vector clocks)
-- Distributed data (CRDTs)
-
-## Why Riker
-
-Riker is a full-featured actor model implementation that scales to hundreds or thousands of microservices and that equally can run exceptionally well on resource limited hardware to drive drones, IoT and robotics. The Rust language makes this possible.
+TezEdge Actor System is a step to improve safety of the TezEdge node.
 
 Rust empowers developers with control over memory management, requiring no garbage collection and runtime overhead, while also providing modern semantics and expressive syntax such as the trait system. The result is a language that can solve problems equally for Web and IoT.
 
-Riker adds to this by providing a familiar actor model API which in turn makes concurrent, resilient systems programming easy.
+TezEdge Actor System adds to this by providing a familiar actor model API which in turn makes concurrent, resilient systems programming easy.
 
 ## Rust Version
 
-Riker is currently built using the **latest Rust Nightly**.
+TezEdge Actor System is currently built using the Rust version `nightly-2021-08-04`, like other TezEdge projects do.
 
-## Contributing
-
-Riker is looking for contributors - join the project! You don't need to be an expert in actors, concurrent systems, or even Rust. Great ideas come from everyone.
-
-There are multiple ways to contribute:
-
-- Ask questions. Adding to the conversation is a great way to contribute. Find us on [Gitter](https://gitter.im/riker-rs/Lobby).
-- Documentation. Our aim is to make concurrent, resilient systems programming available to everyone and that starts with great Documentation.
-- Additions to Riker code base. Whether small or big, your Pull Request could make a difference.
-- Patterns, data storage and other supporting crates. We are happy to link to and provide full credit to external projects that provide support for databases in Riker's event storage model or implementations of common actor patterns.
-
-### pre-commit
+## pre-commit
 
 Before you commit your code [pre-commit](https://pre-commit.com/) integrates as a git hook to automatically check your code.
 Please don't skip git hooks (even if you do the travis TravisCI build will still fail).
@@ -131,4 +104,45 @@ yarn lint
 ```bash
 npm run install
 npn run lint
+```
+
+## Cargo Geiger Safety Report
+
+```
+
+Metric output format: x/y
+    x = unsafe code used by the build
+    y = total unsafe code found in the crate
+
+Symbols:
+    🔒  = No `unsafe` usage found, declares #![forbid(unsafe_code)]
+    ❓  = No `unsafe` usage found, missing #![forbid(unsafe_code)]
+    ☢️  = `unsafe` usage found
+
+Functions  Expressions  Impls  Traits  Methods  Dependency
+
+0/0        0/0          0/0    0/0     0/0      🔒  tezedge-actor-system 0.4.2-cleanup-unsafe-8
+0/0        0/0          0/0    0/0     0/0      ❓  ├── slog 2.7.0
+0/0        0/0          0/0    0/0     0/0      ❓  ├── tezedge-actor-system-macros 0.2.0
+0/0        0/0          0/0    0/0     0/0      ❓  │   ├── proc-macro2 1.0.30
+0/0        0/0          0/0    0/0     0/0      🔒  │   │   └── unicode-xid 0.2.2
+0/0        0/0          0/0    0/0     0/0      ❓  │   ├── quote 1.0.10
+0/0        0/0          0/0    0/0     0/0      ❓  │   │   └── proc-macro2 1.0.30
+0/0        45/45        3/3    0/0     2/2      ☢️  │   └── syn 1.0.80
+0/0        0/0          0/0    0/0     0/0      ❓  │       ├── proc-macro2 1.0.30
+0/0        0/0          0/0    0/0     0/0      ❓  │       ├── quote 1.0.10
+0/0        0/0          0/0    0/0     0/0      🔒  │       └── unicode-xid 0.2.2
+20/25      1269/1804    82/102 1/1     59/69    ☢️  └── tokio 1.12.0
+0/17       0/630        0/13   0/1     0/19     ❓      ├── bytes 1.1.0
+0/20       12/319       0/0    0/0     2/30     ☢️      ├── libc 0.2.103
+0/0        72/72        0/0    0/0     0/0      ☢️      ├── num_cpus 1.13.0
+0/20       12/319       0/0    0/0     2/30     ☢️      │   └── libc 0.2.103
+0/0        8/167        0/0    0/0     0/0      ☢️      ├── pin-project-lite 0.2.7
+0/0        0/0          0/0    0/0     0/0      ❓      └── tokio-macros 1.4.1
+0/0        0/0          0/0    0/0     0/0      ❓          ├── proc-macro2 1.0.30
+0/0        0/0          0/0    0/0     0/0      ❓          ├── quote 1.0.10
+0/0        45/45        3/3    0/0     2/2      ☢️          └── syn 1.0.80
+
+20/62      1406/3037    85/118 1/2     63/120
+
 ```

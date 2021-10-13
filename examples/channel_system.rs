@@ -1,5 +1,4 @@
-extern crate riker;
-use riker::actors::*;
+use tezedge_actor_system::actors::*;
 
 use std::time::Duration;
 
@@ -83,26 +82,28 @@ impl Receive<SystemEvent> for SystemActor {
     }
 }
 
-fn main() {
-    let sys = ActorSystem::new().unwrap();
+#[tokio::main]
+async fn main() {
+    let backend = tokio::runtime::Handle::current().into();
+    let sys = ActorSystem::new(backend).unwrap();
 
     let _sub = sys.actor_of::<SystemActor>("system-actor").unwrap();
 
-    std::thread::sleep(Duration::from_millis(500));
+    tokio::time::sleep(Duration::from_millis(500)).await;
 
     println!("Creating dump actor");
     let dumb = sys.actor_of::<DumbActor>("dumb-actor").unwrap();
 
     // sleep another half seconds to process messages
-    std::thread::sleep(Duration::from_millis(500));
+    tokio::time::sleep(Duration::from_millis(500)).await;
 
     // Force restart of actor
     println!("Send Panic message to dump actor to get restart");
     dumb.tell(Panic, None);
-    std::thread::sleep(Duration::from_millis(500));
+    tokio::time::sleep(Duration::from_millis(500)).await;
 
     println!("Stopping dump actor");
     sys.stop(&dumb);
-    std::thread::sleep(Duration::from_millis(500));
+    tokio::time::sleep(Duration::from_millis(500)).await;
     sys.print_tree();
 }

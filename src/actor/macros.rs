@@ -1,1 +1,1 @@
-pub use riker_macros::actor;
+pub use tezedge_actor_system_macros::actor;

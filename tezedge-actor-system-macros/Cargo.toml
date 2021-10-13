@@ -1,11 +1,10 @@
 [package]
-name = "riker-macros"
+name = "tezedge-actor-system-macros"
 version = "0.2.0"
 authors = ["Lee Smith <lee@riker.rs>"]
 edition = "2018"
 description = "Macro crate for Riker actor framework"
-homepage = "https://riker.rs"
-repository = "https://github.com/riker-rs/riker"
+repository = "https://github.com/tezedge/tezedge-actor-system"
 license = "MIT"
 readme = "README.md"
 keywords = ["actors", "actor-model", "async", "cqrs", "event_sourcing"]
@@ -19,4 +18,5 @@ quote = "1.0"
 proc-macro2 = "1.0"
 
 [dev-dependencies]
-riker = { path = ".." }
+tezedge-actor-system = { path = ".." }
+tokio = { version = "1.12", features = ["sync", "rt-multi-thread", "macros", "time"] }

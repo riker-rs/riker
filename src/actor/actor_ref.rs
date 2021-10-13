@@ -7,7 +7,7 @@ use crate::{
         Actor, ActorPath, ActorUri, BoxActorProd, CreateError,
     },
     kernel::mailbox::AnyEnqueueError,
-    system::{ActorSystem, SystemMsg},
+    system::SystemMsg,
     AnyMessage, Envelope, Message,
 };
 
@@ -182,8 +182,8 @@ impl BasicActorRef {
         ActorRef { cell }
     }
 
-    pub(crate) fn sys_init(&self, sys: &ActorSystem) {
-        self.cell.kernel().sys_init(sys);
+    pub(crate) fn sys_init(&self) {
+        self.cell.kernel().sys_init();
     }
 
     /// Send a message to this actor
@@ -537,26 +537,4 @@ pub trait ActorRefFactory {
         A: ActorFactoryArgs<Args>;
 
     fn stop(&self, actor: impl ActorReference);
-}
-
-/// Produces `ActorRef`s under the `temp` guardian actor.
-pub trait TmpActorRefFactory {
-    fn tmp_actor_of_props<A>(
-        &self,
-        props: BoxActorProd<A>,
-    ) -> Result<ActorRef<A::Msg>, CreateError>
-    where
-        A: Actor;
-
-    fn tmp_actor_of<A>(&self) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-    where
-        A: ActorFactory + Actor;
-
-    fn tmp_actor_of_args<A, Args>(
-        &self,
-        args: Args,
-    ) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-    where
-        Args: ActorArgs,
-        A: ActorFactoryArgs<Args>;
 }

@@ -22,7 +22,7 @@ impl Props {
     /// # Examples
     ///
     /// ```
-    /// # use riker::actors::*;
+    /// # use tezedge_actor_system::actors::*;
     ///
     /// struct User;
     ///
@@ -37,12 +37,17 @@ impl Props {
     /// #    fn recv(&mut self, _ctx: &Context<String>, _msg: String, _sender: Sender) {}
     /// # }
     /// // main
-    /// let sys = ActorSystem::new().unwrap();
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let backend = tokio::runtime::Handle::current().into();
+    ///     let sys = ActorSystem::new(backend).unwrap();
     ///
-    /// let props = Props::new_from(User::actor);
+    ///     let props = Props::new_from(User::actor);
     ///
-    /// // start the actor and get an `ActorRef`
-    /// let actor = sys.actor_of_props("user", props).unwrap();
+    ///     // start the actor and get an `ActorRef`
+    ///     let actor = sys.actor_of_props("user", props).unwrap();
+    ///     sys.shutdown().await
+    /// }
     /// ```
     #[inline]
     pub fn new_from<A, F>(creator: F) -> Arc<Mutex<impl ActorProducer<Actor = A>>>
@@ -58,7 +63,7 @@ impl Props {
     /// # Examples
     /// An actor requiring a single parameter.
     /// ```
-    /// # use riker::actors::*;
+    /// # use tezedge_actor_system::actors::*;
     ///
     /// struct User {
     ///     name: String,
@@ -77,15 +82,20 @@ impl Props {
     /// #    fn recv(&mut self, _ctx: &Context<String>, _msg: String, _sender: Sender) {}
     /// # }
     /// // main
-    /// let sys = ActorSystem::new().unwrap();
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let backend = tokio::runtime::Handle::current().into();
+    ///     let sys = ActorSystem::new(backend).unwrap();
     ///
-    /// let props = Props::new_from_args(User::actor, "Naomi Nagata".into());
+    ///     let props = Props::new_from_args(User::actor, "Naomi Nagata".into());
     ///
-    /// let actor = sys.actor_of_props("user", props).unwrap();
+    ///     let actor = sys.actor_of_props("user", props).unwrap();
+    ///     sys.shutdown().await
+    /// }
     /// ```
     /// An actor requiring multiple parameters.
     /// ```
-    /// # use riker::actors::*;
+    /// # use tezedge_actor_system::actors::*;
     ///
     /// struct BankAccount {
     ///     name: String,
@@ -106,13 +116,18 @@ impl Props {
     /// #    fn recv(&mut self, _ctx: &Context<String>, _msg: String, _sender: Sender) {}
     /// # }
     /// // main
-    /// let sys = ActorSystem::new().unwrap();
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let backend = tokio::runtime::Handle::current().into();
+    ///     let sys = ActorSystem::new(backend).unwrap();
     ///
-    /// let props = Props::new_from_args(BankAccount::actor,
+    ///     let props = Props::new_from_args(BankAccount::actor,
     ///                             ("James Holden".into(), "12345678".into()));
     ///
-    /// // start the actor and get an `ActorRef`
-    /// let actor = sys.actor_of_props("bank_account", props).unwrap();
+    ///     // start the actor and get an `ActorRef`
+    ///     let actor = sys.actor_of_props("bank_account", props).unwrap();
+    ///     sys.shutdown().await
+    /// }
     /// ```
     #[inline]
     pub fn new_from_args<A, Args, F>(
@@ -132,7 +147,7 @@ impl Props {
     /// # Examples
     ///
     /// ```
-    /// # use riker::actors::*;
+    /// # use tezedge_actor_system::actors::*;
     ///
     /// #[derive(Default)]
     /// struct User;
@@ -142,19 +157,24 @@ impl Props {
     /// #    fn recv(&mut self, _ctx: &Context<String>, _msg: String, _sender: Sender) {}
     /// # }
     /// // main
-    /// let sys = ActorSystem::new().unwrap();
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let backend = tokio::runtime::Handle::current().into();
+    ///     let sys = ActorSystem::new(backend).unwrap();
     ///
-    /// let props = Props::new::<User>();
+    ///     let props = Props::new::<User>();
     ///
-    /// // start the actor and get an `ActorRef`
-    /// let actor = sys.actor_of_props("user", props).unwrap();
+    ///     // start the actor and get an `ActorRef`
+    ///     let actor = sys.actor_of_props("user", props).unwrap();
+    ///     sys.shutdown().await
+    /// }
     /// ```
     /// Creates an `ActorProducer` from a type which implements ActorFactory with no factory method parameters.
     ///
     /// # Examples
     ///
     /// ```
-    /// # use riker::actors::*;
+    /// # use tezedge_actor_system::actors::*;
     ///
     /// struct User;
     ///
@@ -169,12 +189,17 @@ impl Props {
     /// #    fn recv(&mut self, _ctx: &Context<String>, _msg: String, _sender: Sender) {}
     /// # }
     /// // main
-    /// let sys = ActorSystem::new().unwrap();
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let backend = tokio::runtime::Handle::current().into();
+    ///     let sys = ActorSystem::new(backend).unwrap();
     ///
-    /// let props = Props::new::<User>();
+    ///     let props = Props::new::<User>();
     ///
-    /// // start the actor and get an `ActorRef`
-    /// let actor = sys.actor_of_props("user", props).unwrap();
+    ///     // start the actor and get an `ActorRef`
+    ///     let actor = sys.actor_of_props("user", props).unwrap();
+    ///     sys.shutdown().await
+    /// }
     /// ```
     #[inline]
     pub fn new<A>() -> Arc<Mutex<impl ActorProducer<Actor = A>>>
@@ -189,7 +214,7 @@ impl Props {
     /// # Examples
     /// An actor requiring a single parameter.
     /// ```
-    /// # use riker::actors::*;
+    /// # use tezedge_actor_system::actors::*;
     ///
     /// struct User {
     ///     name: String,
@@ -208,15 +233,20 @@ impl Props {
     /// #    fn recv(&mut self, _ctx: &Context<String>, _msg: String, _sender: Sender) {}
     /// # }
     /// // main
-    /// let sys = ActorSystem::new().unwrap();
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let backend = tokio::runtime::Handle::current().into();
+    ///     let sys = ActorSystem::new(backend).unwrap();
     ///
-    /// let props = Props::new_args::<User, _>("Naomi Nagata".into());
+    ///     let props = Props::new_args::<User, _>("Naomi Nagata".into());
     ///
-    /// let actor = sys.actor_of_props("user", props).unwrap();
+    ///     let actor = sys.actor_of_props("user", props).unwrap();
+    ///     sys.shutdown().await
+    /// }
     /// ```
     /// An actor requiring multiple parameters.
     /// ```
-    /// # use riker::actors::*;
+    /// # use tezedge_actor_system::actors::*;
     ///
     /// struct BankAccount {
     ///     name: String,
@@ -237,13 +267,18 @@ impl Props {
     /// #    fn recv(&mut self, _ctx: &Context<String>, _msg: String, _sender: Sender) {}
     /// # }
     /// // main
-    /// let sys = ActorSystem::new().unwrap();
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let backend = tokio::runtime::Handle::current().into();
+    ///     let sys = ActorSystem::new(backend).unwrap();
     ///
-    /// let props = Props::new_from_args(BankAccount::create_args,
+    ///     let props = Props::new_from_args(BankAccount::create_args,
     ///                             ("James Holden".into(), "12345678".into()));
     ///
-    /// // start the actor and get an `ActorRef`
-    /// let actor = sys.actor_of_props("bank_account", props).unwrap();
+    ///     // start the actor and get an `ActorRef`
+    ///     let actor = sys.actor_of_props("bank_account", props).unwrap();
+    ///     sys.shutdown().await
+    /// }
     /// ```
     #[inline]
     pub fn new_args<A, Args>(args: Args) -> Arc<Mutex<impl ActorProducer<Actor = A>>>

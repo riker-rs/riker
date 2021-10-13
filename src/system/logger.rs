@@ -2,15 +2,11 @@ use crate::actor::{
     Actor, ActorFactoryArgs, ActorRef, All, BasicActorRef, ChannelMsg, Context, DeadLetter,
     Subscribe, Tell,
 };
-use crate::system::LoggingSystem;
-use config::Config;
-use slog::{info, o, Drain, Level, Logger, Never, OwnedKVList, Record};
-use std::str::FromStr;
-use std::sync::Arc;
+use crate::Config;
+use slog::{Drain, Level, Logger, Never, OwnedKVList, Record};
+use std::time::SystemTime;
 
-pub(crate) type GlobalLoggerGuard = Arc<slog_scope::GlobalLoggerGuard>;
-
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct LoggerConfig {
     time_fmt: String,
     date_fmt: String,
@@ -19,38 +15,39 @@ pub struct LoggerConfig {
     level: Level,
 }
 
-impl<'a> From<&'a Config> for LoggerConfig {
-    fn from(config: &Config) -> Self {
+impl Default for LoggerConfig {
+    fn default() -> Self {
         LoggerConfig {
-            time_fmt: config.get_str("log.time_format").unwrap(),
-            date_fmt: config.get_str("log.date_format").unwrap(),
-            log_fmt: config.get_str("log.log_format").unwrap(),
-            filter: config
-                .get_array("log.filter")
-                .unwrap_or_default()
-                .into_iter()
-                .map(|e| e.to_string())
-                .collect(),
-            level: config
-                .get_str("log.level")
-                .map(|l| Level::from_str(&l).unwrap_or(Level::Info))
-                .unwrap_or(Level::Info),
+            time_fmt: "%H:%M:%S%:z".to_string(),
+            date_fmt: "%Y-%m-%d".to_string(),
+            log_fmt: "{date} {time} {level} [{module}] {body}".to_string(),
+            filter: vec![],
+            level: Level::Debug,
         }
     }
 }
 
-pub(crate) fn default_log(cfg: &Config) -> LoggingSystem {
-    let cfg = LoggerConfig::from(cfg);
+impl LoggerConfig {
+    // Option<()> allow to use ? for parsing toml value, ignore it
+    pub fn merge(&mut self, v: &toml::Value) -> Option<()> {
+        let v = v.as_table()?;
+        let time_fmt = v.get("time_fmt")?.as_str()?.to_string();
+        self.time_fmt = time_fmt;
+        let date_fmt = v.get("date_fmt")?.as_str()?.to_string();
+        self.date_fmt = date_fmt;
+        let log_fmt = v.get("log_fmt")?.as_str()?.to_string();
+        self.log_fmt = log_fmt;
+        None
+    }
+}
+
+pub(crate) fn default_log(cfg: &Config) -> Logger {
+    let cfg = cfg.log.clone();
 
     let drain = DefaultConsoleLogger::new(cfg.clone())
         .filter_level(cfg.level)
         .fuse();
-    let logger = Logger::root(drain, o!());
-
-    let scope_guard = slog_scope::set_global_logger(logger.clone());
-    let _log_guard = slog_stdlog::init(); // will not call `.unwrap()` because this might be called more than once
-
-    LoggingSystem::new(logger, Some(Arc::new(scope_guard)))
+    Logger::root(drain, slog::o!())
 }
 
 struct DefaultConsoleLogger {
@@ -68,7 +65,7 @@ impl Drain for DefaultConsoleLogger {
     type Err = Never;
 
     fn log(&self, record: &Record, _values: &OwnedKVList) -> Result<Self::Ok, Self::Err> {
-        let now = chrono::Utc::now();
+        let now = SystemTime::now();
         let filter_match = self.cfg.filter.iter().any(|f| record.module().contains(f));
         if !filter_match {
             // note:
@@ -77,9 +74,9 @@ impl Drain for DefaultConsoleLogger {
             // It's not clear if runtime-fmt is maintained any longer as so we'll
             // attempt to find an alternative to provide configurable formatting.
             println!(
-                "{} {} {} [{}] {}",
-                now.format(&self.cfg.date_fmt),
-                now.format(&self.cfg.time_fmt),
+                "{:?} {} [{}] {}",
+                now.duration_since(SystemTime::UNIX_EPOCH)
+                    .expect("system time should be after 1970"),
                 record.level().as_short_str(),
                 record.module(),
                 record.msg()
@@ -93,11 +90,11 @@ impl Drain for DefaultConsoleLogger {
 /// Simple actor that subscribes to the dead letters channel and logs using the default logger
 pub struct DeadLetterLogger {
     dl_chan: ActorRef<ChannelMsg<DeadLetter>>,
-    logger: LoggingSystem,
+    logger: Logger,
 }
 
-impl ActorFactoryArgs<(ActorRef<ChannelMsg<DeadLetter>>, LoggingSystem)> for DeadLetterLogger {
-    fn create_args((dl_chan, logger): (ActorRef<ChannelMsg<DeadLetter>>, LoggingSystem)) -> Self {
+impl ActorFactoryArgs<(ActorRef<ChannelMsg<DeadLetter>>, Logger)> for DeadLetterLogger {
+    fn create_args((dl_chan, logger): (ActorRef<ChannelMsg<DeadLetter>>, Logger)) -> Self {
         DeadLetterLogger { dl_chan, logger }
     }
 }
@@ -117,9 +114,12 @@ impl Actor for DeadLetterLogger {
     }
 
     fn recv(&mut self, _: &Context<Self::Msg>, msg: Self::Msg, _: Option<BasicActorRef>) {
-        info!(
+        slog::info!(
             self.logger,
-            "DeadLetter: {:?} => {:?} ({:?})", msg.sender, msg.recipient, msg.msg
+            "DeadLetter: {:?} => {:?} ({:?})",
+            msg.sender,
+            msg.recipient,
+            msg.msg
         )
     }
 }

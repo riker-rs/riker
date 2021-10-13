@@ -1,0 +1,27 @@
+kind: pipeline
+type: docker
+name: tests
+
+steps:
+  - name: tests
+    image: tezedge/tezedge-ci-builder:nightly-2021-08-04-v9.5-tezos
+    user: root
+    commands:
+      - cargo test
+
+  - name: geiger
+    image: rust:1.55-buster
+    commands:
+      - cargo install cargo-geiger
+      - cargo geiger
+
+  - name: geiger-before
+    image: rust:1.55-buster
+    commands:
+      - cargo install cargo-geiger
+      - git remote add first_origin https://github.com/riker-rs/riker
+      - git fetch first_origin +refs/heads/master
+      - git checkout master
+      - git reset --hard first_origin/master
+      - rm -Rf target
+      - cargo geiger

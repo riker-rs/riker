@@ -1,5 +1,5 @@
 {
-  "name": "riker",
+  "name": "tezedge-actor-system",
   "private": true,
   "scripts": {
     "lint": "nopenv pre-commit run -a",

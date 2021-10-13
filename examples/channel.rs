@@ -1,8 +1,7 @@
-extern crate riker;
-use riker::actors::*;
+use tezedge_actor_system::actors::*;
 
-use riker::system::ActorSystem;
 use std::time::Duration;
+use tezedge_actor_system::system::ActorSystem;
 
 #[derive(Clone, Debug)]
 pub struct PowerStatus;
@@ -77,8 +76,10 @@ impl Receive<PowerStatus> for NavigationActor {
     }
 }
 
-fn main() {
-    let sys = ActorSystem::new().unwrap();
+#[tokio::main]
+async fn main() {
+    let backend = tokio::runtime::Handle::current().into();
+    let sys = ActorSystem::new(backend).unwrap();
     let chan: ChannelRef<PowerStatus> = channel("power-status", &sys).unwrap();
 
     sys.actor_of_args::<GpsActor, _>("gps-actor", chan.clone())
@@ -86,7 +87,7 @@ fn main() {
     sys.actor_of_args::<NavigationActor, _>("navigation-actor", chan.clone())
         .unwrap();
 
-    std::thread::sleep(Duration::from_millis(500));
+    tokio::time::sleep(Duration::from_millis(500)).await;
     // sys.print_tree();
     let topic = Topic::from("my-topic");
     println!(
@@ -101,6 +102,8 @@ fn main() {
         None,
     );
     // sleep another half seconds to process messages
-    std::thread::sleep(Duration::from_millis(500));
-    sys.print_tree();
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    for line in sys.print_tree() {
+        println!("{}", line);
+    }
 }

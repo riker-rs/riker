@@ -1,46 +1,39 @@
 use std::sync::Arc;
 
-use futures::{channel::mpsc::Sender, task::SpawnExt, SinkExt};
-
 use crate::{
     actor::{MsgError, MsgResult},
     kernel::{
         mailbox::{AnyEnqueueError, AnySender, MailboxSchedule, MailboxSender},
         KernelMsg,
     },
-    system::ActorSystem,
+    system::SendingBackend,
     AnyMessage, Envelope, Message,
 };
 
 #[derive(Clone)]
 pub struct KernelRef {
-    pub tx: Sender<KernelMsg>,
+    pub tx: Arc<dyn SendingBackend + Send + Sync + 'static>,
 }
 
 impl KernelRef {
-    pub(crate) fn schedule(&self, sys: &ActorSystem) {
-        self.send(KernelMsg::RunActor, sys);
+    pub(crate) fn schedule(&self) {
+        self.send(KernelMsg::RunActor);
     }
 
-    pub(crate) fn restart(&self, sys: &ActorSystem) {
-        self.send(KernelMsg::RestartActor, sys);
+    pub(crate) fn restart(&self) {
+        self.send(KernelMsg::RestartActor);
     }
 
-    pub(crate) fn terminate(&self, sys: &ActorSystem) {
-        self.send(KernelMsg::TerminateActor, sys);
+    pub(crate) fn terminate(&self) {
+        self.send(KernelMsg::TerminateActor);
     }
 
-    pub(crate) fn sys_init(&self, sys: &ActorSystem) {
-        self.send(KernelMsg::Sys(sys.clone()), sys);
+    pub(crate) fn sys_init(&self) {
+        self.send(KernelMsg::Sys);
     }
 
-    fn send(&self, msg: KernelMsg, sys: &ActorSystem) {
-        let mut tx = self.tx.clone();
-        sys.exec
-            .spawn(async move {
-                drop(tx.send(msg).await);
-            })
-            .unwrap();
+    fn send(&self, msg: KernelMsg) {
+        self.tx.send_msg(msg)
     }
 }
 
@@ -48,7 +41,6 @@ pub fn dispatch<Msg>(
     msg: Envelope<Msg>,
     mbox: &MailboxSender<Msg>,
     kernel: &KernelRef,
-    sys: &ActorSystem,
 ) -> MsgResult<Envelope<Msg>>
 where
     Msg: Message,
@@ -57,7 +49,7 @@ where
         Ok(_) => {
             if !mbox.is_scheduled() {
                 mbox.set_scheduled(true);
-                kernel.schedule(sys);
+                kernel.schedule();
             }
 
             Ok(())
@@ -71,15 +63,11 @@ pub fn dispatch_any(
     sender: crate::actor::Sender,
     mbox: &Arc<dyn AnySender>,
     kernel: &KernelRef,
-    sys: &ActorSystem,
 ) -> Result<(), AnyEnqueueError> {
     mbox.try_any_enqueue(msg, sender).map(|_| {
         if !mbox.is_sched() {
             mbox.set_sched(true);
-            kernel.schedule(sys);
+            kernel.schedule();
         }
     })
 }
-
-unsafe impl Send for KernelRef {}
-unsafe impl Sync for KernelRef {}

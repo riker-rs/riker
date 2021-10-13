@@ -1,36 +1,32 @@
-#![allow(unused_variables)]
 pub(crate) mod actor_cell;
 pub(crate) mod actor_ref;
 pub(crate) mod channel;
 pub(crate) mod macros;
 pub(crate) mod props;
-pub(crate) mod selection;
 pub(crate) mod uri;
 
-use std::fmt;
+use std::{error, fmt};
 
 use crate::validate::InvalidName;
 
-// Public riker::actor API (plus the pub data types in this file)
+// Public API (plus the pub data types in this file)
 pub use self::{
     actor_cell::Context,
     actor_ref::{
         ActorRef, ActorRefFactory, ActorReference, BasicActorRef, BoxedTell, Sender, Tell,
-        TmpActorRefFactory,
     },
     channel::{
         channel, All, Channel, ChannelMsg, ChannelRef, DLChannelMsg, DeadLetter, EventsChannel,
-        Publish, Subscribe, SysTopic, Topic, Unsubscribe, UnsubscribeAll,
+        Publish, Subscribe, SubscribeWithResponse, SubscribedResponse, SysTopic, Topic,
+        Unsubscribe, UnsubscribeAll,
     },
     macros::actor,
     props::{ActorArgs, ActorFactory, ActorFactoryArgs, ActorProducer, BoxActorProd, Props},
-    selection::{ActorSelection, ActorSelectionFactory},
     uri::{ActorPath, ActorUri},
 };
 
 use crate::{system::SystemMsg, Message};
 
-#[allow(unused)]
 pub type MsgResult<T> = Result<(), MsgError<T>>;
 
 /// Internal message error when a message can't be added to an actor's mailbox
@@ -90,6 +86,8 @@ pub enum CreateError {
     AlreadyExists(ActorPath),
 }
 
+impl error::Error for CreateError {}
+
 impl fmt::Display for CreateError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
@@ -130,6 +128,7 @@ impl fmt::Debug for RestartError {
     }
 }
 
+#[allow(unused_variables)]
 pub trait Actor: Send + 'static {
     type Msg: Message;
 
@@ -152,11 +151,6 @@ pub trait Actor: Send + 'static {
 
     /// Invoked after an actor has been stopped.
     fn post_stop(&mut self) {}
-
-    /// Return a supervisor strategy that will be used when handling failed child actors.
-    fn supervisor_strategy(&self) -> Strategy {
-        Strategy::Restart
-    }
 
     /// Invoked when an actor receives a system message
     ///
@@ -195,10 +189,6 @@ impl<A: Actor + ?Sized> Actor for Box<A> {
         (**self).sys_recv(ctx, msg, sender)
     }
 
-    fn supervisor_strategy(&self) -> Strategy {
-        (**self).supervisor_strategy()
-    }
-
     fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender) {
         (**self).recv(ctx, msg, sender)
     }
@@ -212,7 +202,7 @@ impl<A: Actor + ?Sized> Actor for Box<A> {
 /// # Examples
 ///
 /// ```
-/// # use riker::actors::*;
+/// # use tezedge_actor_system::actors::*;
 ///
 /// #[derive(Clone, Debug)]
 /// pub struct Foo;
@@ -256,11 +246,16 @@ impl<A: Actor + ?Sized> Actor for Box<A> {
 /// }
 ///
 /// // main
-/// let sys = ActorSystem::new().unwrap();
-/// let actor = sys.actor_of::<MyActor>("my-actor").unwrap();
+/// #[tokio::main]
+/// async fn main() {
+///     let backend = tokio::runtime::Handle::current().into();
+///     let sys = ActorSystem::new(backend).unwrap();
+///     let actor = sys.actor_of::<MyActor>("my-actor").unwrap();
 ///
-/// actor.tell(Foo, None);
-/// actor.tell(Bar, None);
+///     actor.tell(Foo, None);
+///     actor.tell(Bar, None);
+///     sys.shutdown().await
+/// }
 /// ```
 pub trait Receive<Msg: Message> {
     type Msg: Message;
@@ -270,21 +265,4 @@ pub trait Receive<Msg: Message> {
     /// It is guaranteed that only one message in the actor's mailbox is processed
     /// at any one time, including `receive`, `other_receive` and `system_receive`.
     fn receive(&mut self, ctx: &Context<Self::Msg>, msg: Msg, sender: Sender);
-}
-
-/// The actor trait object
-pub type BoxActor<Msg> = Box<dyn Actor<Msg = Msg> + Send>;
-
-/// Supervision strategy
-///
-/// Returned in `Actor.supervision_strategy`
-pub enum Strategy {
-    /// Stop the child actor
-    Stop,
-
-    /// Attempt to restart the child actor
-    Restart,
-
-    /// Escalate the failure to a parent
-    Escalate,
 }

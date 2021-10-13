@@ -1,12 +1,11 @@
 #[macro_use]
 extern crate riker_testkit;
 
-use riker::actors::*;
+use tezedge_actor_system::actors::*;
 
 use riker_testkit::probe::channel::{probe, ChannelProbe};
 use riker_testkit::probe::{Probe, ProbeReceive};
 
-use chrono::{Duration as CDuration, Utc};
 use std::time::Duration;
 
 #[derive(Clone, Debug)]
@@ -47,9 +46,10 @@ impl Receive<SomeMessage> for ScheduleOnce {
     }
 }
 
-#[test]
-fn schedule_once() {
-    let sys = ActorSystem::new().unwrap();
+#[tokio::test(flavor = "multi_thread")]
+async fn schedule_once() {
+    let backend = tokio::runtime::Handle::current().into();
+    let sys = ActorSystem::new(backend).unwrap();
 
     let actor = sys.actor_of::<ScheduleOnce>("schedule-once").unwrap();
 
@@ -57,20 +57,6 @@ fn schedule_once() {
 
     // use scheduler to set up probe
     sys.schedule_once(Duration::from_millis(200), actor, None, TestProbe(probe));
-    p_assert_eq!(listen, ());
-}
-
-#[test]
-fn schedule_at_time() {
-    let sys = ActorSystem::new().unwrap();
-
-    let actor = sys.actor_of::<ScheduleOnce>("schedule-once").unwrap();
-
-    let (probe, listen) = probe();
-
-    // use scheduler to set up probe at a specific time
-    let schedule_at = Utc::now() + CDuration::milliseconds(200);
-    sys.schedule_at_time(schedule_at, actor, None, TestProbe(probe));
     p_assert_eq!(listen, ());
 }
 
@@ -122,9 +108,10 @@ impl Receive<SomeMessage> for ScheduleRepeat {
     }
 }
 
-#[test]
-fn schedule_repeat() {
-    let sys = ActorSystem::new().unwrap();
+#[tokio::test(flavor = "multi_thread")]
+async fn schedule_repeat() {
+    let backend = tokio::runtime::Handle::current().into();
+    let sys = ActorSystem::new(backend).unwrap();
 
     let actor = sys.actor_of::<ScheduleRepeat>("schedule-repeat").unwrap();
 

@@ -1,16 +1,14 @@
 use std::{
+    collections::HashMap,
     fmt,
     ops::Deref,
     sync::{
         atomic::{AtomicBool, AtomicUsize, Ordering},
-        Arc,
+        Arc, RwLock,
     },
     time::{Duration, Instant},
 };
 
-use chrono::prelude::*;
-use dashmap::DashMap;
-use futures::{future::RemoteHandle, task::SpawnError, Future};
 use uuid::Uuid;
 
 use crate::{
@@ -21,9 +19,8 @@ use crate::{
     },
     system::{
         timer::{Job, OnceJob, RepeatJob, ScheduleId, Timer},
-        ActorSystem, Run, SystemCmd, SystemMsg,
+        ActorSystem, SystemCmd, SystemMsg,
     },
-    validate::InvalidPath,
     AnyMessage, Envelope, Message,
 };
 
@@ -128,18 +125,18 @@ impl ActorCell {
         let mb = &self.inner.mailbox;
         let k = self.kernel();
 
-        dispatch_any(msg, sender, mb, k, &self.inner.system)
+        dispatch_any(msg, sender, mb, k)
     }
 
     pub(crate) fn send_sys_msg(&self, msg: Envelope<SystemMsg>) -> MsgResult<Envelope<SystemMsg>> {
         let mb = &self.inner.sys_mailbox;
 
         let k = self.kernel();
-        dispatch(msg, mb, k, &self.inner.system)
+        dispatch(msg, mb, k)
     }
 
     pub(crate) fn is_child(&self, actor: &BasicActorRef) -> bool {
-        self.inner.children.iter().any(|child| child == *actor)
+        self.inner.children.any(actor)
     }
 
     pub(crate) fn stop(&self, actor: &BasicActorRef) {
@@ -150,7 +147,8 @@ impl ActorCell {
         self.inner.children.add(actor);
     }
 
-    pub fn remove_child(&self, actor: &BasicActorRef) {
+    /// return true if there is no children left
+    pub fn remove_child_is_empty(&self, actor: &BasicActorRef) -> bool {
         self.inner.children.remove(actor)
     }
 
@@ -169,52 +167,40 @@ impl ActorCell {
         self.inner.is_terminating.store(true, Ordering::Relaxed);
 
         if !self.has_children() {
-            self.kernel().terminate(&self.inner.system);
+            self.kernel().terminate();
             post_stop(actor);
         } else {
-            for child in self.inner.children.iter() {
-                self.stop(&child);
-            }
+            self.inner.children.for_each(|child| self.stop(child));
         }
     }
 
     pub fn restart(&self) {
         if !self.has_children() {
-            self.kernel().restart(&self.inner.system);
+            self.kernel().restart();
         } else {
             self.inner.is_restarting.store(true, Ordering::Relaxed);
-            for child in self.inner.children.iter() {
-                self.stop(&child);
-            }
+            self.inner.children.for_each(|child| self.stop(child));
         }
     }
 
     pub fn death_watch<A: Actor>(&self, terminated: &BasicActorRef, actor: &mut Option<A>) {
-        if self.is_child(&terminated) {
-            self.remove_child(terminated);
+        if self.remove_child_is_empty(terminated) {
+            // No children exist. Stop this actor's kernel.
+            if self.inner.is_terminating.load(Ordering::Relaxed) {
+                self.kernel().terminate();
+                post_stop(actor);
+            }
 
-            if !self.has_children() {
-                // No children exist. Stop this actor's kernel.
-                if self.inner.is_terminating.load(Ordering::Relaxed) {
-                    self.kernel().terminate(&self.inner.system);
-                    post_stop(actor);
-                }
-
-                // No children exist. Restart the actor.
-                if self.inner.is_restarting.load(Ordering::Relaxed) {
-                    self.inner.is_restarting.store(false, Ordering::Relaxed);
-                    self.kernel().restart(&self.inner.system);
-                }
+            // No children exist. Restart the actor.
+            if self.inner.is_restarting.load(Ordering::Relaxed) {
+                self.inner.is_restarting.store(false, Ordering::Relaxed);
+                self.kernel().restart();
             }
         }
     }
 
-    pub fn handle_failure(&self, failed: BasicActorRef, strategy: Strategy) {
-        match strategy {
-            Strategy::Stop => self.stop(&failed),
-            Strategy::Restart => self.restart_child(&failed),
-            Strategy::Escalate => self.escalate_failure(),
-        }
+    pub fn handle_failure(&self, failed: BasicActorRef) {
+        self.restart_child(&failed)
     }
 
     pub fn restart_child(&self, actor: &BasicActorRef) {
@@ -239,48 +225,6 @@ impl<Msg: Message> From<ExtendedCell<Msg>> for ActorCell {
 impl fmt::Debug for ActorCell {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "ActorCell[{:?}]", self.uri())
-    }
-}
-
-impl TmpActorRefFactory for ActorCell {
-    fn tmp_actor_of_props<A: Actor>(
-        &self,
-        _props: BoxActorProd<A>,
-    ) -> Result<ActorRef<A::Msg>, CreateError> {
-        let name = rand::random::<u64>();
-        let _name = format!("{}", name);
-
-        // self.inner
-        //     .kernel
-        //     .create_actor(props, &name, &self.inner.system.temp_root())
-        unimplemented!()
-    }
-
-    fn tmp_actor_of<A: ActorFactory>(&self) -> Result<ActorRef<<A as Actor>::Msg>, CreateError> {
-        let name = rand::random::<u64>();
-        let _name = format!("{}", name);
-
-        // self.inner
-        //     .kernel
-        //     .create_actor(props, &name, &self.inner.system.temp_root())
-        unimplemented!()
-    }
-
-    fn tmp_actor_of_args<A, Args>(
-        &self,
-        _args: Args,
-    ) -> Result<ActorRef<<A as Actor>::Msg>, CreateError>
-    where
-        Args: ActorArgs,
-        A: ActorFactoryArgs<Args>,
-    {
-        let name = rand::random::<u64>();
-        let _name = format!("{}", name);
-
-        // self.inner
-        //     .kernel
-        //     .create_actor(props, &name, &self.inner.system.temp_root())
-        unimplemented!()
     }
 }
 
@@ -367,7 +311,7 @@ where
         let mb = &self.mailbox;
         let k = self.cell.kernel();
 
-        dispatch(msg, mb, k, &self.system()).map_err(|e| {
+        dispatch(msg, mb, k).map_err(|e| {
             let dl = e.clone(); // clone the failed message and send to dead letters
             let dl = DeadLetter {
                 msg: format!("{:?}", dl.msg.msg),
@@ -395,8 +339,8 @@ where
         &self.cell.inner.system
     }
 
-    pub(crate) fn handle_failure(&self, failed: BasicActorRef, strategy: Strategy) {
-        self.cell.handle_failure(failed, strategy)
+    pub(crate) fn handle_failure(&self, failed: BasicActorRef) {
+        self.cell.handle_failure(failed)
     }
 
     pub(crate) fn receive_cmd<A: Actor>(&self, cmd: SystemCmd, actor: &mut Option<A>) {
@@ -499,41 +443,6 @@ impl<Msg: Message> ActorRefFactory for Context<Msg> {
     }
 }
 
-impl<Msg> ActorSelectionFactory for Context<Msg>
-where
-    Msg: Message,
-{
-    fn select(&self, path: &str) -> Result<ActorSelection, InvalidPath> {
-        let (anchor, path_str) = if path.starts_with('/') {
-            let anchor = self.system.user_root().clone();
-            let anchor_path = format!("{}/", anchor.path());
-            let path = path.to_string().replace(&anchor_path, "");
-
-            (anchor, path)
-        } else {
-            (self.myself.clone().into(), path.to_string())
-        };
-
-        ActorSelection::new(
-            anchor, // self.system.dead_letters(),
-            path_str,
-        )
-    }
-}
-
-impl<Msg> Run for Context<Msg>
-where
-    Msg: Message,
-{
-    fn run<Fut>(&self, future: Fut) -> Result<RemoteHandle<<Fut as Future>::Output>, SpawnError>
-    where
-        Fut: Future + Send + 'static,
-        <Fut as Future>::Output: Send,
-    {
-        self.system.run(future)
-    }
-}
-
 impl<Msg> Timer for Context<Msg>
 where
     Msg: Message,
@@ -562,7 +471,7 @@ where
             msg: AnyMessage::new(msg, false),
         };
 
-        self.system.timer.send(Job::Repeat(job)).unwrap();
+        let _ = self.system.timer.lock().unwrap().send(Job::Repeat(job));
         id
     }
 
@@ -588,69 +497,66 @@ where
             msg: AnyMessage::new(msg, true),
         };
 
-        self.system.timer.send(Job::Once(job)).unwrap();
-        id
-    }
-
-    fn schedule_at_time<T, M>(
-        &self,
-        time: DateTime<Utc>,
-        receiver: ActorRef<M>,
-        sender: Sender,
-        msg: T,
-    ) -> ScheduleId
-    where
-        T: Message + Into<M>,
-        M: Message,
-    {
-        let delay = std::cmp::max(time.timestamp() - Utc::now().timestamp(), 0_i64);
-        let delay = Duration::from_secs(delay as u64);
-
-        let id = Uuid::new_v4();
-        let msg: M = msg.into();
-
-        let job = OnceJob {
-            id,
-            send_at: Instant::now() + delay,
-            receiver: receiver.into(),
-            sender,
-            msg: AnyMessage::new(msg, true),
-        };
-
-        self.system.timer.send(Job::Once(job)).unwrap();
+        let _ = self.system.timer.lock().unwrap().send(Job::Once(job));
         id
     }
 
     fn cancel_schedule(&self, id: Uuid) {
-        let _ = self.system.timer.send(Job::Cancel(id));
+        let _ = self.system.timer.lock().unwrap().send(Job::Cancel(id));
     }
 }
 
 #[derive(Clone)]
 pub struct Children {
-    actors: Arc<DashMap<String, BasicActorRef>>,
+    actors: Arc<RwLock<HashMap<String, BasicActorRef>>>,
 }
 
 impl Children {
     pub fn new() -> Children {
         Children {
-            actors: Arc::new(DashMap::new()),
+            actors: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
     pub fn add(&self, actor: BasicActorRef) {
-        self.actors.insert(actor.name().to_string(), actor);
+        self.actors
+            .write()
+            .unwrap()
+            .insert(actor.name().to_string(), actor);
     }
 
-    pub fn remove(&self, actor: &BasicActorRef) {
-        self.actors.remove(actor.name());
+    pub fn remove(&self, actor: &BasicActorRef) -> bool {
+        let mut g = self.actors.write().unwrap();
+        g.remove(actor.name());
+        g.is_empty()
     }
 
     pub fn len(&self) -> usize {
-        self.actors.len()
+        self.actors.read().unwrap().len()
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = BasicActorRef> + '_ {
-        self.actors.iter().map(|e| e.value().clone())
+    pub fn for_each<F>(&self, f: F)
+    where
+        F: FnMut(&BasicActorRef),
+    {
+        self.actors.read().unwrap().values().for_each(f)
+    }
+
+    pub fn any(&self, actor: &BasicActorRef) -> bool {
+        self.actors
+            .read()
+            .unwrap()
+            .values()
+            .any(|child| *child == *actor)
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = BasicActorRef> {
+        self.actors
+            .read()
+            .unwrap()
+            .values()
+            .cloned()
+            .collect::<Vec<_>>()
+            .into_iter()
     }
 }

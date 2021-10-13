@@ -4,13 +4,11 @@ use std::{
     time::{Duration, Instant},
 };
 
-use chrono::{DateTime, Utc};
-use config::Config;
 use uuid::Uuid;
 
 use crate::{
     actor::{ActorRef, BasicActorRef, Sender},
-    AnyMessage, Message,
+    AnyMessage, Config, Message,
 };
 
 pub type TimerRef = mpsc::Sender<Job>;
@@ -33,17 +31,6 @@ pub trait Timer {
     fn schedule_once<T, M>(
         &self,
         delay: Duration,
-        receiver: ActorRef<M>,
-        sender: Sender,
-        msg: T,
-    ) -> ScheduleId
-    where
-        T: Message + Into<M>,
-        M: Message;
-
-    fn schedule_at_time<T, M>(
-        &self,
-        time: DateTime<Utc>,
         receiver: ActorRef<M>,
         sender: Sender,
         msg: T,
@@ -101,7 +88,7 @@ pub struct BasicTimer {
 
 impl BasicTimer {
     pub fn start(cfg: &Config) -> TimerRef {
-        let cfg = BasicTimerConfig::from(cfg);
+        let cfg = cfg.scheduler.clone();
 
         let mut process = BasicTimer {
             once_jobs: Vec::new(),
@@ -182,14 +169,25 @@ impl BasicTimer {
     }
 }
 
-struct BasicTimerConfig {
-    frequency_millis: u64,
+#[derive(Clone, Debug)]
+pub struct BasicTimerConfig {
+    pub frequency_millis: u64,
 }
 
-impl<'a> From<&'a Config> for BasicTimerConfig {
-    fn from(config: &Config) -> Self {
+impl Default for BasicTimerConfig {
+    fn default() -> Self {
         BasicTimerConfig {
-            frequency_millis: config.get_int("scheduler.frequency_millis").unwrap() as u64,
+            frequency_millis: 50,
         }
+    }
+}
+
+impl BasicTimerConfig {
+    // Option<()> allow to use ? for parsing toml value, ignore it
+    pub fn merge(&mut self, v: &toml::Value) -> Option<()> {
+        let v = v.as_table()?;
+        let frequency_millis = v.get("frequency_millis")?.as_integer()? as _;
+        self.frequency_millis = frequency_millis;
+        None
     }
 }

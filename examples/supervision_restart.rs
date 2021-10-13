@@ -1,5 +1,4 @@
-extern crate riker;
-use riker::actors::*;
+use tezedge_actor_system::actors::*;
 
 use std::time::Duration;
 
@@ -59,10 +58,6 @@ impl Actor for RestartSup {
         self.actor_to_fail = ctx.actor_of::<PanicActor>("actor-to-fail").ok();
     }
 
-    fn supervisor_strategy(&self) -> Strategy {
-        Strategy::Restart
-    }
-
     fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender) {
         self.receive(ctx, msg, sender)
     }
@@ -76,19 +71,25 @@ impl Receive<Panic> for RestartSup {
     }
 }
 
-fn main() {
-    let sys = ActorSystem::new().unwrap();
+#[tokio::main]
+async fn main() {
+    let backend = tokio::runtime::Handle::current().into();
+    let sys = ActorSystem::new(backend).unwrap();
 
     let sup = sys.actor_of::<RestartSup>("supervisor").unwrap();
     // println!("Child not added yet");
     // sys.print_tree();
 
     println!("Before panic we see supervisor and actor that will panic!");
-    std::thread::sleep(Duration::from_millis(500));
-    sys.print_tree();
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    for line in sys.print_tree() {
+        println!("{}", line);
+    }
 
     sup.tell(Panic, None);
-    std::thread::sleep(Duration::from_millis(500));
+    tokio::time::sleep(Duration::from_millis(500)).await;
     println!("We should see panic printed, but we still alive and panic actor still here!");
-    sys.print_tree();
+    for line in sys.print_tree() {
+        println!("{}", line);
+    }
 }

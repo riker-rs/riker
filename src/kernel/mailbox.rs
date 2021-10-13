@@ -4,8 +4,6 @@ use std::sync::{
 };
 use std::thread;
 
-use config::Config;
-
 use crate::{
     actor::actor_cell::ExtendedCell,
     actor::*,
@@ -91,9 +89,6 @@ where
     }
 }
 
-unsafe impl<Msg: Message> Send for MailboxSender<Msg> {}
-unsafe impl<Msg: Message> Sync for MailboxSender<Msg> {}
-
 #[derive(Clone)]
 pub struct Mailbox<Msg: Message> {
     inner: Arc<MailboxInner<Msg>>,
@@ -108,11 +103,6 @@ pub struct MailboxInner<Msg: Message> {
 }
 
 impl<Msg: Message> Mailbox<Msg> {
-    #[allow(dead_code)]
-    pub fn dequeue(&self) -> Envelope<Msg> {
-        self.inner.queue.dequeue()
-    }
-
     pub fn try_dequeue(&self) -> Result<Envelope<Msg>, QueueEmpty> {
         self.inner.queue.try_dequeue()
     }
@@ -204,13 +194,13 @@ where
     let mut actor = dock.actor.lock().unwrap().take();
     let cell = &mut dock.cell;
 
-    process_sys_msgs(&sen.mbox, &ctx, cell, &mut actor);
+    process_sys_msgs(sen.mbox, &ctx, cell, &mut actor);
 
     if actor.is_some() && !sen.mbox.is_suspended() {
-        process_msgs(&sen.mbox, &ctx, cell, &mut actor);
+        process_msgs(sen.mbox, &ctx, cell, &mut actor);
     }
 
-    process_sys_msgs(&sen.mbox, &ctx, cell, &mut actor);
+    process_sys_msgs(sen.mbox, &ctx, cell, &mut actor);
 
     if actor.is_some() {
         let mut a = dock.actor.lock().unwrap();
@@ -221,7 +211,7 @@ where
 
     let has_msgs = sen.mbox.has_msgs() || sen.mbox.has_sys_msgs();
     if has_msgs && !sen.mbox.is_scheduled() {
-        ctx.kernel.schedule(&ctx.system);
+        ctx.kernel.schedule();
     }
 }
 
@@ -241,7 +231,7 @@ fn process_msgs<A>(
                 Ok(msg) => {
                     let (msg, sender) = (msg.msg, msg.sender);
                     actor.as_mut().unwrap().recv(ctx, msg, sender);
-                    process_sys_msgs(&mbox, &ctx, cell, actor);
+                    process_sys_msgs(mbox, ctx, cell, actor);
 
                     count += 1;
                 }
@@ -277,7 +267,7 @@ fn process_sys_msgs<A>(
             SystemMsg::ActorInit => handle_init(mbox, ctx, cell, actor),
             SystemMsg::Command(cmd) => cell.receive_cmd(cmd, actor),
             SystemMsg::Event(evt) => handle_evt(evt, ctx, cell, actor),
-            SystemMsg::Failed(failed) => handle_failed(failed, cell, actor),
+            SystemMsg::Failed(failed) => handle_failed(failed, cell),
         }
     }
 }
@@ -305,11 +295,11 @@ fn handle_init<A>(
     actor.as_mut().unwrap().post_start(ctx);
 }
 
-fn handle_failed<A>(failed: BasicActorRef, cell: &ExtendedCell<A::Msg>, actor: &mut Option<A>)
+fn handle_failed<Msg>(failed: BasicActorRef, cell: &ExtendedCell<Msg>)
 where
-    A: Actor,
+    Msg: Message,
 {
-    cell.handle_failure(failed, actor.as_mut().unwrap().supervisor_strategy())
+    cell.handle_failure(failed)
 }
 
 fn handle_evt<A>(
@@ -383,10 +373,20 @@ pub struct MailboxConfig {
     pub msg_process_limit: u32,
 }
 
-impl<'a> From<&'a Config> for MailboxConfig {
-    fn from(cfg: &Config) -> Self {
+impl Default for MailboxConfig {
+    fn default() -> Self {
         MailboxConfig {
-            msg_process_limit: cfg.get_int("mailbox.msg_process_limit").unwrap() as u32,
+            msg_process_limit: 1000,
         }
+    }
+}
+
+impl MailboxConfig {
+    // Option<()> allow to use ? for parsing toml value, ignore it
+    pub fn merge(&mut self, v: &toml::Value) -> Option<()> {
+        let v = v.as_table()?;
+        let msg_process_limit = v.get("msg_process_limit")?.as_integer()?;
+        self.msg_process_limit = msg_process_limit as u32;
+        None
     }
 }

@@ -5,21 +5,17 @@ pub(crate) mod queue;
 
 use crate::system::ActorSystem;
 
-#[allow(dead_code)]
 #[derive(Debug)]
 pub enum KernelMsg {
     TerminateActor,
     RestartActor,
     RunActor,
-    Sys(ActorSystem),
+    Sys,
 }
 use std::{
     panic::{catch_unwind, AssertUnwindSafe},
     sync::{Arc, Mutex},
 };
-
-use futures::{channel::mpsc::channel, task::SpawnExt, StreamExt};
-use slog::warn;
 
 use crate::{
     actor::actor_cell::ExtendedCell,
@@ -28,7 +24,7 @@ use crate::{
         kernel_ref::KernelRef,
         mailbox::{flush_to_deadletters, run_mailbox, Mailbox},
     },
-    system::{ActorRestarted, ActorTerminated, SystemMsg},
+    system::{ActorRestarted, ActorSystemBackend, ActorTerminated, SystemMsg},
     Message,
 };
 
@@ -55,8 +51,8 @@ pub fn kernel<A>(
 where
     A: Actor + 'static,
 {
-    let (tx, mut rx) = channel::<KernelMsg>(1000); // todo config?
-    let kr = KernelRef { tx };
+    let (tx, rx) = sys.backend.channel(1000); // todo config?
+    let kr = KernelRef { tx: Arc::new(tx) };
 
     let mut asys = sys.clone();
     let akr = kr.clone();
@@ -70,35 +66,34 @@ where
 
     let actor_ref = ActorRef::new(cell);
 
-    let f = async move {
-        while let Some(msg) = rx.next().await {
-            match msg {
-                KernelMsg::RunActor => {
-                    let ctx = Context {
-                        myself: actor_ref.clone(),
-                        system: asys.clone(),
-                        kernel: akr.clone(),
-                    };
+    let f = move |msg| {
+        match msg {
+            KernelMsg::RunActor => {
+                let ctx = Context {
+                    myself: actor_ref.clone(),
+                    system: asys.clone(),
+                    kernel: akr.clone(),
+                };
 
-                    let _ = std::panic::catch_unwind(AssertUnwindSafe(|| {
-                        run_mailbox(&mailbox, ctx, &mut dock)
-                    })); //.unwrap();
-                }
-                KernelMsg::RestartActor => {
-                    restart_actor(&dock, actor_ref.clone().into(), &props, &asys);
-                }
-                KernelMsg::TerminateActor => {
-                    terminate_actor(&mailbox, actor_ref.clone().into(), &asys);
-                    break;
-                }
-                KernelMsg::Sys(s) => {
-                    asys = s;
-                }
+                let _ = std::panic::catch_unwind(AssertUnwindSafe(|| {
+                    run_mailbox(&mailbox, ctx, &mut dock)
+                })); //.unwrap();
+            }
+            KernelMsg::RestartActor => {
+                restart_actor(&dock, actor_ref.clone().into(), &props, &asys);
+            }
+            KernelMsg::TerminateActor => {
+                terminate_actor(&mailbox, actor_ref.clone().into(), &asys);
+                return false;
+            }
+            KernelMsg::Sys => {
+                asys.complete_start();
             }
         }
+        true
     };
 
-    sys.exec.spawn(f).unwrap();
+    sys.backend.spawn_receiver(rx, f);
     Ok(kr)
 }
 
@@ -118,7 +113,7 @@ fn restart_actor<A>(
             sys.publish_event(ActorRestarted { actor: actor_ref }.into());
         }
         Err(_) => {
-            warn!(sys.log(), "Actor failed to restart: {:?}", actor_ref);
+            slog::warn!(sys.log(), "Actor failed to restart: {:?}", actor_ref);
         }
     }
 }
