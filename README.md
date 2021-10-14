@@ -1,4 +1,4 @@
-# Tezedge Actor System
+# TezEdge Actor System
 
 [![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 [![Drone status](http://ci.tezedge.com/api/badges/tezedge/tezedge-actor-system/status.svg)](http://ci.tezedge.com/tezedge/tezedge-actor-system)
@@ -8,15 +8,25 @@
 
 ## Overview
 
-TezEdge Actor System is a fork of riker. It is a framework for building safe, modern, concurrent and resilient systems using the Rust language. It focuses on simplicity and safety. TezEdge Actor System aims to make working with state and behavior in concurrent systems as easy and scalable as possible. The Actor Model has been chosen to realize this because of the familiar and inherent simplicity it provides while also providing strong guarantees that are easy to reason about.
+The TezEdge Actor System is a fork of Riker. It is a framework for building safe, modern, concurrent and resilient systems using the Rust language. It focuses on safety and simplicity. TezEdge Actor System aims to make work with states and behavior in concurrent systems as easy and scalable as possible. The Actor Model has been chosen because of its familiarity and inherent simplicity while also providing strong guarantees that are easy to reason with.
 
-TezEdge Actor System provides:
+The TezEdge Actor System provides:
 
-- An Actor based execution runtime
+- An Actor-based execution runtime
 - Concurrency built on `tokio`
 - Publish/Subscribe messaging via actor channels
 - Message scheduling
 - Out-of-the-box, configurable, non-blocking logging
+
+## Why did we create the TezEdge Actor System?
+
+TezEdge Actor System is a step towards improving the safety of the TezEdge node.
+
+Rust empowers developers with control over memory management, requiring no garbage collection and runtime overhead, while also providing modern semantics and expressive syntax such as the trait system. TezEdge Actor System adds to this by providing a familiar actor model API which in turn makes programming concurrent, resilient systems easy.
+
+In the TezEdge node, safety is of utmost importance. The original actor system (Riker) was a simple solution, but we knew that there was room for improvement in regards to safety. Riker itself has some unsafe code which might cause bugs or even a breach of security and it has a lot of unsafe dependencies. This fork rewrites the unsafe parts of Riker and its dependencies. Surprisingly, we succeeded in achieving that without sacrificing performance. Additionally, the fork removes unneeded (for the TezEdge node) functionalities in order to reduce the node's attack surface.
+
+In the fork we are using `tokio` crate instead of `futures` crate to run async tasks. It is the only part that containing unsafe code. We are of the opinion that `tokio` is safe, because it is used almost everywhere in crypto applications written in Rust, and therefore it is well tested in production.
 
 ## Example
 
@@ -65,26 +75,18 @@ async fn main() {
 
 ## Associated Projects
 
-Official crates that provide additional functionality:
+Official crates that provide additional functionalities:
 
 - [riker-testkit](https://github.com/riker-rs/riker-testkit): Tools to make testing easier
 
-## Why TezEdge Actor System
-
-TezEdge Actor System is a step to improve safety of the TezEdge node.
-
-Rust empowers developers with control over memory management, requiring no garbage collection and runtime overhead, while also providing modern semantics and expressive syntax such as the trait system. The result is a language that can solve problems equally for Web and IoT.
-
-TezEdge Actor System adds to this by providing a familiar actor model API which in turn makes concurrent, resilient systems programming easy.
-
 ## Rust Version
 
-TezEdge Actor System is currently built using the Rust version `nightly-2021-08-04`, like other TezEdge projects do.
+The TezEdge Actor System is currently built using the Rust version `nightly-2021-08-04`, same as the other projects under the TezEdge node.
 
 ## pre-commit
 
-Before you commit your code [pre-commit](https://pre-commit.com/) integrates as a git hook to automatically check your code.
-Please don't skip git hooks (even if you do the travis TravisCI build will still fail).
+Before you commit your code, [pre-commit](https://pre-commit.com/) integrates as a git hook to automatically check your code.
+Please don't skip git hooks (even if you do the travis TravisCI build, it will still fail).
 
 There are two different approaches you can use to run pre-commit
 
@@ -121,9 +123,9 @@ Symbols:
 
 Functions  Expressions  Impls  Traits  Methods  Dependency
 
-0/0        0/0          0/0    0/0     0/0      🔒  tezedge-actor-system 0.4.2-cleanup-unsafe-8
+0/0        0/0          0/0    0/0     0/0      🔒  tezedge-actor-system 0.5.0
 0/0        0/0          0/0    0/0     0/0      ❓  ├── slog 2.7.0
-0/0        0/0          0/0    0/0     0/0      ❓  ├── tezedge-actor-system-macros 0.2.0
+0/0        0/0          0/0    0/0     0/0      ❓  ├── tezedge-actor-system-macros 0.5.0
 0/0        0/0          0/0    0/0     0/0      ❓  │   ├── proc-macro2 1.0.30
 0/0        0/0          0/0    0/0     0/0      🔒  │   │   └── unicode-xid 0.2.2
 0/0        0/0          0/0    0/0     0/0      ❓  │   ├── quote 1.0.10
@@ -138,7 +140,7 @@ Functions  Expressions  Impls  Traits  Methods  Dependency
 0/0        72/72        0/0    0/0     0/0      ☢️      ├── num_cpus 1.13.0
 0/20       12/319       0/0    0/0     2/30     ☢️      │   └── libc 0.2.103
 0/0        8/167        0/0    0/0     0/0      ☢️      ├── pin-project-lite 0.2.7
-0/0        0/0          0/0    0/0     0/0      ❓      └── tokio-macros 1.4.1
+0/0        0/0          0/0    0/0     0/0      ❓      └── tokio-macros 1.5.0
 0/0        0/0          0/0    0/0     0/0      ❓          ├── proc-macro2 1.0.30
 0/0        0/0          0/0    0/0     0/0      ❓          ├── quote 1.0.10
 0/0        45/45        3/3    0/0     2/2      ☢️          └── syn 1.0.80

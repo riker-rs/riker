@@ -3,8 +3,12 @@ members = [".", "tezedge-actor-system-macros"]
 
 [package]
 name = "tezedge-actor-system"
-version = "0.4.2-cleanup-unsafe-8"
-authors = ["Lee Smith <lee@riker.rs>"]
+version = "0.5.0"
+authors = [
+    "Lee Smith <lee@riker.rs>",
+    "Branislav Kontur <branislav.kontur@viablesystems.io>",
+    "Vladislav Melnik <vladislav.melnik@viablesystems.io>"
+]
 edition = "2018"
 description = "Easily build fast, highly concurrent and resilient applications. An Actor Framework for Rust."
 repository = "https://github.com/tezedge/tezedge-actor-system"
@@ -13,7 +17,7 @@ readme = "README.md"
 keywords = ["actors", "actor-model", "async", "event_sourcing"]
 
 [dependencies]
-tezedge-actor-system-macros = { path = "tezedge-actor-system-macros", version = "0.2.0" }
+tezedge-actor-system-macros = { path = "tezedge-actor-system-macros", version = "0.5.0" }
 tokio = { version = "1.12", features = ["sync", "rt-multi-thread"] }
 toml = { git = "https://github.com/tezedge/toml-rs.git", tag = "v0.5.8-cleanup-unsafe-1" }
 uuid = { git = "https://github.com/tezedge/uuid", tag = "v0.8.2-cleanup-unsafe-1", default-features = false, features = ["v4"] }

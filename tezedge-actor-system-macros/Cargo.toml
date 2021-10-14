@@ -1,6 +1,6 @@
 [package]
 name = "tezedge-actor-system-macros"
-version = "0.2.0"
+version = "0.5.0"
 authors = ["Lee Smith <lee@riker.rs>"]
 edition = "2018"
 description = "Macro crate for Riker actor framework"
