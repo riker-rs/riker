@@ -130,9 +130,7 @@ impl fmt::Debug for SystemError {
     }
 }
 use std::{
-    future::Future,
-    pin::Pin,
-    sync::{Arc, Mutex},
+    sync::{mpsc, Arc, Mutex},
     time::{Duration, Instant, SystemTime},
 };
 
@@ -140,34 +138,14 @@ use uuid::Uuid;
 
 use crate::{
     actor::{props::ActorFactory, *},
-    kernel::{
-        provider::{create_root, Provider},
-        KernelMsg,
-    },
+    kernel::provider::{create_root, Provider},
     load_config,
     system::logger::*,
     system::timer::*,
-    tokio_backend::ActorSystemBackendTokio,
     validate::validate_name,
     AnyMessage, Config, Message,
 };
 use slog::Logger;
-
-pub trait SendingBackend {
-    fn send_msg(&self, msg: KernelMsg);
-}
-
-pub trait ActorSystemBackend {
-    type Tx: SendingBackend + Send + Sync + 'static;
-
-    type Rx;
-
-    fn channel(&self, capacity: usize) -> (Self::Tx, Self::Rx);
-
-    fn spawn_receiver<F: FnMut(KernelMsg) -> bool + Send + 'static>(&self, rx: Self::Rx, f: F);
-
-    fn receiver_future(&self, rx: Self::Rx) -> Pin<Box<dyn Future<Output = ()>>>;
-}
 
 // 0. error results on any
 // 1. visibility
@@ -187,7 +165,6 @@ pub struct SystemBuilder {
     name: Option<String>,
     cfg: Option<Config>,
     log: Option<Logger>,
-    backend: Option<ActorSystemBackendTokio>,
 }
 
 impl SystemBuilder {
@@ -200,10 +177,9 @@ impl SystemBuilder {
             .name
             .unwrap_or_else(|| "tezedge-actor-system".to_string());
         let cfg = self.cfg.unwrap_or_else(load_config);
-        let backend = self.backend.unwrap();
         let log = self.log.unwrap_or_else(|| default_log(&cfg));
 
-        ActorSystem::create(name.as_ref(), backend, log, cfg)
+        ActorSystem::create(name.as_ref(), log, cfg)
     }
 
     pub fn name(self, name: &str) -> Self {
@@ -216,13 +192,6 @@ impl SystemBuilder {
     pub fn cfg(self, cfg: Config) -> Self {
         SystemBuilder {
             cfg: Some(cfg),
-            ..self
-        }
-    }
-
-    pub fn exec(self, backend: ActorSystemBackendTokio) -> Self {
-        SystemBuilder {
-            backend: Some(backend),
             ..self
         }
     }
@@ -248,55 +217,42 @@ pub struct ActorSystem {
     sys_actors: Option<SysActors>,
     log: Logger,
     debug: bool,
-    pub backend: ActorSystemBackendTokio,
     pub timer: Arc<Mutex<TimerRef>>,
     sys_channels: Option<SysChannels>,
     temp_storage: Arc<Mutex<Option<(SysActors, SysChannels)>>>,
     pub(super) provider: Provider,
-    shutdown_rx: Arc<Mutex<Option<<ActorSystemBackendTokio as ActorSystemBackend>::Rx>>>,
+    shutdown_rx: Arc<Mutex<Option<mpsc::Receiver<()>>>>,
 }
 
 impl ActorSystem {
     /// Create a new `ActorSystem` instance
     ///
     /// Requires a type that implements the `Model` trait.
-    pub fn new(backend: ActorSystemBackendTokio) -> Result<ActorSystem, SystemError> {
+    pub fn new() -> Result<ActorSystem, SystemError> {
         let cfg = load_config();
         let log = default_log(&cfg);
 
-        ActorSystem::create("tezedge-actor-system", backend, log, cfg)
+        ActorSystem::create("tezedge-actor-system", log, cfg)
     }
 
     /// Create a new `ActorSystem` instance with provided name
     ///
     /// Requires a type that implements the `Model` trait.
-    pub fn with_name(
-        name: &str,
-        backend: ActorSystemBackendTokio,
-    ) -> Result<ActorSystem, SystemError> {
+    pub fn with_name(name: &str) -> Result<ActorSystem, SystemError> {
         let cfg = load_config();
         let log = default_log(&cfg);
 
-        ActorSystem::create(name, backend, log, cfg)
+        ActorSystem::create(name, log, cfg)
     }
 
     /// Create a new `ActorSystem` instance bypassing default config behavior
-    pub fn with_config(
-        name: &str,
-        backend: ActorSystemBackendTokio,
-        cfg: Config,
-    ) -> Result<ActorSystem, SystemError> {
+    pub fn with_config(name: &str, cfg: Config) -> Result<ActorSystem, SystemError> {
         let log = default_log(&cfg);
 
-        ActorSystem::create(name, backend, log, cfg)
+        ActorSystem::create(name, log, cfg)
     }
 
-    fn create(
-        name: &str,
-        backend: ActorSystemBackendTokio,
-        log: Logger,
-        cfg: Config,
-    ) -> Result<ActorSystem, SystemError> {
+    fn create(name: &str, log: Logger, cfg: Config) -> Result<ActorSystem, SystemError> {
         validate_name(name).map_err(|_| SystemError::InvalidName(name.into()))?;
         // Process Configuration
         let debug = cfg.debug;
@@ -322,13 +278,12 @@ impl ActorSystem {
             started_at_moment: Instant::now(),
         };
 
-        let (shutdown_tx, shutdown_rx) = backend.channel(1);
+        let (shutdown_tx, shutdown_rx) = mpsc::channel();
 
         // 2. create uninitialized system
         let mut sys = ActorSystem {
             proto: Arc::new(proto),
             debug,
-            backend,
             log,
             // event_store: None,
             timer: Arc::new(Mutex::new(timer)),
@@ -340,7 +295,7 @@ impl ActorSystem {
         };
 
         // 3. create initial actor hierarchy
-        let sys_actors = create_root(&sys, Arc::new(shutdown_tx));
+        let sys_actors = create_root(&sys, shutdown_tx);
         sys.sys_actors = Some(sys_actors.clone());
 
         // 4. start system channels
@@ -476,17 +431,16 @@ impl ActorSystem {
     /// Attempts a graceful shutdown of the system and all actors.
     /// Actors will receive a stop message, executing `actor.post_stop`.
     ///
-    /// Does not block. Returns a future which is completed when all
-    /// actors have successfully stopped.
-    pub fn shutdown(&self) -> Pin<Box<dyn Future<Output = ()>>> {
+    /// Block until all actors have successfully stopped.
+    pub fn shutdown(&self) {
         self.stop(self.user_root());
-        self.backend.receiver_future(
-            self.shutdown_rx
-                .lock()
-                .unwrap()
-                .take()
-                .expect("shutdown was already called"),
-        )
+        let _ = self
+            .shutdown_rx
+            .lock()
+            .expect("poisoned")
+            .take()
+            .expect("shutdown was already called")
+            .recv();
     }
 }
 

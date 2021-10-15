@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{thread, time::Duration};
 use tezedge_actor_system::actors::*;
 
 #[derive(Default)]
@@ -14,14 +14,12 @@ impl Actor for MyActor {
 }
 
 // start the system and create an actor
-#[tokio::main]
-async fn main() {
-    let backend = tokio::runtime::Handle::current().into();
-    let sys = ActorSystem::new(backend).unwrap();
+fn main() {
+    let sys = ActorSystem::new().unwrap();
 
     let my_actor = sys.actor_of::<MyActor>("my-actor").unwrap();
 
     my_actor.tell("Hello my actor!".to_string(), None);
 
-    tokio::time::sleep(Duration::from_millis(500)).await;
+    thread::sleep(Duration::from_millis(500));
 }

@@ -82,28 +82,26 @@ impl Receive<SystemEvent> for SystemActor {
     }
 }
 
-#[tokio::main]
-async fn main() {
-    let backend = tokio::runtime::Handle::current().into();
-    let sys = ActorSystem::new(backend).unwrap();
+fn main() {
+    let sys = ActorSystem::new().unwrap();
 
     let _sub = sys.actor_of::<SystemActor>("system-actor").unwrap();
 
-    tokio::time::sleep(Duration::from_millis(500)).await;
+    std::thread::sleep(Duration::from_millis(500));
 
     println!("Creating dump actor");
     let dumb = sys.actor_of::<DumbActor>("dumb-actor").unwrap();
 
     // sleep another half seconds to process messages
-    tokio::time::sleep(Duration::from_millis(500)).await;
+    std::thread::sleep(Duration::from_millis(500));
 
     // Force restart of actor
     println!("Send Panic message to dump actor to get restart");
     dumb.tell(Panic, None);
-    tokio::time::sleep(Duration::from_millis(500)).await;
+    std::thread::sleep(Duration::from_millis(500));
 
     println!("Stopping dump actor");
     sys.stop(&dumb);
-    tokio::time::sleep(Duration::from_millis(500)).await;
+    std::thread::sleep(Duration::from_millis(500));
     sys.print_tree();
 }

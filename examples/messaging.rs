@@ -59,10 +59,8 @@ impl Receive<Print> for Counter {
     }
 }
 
-#[tokio::main]
-async fn main() {
-    let backend = tokio::runtime::Handle::current().into();
-    let sys = ActorSystem::new(backend).unwrap();
+fn main() {
+    let sys = ActorSystem::new().unwrap();
 
     let actor = sys.actor_of_args::<Counter, _>("counter", 0).unwrap();
     actor.tell(Add, None);
@@ -73,5 +71,5 @@ async fn main() {
         println!("{}", line);
     }
     // force main to wait before exiting program
-    tokio::time::sleep(Duration::from_millis(500)).await;
+    std::thread::sleep(Duration::from_millis(500));
 }

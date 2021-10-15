@@ -61,25 +61,23 @@ impl Receive<DeadLetter> for DeadLetterActor {
     }
 }
 
-#[tokio::main]
-async fn main() {
-    let backend = tokio::runtime::Handle::current().into();
-    let sys = ActorSystem::new(backend).unwrap();
+fn main() {
+    let sys = ActorSystem::new().unwrap();
 
     let _sub = sys.actor_of::<DeadLetterActor>("system-actor").unwrap();
 
-    tokio::time::sleep(Duration::from_millis(500)).await;
+    std::thread::sleep(Duration::from_millis(500));
 
     println!("Creating dump actor");
     let dumb = sys.actor_of::<DumbActor>("dumb-actor").unwrap();
 
     println!("Stopping dump actor");
     sys.stop(&dumb);
-    tokio::time::sleep(Duration::from_millis(500)).await;
+    std::thread::sleep(Duration::from_millis(500));
 
     println!("Sending SomeMessage to stopped actor");
     dumb.tell(SomeMessage, None);
-    tokio::time::sleep(Duration::from_millis(500)).await;
+    std::thread::sleep(Duration::from_millis(500));
     for line in sys.print_tree() {
         println!("{}", line);
     }

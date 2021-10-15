@@ -44,25 +44,19 @@ impl Receive<Panic> for PanicActor {
     }
 }
 
-#[tokio::main]
-async fn main() {
-    let backend = tokio::runtime::Handle::current().into();
-    let sys = SystemBuilder::new()
-        .name("my-app")
-        .exec(backend)
-        .create()
-        .unwrap();
+fn main() {
+    let sys = SystemBuilder::new().name("my-app").create().unwrap();
 
     let sup = sys.actor_of::<PanicActor>("panic_actor").unwrap();
     // println!("Child not added yet");
     // sys.print_tree();
 
     println!("Before panic we see supervisor and actor that will panic!");
-    tokio::time::sleep(Duration::from_millis(500)).await;
+    std::thread::sleep(Duration::from_millis(500));
     sys.print_tree();
 
     sup.tell(Panic, None);
-    tokio::time::sleep(Duration::from_millis(500)).await;
+    std::thread::sleep(Duration::from_millis(500));
     println!("We should see panic printed, but we still alive and panic actor gone!");
     sys.print_tree();
 }

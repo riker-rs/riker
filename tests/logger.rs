@@ -40,23 +40,21 @@ mod common {
     }
 }
 
-#[tokio::test]
-async fn system_create_with_slog() {
+#[test]
+fn system_create_with_slog() {
     let log = Logger::root(
         Fuse(common::PrintlnDrain),
         slog::o!("version" => "v1", "run_env" => "test"),
     );
-    let backend = tokio::runtime::Handle::current().into();
-    let sys = ActorSystem::new(backend).unwrap();
-    sys.shutdown().await;
+    let sys = ActorSystem::new().unwrap();
+    sys.shutdown();
     let _ = log;
 }
 
 // a test that logging without slog using "log" crate works
-#[tokio::test]
-async fn logging_stdlog() {
+#[test]
+fn logging_stdlog() {
     log::info!("before the system");
-    let backend = tokio::runtime::Handle::current().into();
-    let _sys = ActorSystem::new(backend).unwrap();
+    let _sys = ActorSystem::new().unwrap();
     log::info!("system exists");
 }

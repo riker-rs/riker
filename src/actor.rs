@@ -246,15 +246,13 @@ impl<A: Actor + ?Sized> Actor for Box<A> {
 /// }
 ///
 /// // main
-/// #[tokio::main]
-/// async fn main() {
-///     let backend = tokio::runtime::Handle::current().into();
-///     let sys = ActorSystem::new(backend).unwrap();
+/// fn main() {
+///     let sys = ActorSystem::new().unwrap();
 ///     let actor = sys.actor_of::<MyActor>("my-actor").unwrap();
 ///
 ///     actor.tell(Foo, None);
 ///     actor.tell(Bar, None);
-///     sys.shutdown().await
+///     sys.shutdown()
 /// }
 /// ```
 pub trait Receive<Msg: Message> {

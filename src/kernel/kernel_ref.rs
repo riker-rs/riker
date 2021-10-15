@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{mpsc, Arc};
 
 use crate::{
     actor::{MsgError, MsgResult},
@@ -6,13 +6,12 @@ use crate::{
         mailbox::{AnyEnqueueError, AnySender, MailboxSchedule, MailboxSender},
         KernelMsg,
     },
-    system::SendingBackend,
     AnyMessage, Envelope, Message,
 };
 
 #[derive(Clone)]
 pub struct KernelRef {
-    pub tx: Arc<dyn SendingBackend + Send + Sync + 'static>,
+    pub tx: mpsc::SyncSender<KernelMsg>,
 }
 
 impl KernelRef {
@@ -33,7 +32,7 @@ impl KernelRef {
     }
 
     fn send(&self, msg: KernelMsg) {
-        self.tx.send_msg(msg)
+        let _ = self.tx.send(msg);
     }
 }
 

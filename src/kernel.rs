@@ -14,7 +14,8 @@ pub enum KernelMsg {
 }
 use std::{
     panic::{catch_unwind, AssertUnwindSafe},
-    sync::{Arc, Mutex},
+    sync::{mpsc, Arc, Mutex},
+    thread,
 };
 
 use crate::{
@@ -24,7 +25,7 @@ use crate::{
         kernel_ref::KernelRef,
         mailbox::{flush_to_deadletters, run_mailbox, Mailbox},
     },
-    system::{ActorRestarted, ActorSystemBackend, ActorTerminated, SystemMsg},
+    system::{ActorRestarted, ActorTerminated, SystemMsg},
     Message,
 };
 
@@ -51,8 +52,8 @@ pub fn kernel<A>(
 where
     A: Actor + 'static,
 {
-    let (tx, rx) = sys.backend.channel(1000); // todo config?
-    let kr = KernelRef { tx: Arc::new(tx) };
+    let (tx, rx) = mpsc::sync_channel(1000); // todo config?
+    let kr = KernelRef { tx };
 
     let mut asys = sys.clone();
     let akr = kr.clone();
@@ -93,7 +94,16 @@ where
         true
     };
 
-    sys.backend.spawn_receiver(rx, f);
+    // TODO: handler
+    thread::spawn(move || {
+        let mut f = f;
+        for msg in rx {
+            if !f(msg) {
+                break;
+            }
+        }
+    });
+
     Ok(kr)
 }
 

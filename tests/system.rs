@@ -1,19 +1,16 @@
 use tezedge_actor_system::actors::*;
-use tokio::runtime::Handle;
 
-#[tokio::test]
-async fn system_create() {
-    let backend = || Handle::current().into();
+#[test]
+fn system_create() {
+    assert!(ActorSystem::new().is_ok());
+    assert!(ActorSystem::with_name("valid-name").is_ok());
 
-    assert!(ActorSystem::new(backend()).is_ok());
-    assert!(ActorSystem::with_name("valid-name", backend()).is_ok());
-
-    assert!(ActorSystem::with_name("/", backend()).is_err());
-    assert!(ActorSystem::with_name("*", backend()).is_err());
-    assert!(ActorSystem::with_name("/a/b/c", backend()).is_err());
-    assert!(ActorSystem::with_name("@", backend()).is_err());
-    assert!(ActorSystem::with_name("#", backend()).is_err());
-    assert!(ActorSystem::with_name("abc*", backend()).is_err());
+    assert!(ActorSystem::with_name("/").is_err());
+    assert!(ActorSystem::with_name("*").is_err());
+    assert!(ActorSystem::with_name("/a/b/c").is_err());
+    assert!(ActorSystem::with_name("@").is_err());
+    assert!(ActorSystem::with_name("#").is_err());
+    assert!(ActorSystem::with_name("abc*").is_err());
 }
 
 struct ShutdownTest {
@@ -42,31 +39,22 @@ impl Actor for ShutdownTest {
     fn recv(&mut self, _: &Context<Self::Msg>, _: Self::Msg, _: Sender) {}
 }
 
-#[tokio::test]
-async fn system_shutdown() {
-    let backend = Handle::current().into();
-    let sys = ActorSystem::new(backend).unwrap();
+#[test]
+fn system_shutdown() {
+    let sys = ActorSystem::new().unwrap();
 
     let _ = sys
         .actor_of_args::<ShutdownTest, _>("test-actor-1", 1)
         .unwrap();
 
-    sys.shutdown().await;
+    sys.shutdown();
 }
 
-#[tokio::test]
-async fn system_builder() {
-    use Handle;
+#[test]
+fn system_builder() {
+    let sys = SystemBuilder::new().create().unwrap();
+    sys.shutdown();
 
-    let backend = Handle::current().into();
-    let sys = SystemBuilder::new().exec(backend).create().unwrap();
-    sys.shutdown().await;
-
-    let backend = Handle::current().into();
-    let sys = SystemBuilder::new()
-        .name("my-sys")
-        .exec(backend)
-        .create()
-        .unwrap();
-    sys.shutdown().await;
+    let sys = SystemBuilder::new().name("my-sys").create().unwrap();
+    sys.shutdown();
 }

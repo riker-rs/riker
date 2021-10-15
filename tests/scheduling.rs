@@ -46,10 +46,9 @@ impl Receive<SomeMessage> for ScheduleOnce {
     }
 }
 
-#[tokio::test(flavor = "multi_thread")]
-async fn schedule_once() {
-    let backend = tokio::runtime::Handle::current().into();
-    let sys = ActorSystem::new(backend).unwrap();
+#[test]
+fn schedule_once() {
+    let sys = ActorSystem::new().unwrap();
 
     let actor = sys.actor_of::<ScheduleOnce>("schedule-once").unwrap();
 
@@ -108,10 +107,9 @@ impl Receive<SomeMessage> for ScheduleRepeat {
     }
 }
 
-#[tokio::test(flavor = "multi_thread")]
-async fn schedule_repeat() {
-    let backend = tokio::runtime::Handle::current().into();
-    let sys = ActorSystem::new(backend).unwrap();
+#[test]
+fn schedule_repeat() {
+    let sys = ActorSystem::new().unwrap();
 
     let actor = sys.actor_of::<ScheduleRepeat>("schedule-repeat").unwrap();
 

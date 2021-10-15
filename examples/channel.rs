@@ -76,10 +76,8 @@ impl Receive<PowerStatus> for NavigationActor {
     }
 }
 
-#[tokio::main]
-async fn main() {
-    let backend = tokio::runtime::Handle::current().into();
-    let sys = ActorSystem::new(backend).unwrap();
+fn main() {
+    let sys = ActorSystem::new().unwrap();
     let chan: ChannelRef<PowerStatus> = channel("power-status", &sys).unwrap();
 
     sys.actor_of_args::<GpsActor, _>("gps-actor", chan.clone())
@@ -87,7 +85,7 @@ async fn main() {
     sys.actor_of_args::<NavigationActor, _>("navigation-actor", chan.clone())
         .unwrap();
 
-    tokio::time::sleep(Duration::from_millis(500)).await;
+    std::thread::sleep(Duration::from_millis(500));
     // sys.print_tree();
     let topic = Topic::from("my-topic");
     println!(
@@ -102,7 +100,7 @@ async fn main() {
         None,
     );
     // sleep another half seconds to process messages
-    tokio::time::sleep(Duration::from_millis(500)).await;
+    std::thread::sleep(Duration::from_millis(500));
     for line in sys.print_tree() {
         println!("{}", line);
     }

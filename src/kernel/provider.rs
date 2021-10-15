@@ -2,7 +2,7 @@ use slog::Logger;
 
 use std::{
     collections::HashSet,
-    sync::{Arc, RwLock},
+    sync::{mpsc, Arc, Mutex, RwLock},
 };
 
 use crate::{
@@ -10,8 +10,7 @@ use crate::{
     actor::*,
     kernel::kernel,
     kernel::mailbox::mailbox,
-    kernel::KernelMsg,
-    system::{ActorSystem, SendingBackend, SysActors, SystemMsg},
+    system::{ActorSystem, SysActors, SystemMsg},
     validate::validate_name,
 };
 
@@ -97,14 +96,17 @@ impl Provider {
     }
 }
 
-pub fn create_root(
-    sys: &ActorSystem,
-    shutdown_tx: Arc<dyn SendingBackend + Send + Sync + 'static>,
-) -> SysActors {
+pub fn create_root(sys: &ActorSystem, shutdown_tx: mpsc::Sender<()>) -> SysActors {
     let root = root(sys);
 
     SysActors {
-        user: guardian("user", "/user", &root, sys, Some(shutdown_tx)),
+        user: guardian(
+            "user",
+            "/user",
+            &root,
+            sys,
+            Some(Arc::new(Mutex::new(shutdown_tx))),
+        ),
         sysm: guardian("system", "/system", &root, sys, None),
         root,
     }
@@ -166,7 +168,7 @@ fn guardian(
     path: &str,
     root: &BasicActorRef,
     sys: &ActorSystem,
-    shutdown_tx: Option<Arc<dyn SendingBackend + Send + Sync + 'static>>,
+    shutdown_tx: Option<Arc<Mutex<mpsc::Sender<()>>>>,
 ) -> BasicActorRef {
     let uri = ActorUri {
         name: Arc::from(name),
@@ -200,22 +202,12 @@ fn guardian(
 struct Guardian {
     name: String,
     log: Logger,
-    shutdown_tx: Option<Arc<dyn SendingBackend + Send + Sync + 'static>>,
+    shutdown_tx: Option<Arc<Mutex<mpsc::Sender<()>>>>,
 }
 
-impl
-    ActorFactoryArgs<(
-        String,
-        Logger,
-        Option<Arc<dyn SendingBackend + Send + Sync + 'static>>,
-    )> for Guardian
-{
+impl ActorFactoryArgs<(String, Logger, Option<Arc<Mutex<mpsc::Sender<()>>>>)> for Guardian {
     fn create_args(
-        (name, log, shutdown_tx): (
-            String,
-            Logger,
-            Option<Arc<dyn SendingBackend + Send + Sync + 'static>>,
-        ),
+        (name, log, shutdown_tx): (String, Logger, Option<Arc<Mutex<mpsc::Sender<()>>>>),
     ) -> Self {
         Guardian {
             name,
@@ -231,8 +223,10 @@ impl Actor for Guardian {
     fn recv(&mut self, _: &Context<Self::Msg>, _: Self::Msg, _: Option<BasicActorRef>) {}
 
     fn post_stop(&mut self) {
-        if let Some(tx) = self.shutdown_tx.as_ref() {
-            tx.send_msg(KernelMsg::Sys);
+        if let Some(tx) = &self.shutdown_tx {
+            if let Ok(guard) = tx.lock() {
+                let _ = guard.send(());
+            }
         }
         slog::trace!(self.log, "{} guardian stopped", self.name);
     }

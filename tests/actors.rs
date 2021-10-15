@@ -47,10 +47,9 @@ impl Receive<Add> for Counter {
     }
 }
 
-#[tokio::test]
-async fn actor_create() {
-    let backend = tokio::runtime::Handle::current().into();
-    let sys = ActorSystem::new(backend).unwrap();
+#[test]
+fn actor_create() {
+    let sys = ActorSystem::new().unwrap();
 
     assert!(sys.actor_of::<Counter>("valid-name").is_ok());
 
@@ -79,10 +78,9 @@ async fn actor_create() {
     assert!(sys.actor_of::<Counter>("!").is_err());
 }
 
-#[tokio::test(flavor = "multi_thread")]
-async fn actor_tell() {
-    let backend = tokio::runtime::Handle::current().into();
-    let sys = ActorSystem::new(backend).unwrap();
+#[test]
+fn actor_tell() {
+    let sys = ActorSystem::new().unwrap();
 
     let actor = sys.actor_of::<Counter>("me").unwrap();
 
@@ -96,10 +94,9 @@ async fn actor_tell() {
     p_assert_eq!(listen, ());
 }
 
-#[tokio::test(flavor = "multi_thread")]
-async fn actor_try_tell() {
-    let backend = tokio::runtime::Handle::current().into();
-    let sys = ActorSystem::new(backend).unwrap();
+#[test]
+fn actor_try_tell() {
+    let sys = ActorSystem::new().unwrap();
 
     let actor = sys.actor_of::<Counter>("me").unwrap();
     let actor: BasicActorRef = actor.into();
@@ -158,10 +155,9 @@ impl Actor for Child {
     fn recv(&mut self, _: &Context<Self::Msg>, _: Self::Msg, _: Sender) {}
 }
 
-#[tokio::test(flavor = "multi_thread")]
-async fn actor_stop() {
-    let backend = tokio::runtime::Handle::current().into();
-    let system = ActorSystem::new(backend).unwrap();
+#[test]
+fn actor_stop() {
+    let system = ActorSystem::new().unwrap();
 
     let parent = system.actor_of::<Parent>("parent").unwrap();
 

@@ -60,16 +60,14 @@ impl Actor for MyActor {
 }
 
 // start the system and create an actor
-#[tokio::main]
-async fn main() {
-    let backend = tokio::runtime::Handle::current().into();
-    let sys = ActorSystem::new(backend).unwrap();
+fn main() {
+    let sys = ActorSystem::new().unwrap();
 
     let my_actor = sys.actor_of::<MyActor>("my-actor").unwrap();
 
     my_actor.tell("Hello my actor!".to_string(), None);
 
-    tokio::time::sleep(Duration::from_millis(500)).await;
+    std::thread::sleep(Duration::from_millis(500));
 }
 ```
 
@@ -123,28 +121,18 @@ Symbols:
 
 Functions  Expressions  Impls  Traits  Methods  Dependency
 
-0/0        0/0          0/0    0/0     0/0      🔒  tezedge-actor-system 0.5.0
+0/0        0/0          0/0    0/0     0/0      🔒  tezedge-actor-system 0.6.0
 0/0        0/0          0/0    0/0     0/0      ❓  ├── slog 2.7.0
-0/0        0/0          0/0    0/0     0/0      ❓  ├── tezedge-actor-system-macros 0.5.0
-0/0        0/0          0/0    0/0     0/0      ❓  │   ├── proc-macro2 1.0.30
-0/0        0/0          0/0    0/0     0/0      🔒  │   │   └── unicode-xid 0.2.2
-0/0        0/0          0/0    0/0     0/0      ❓  │   ├── quote 1.0.10
-0/0        0/0          0/0    0/0     0/0      ❓  │   │   └── proc-macro2 1.0.30
-0/0        45/45        3/3    0/0     2/2      ☢️  │   └── syn 1.0.80
-0/0        0/0          0/0    0/0     0/0      ❓  │       ├── proc-macro2 1.0.30
-0/0        0/0          0/0    0/0     0/0      ❓  │       ├── quote 1.0.10
-0/0        0/0          0/0    0/0     0/0      🔒  │       └── unicode-xid 0.2.2
-20/25      1269/1804    82/102 1/1     59/69    ☢️  └── tokio 1.12.0
-0/17       0/630        0/13   0/1     0/19     ❓      ├── bytes 1.1.0
-0/20       12/319       0/0    0/0     2/30     ☢️      ├── libc 0.2.103
-0/0        72/72        0/0    0/0     0/0      ☢️      ├── num_cpus 1.13.0
-0/20       12/319       0/0    0/0     2/30     ☢️      │   └── libc 0.2.103
-0/0        8/167        0/0    0/0     0/0      ☢️      ├── pin-project-lite 0.2.7
-0/0        0/0          0/0    0/0     0/0      ❓      └── tokio-macros 1.5.0
+0/0        0/0          0/0    0/0     0/0      🔒  └── tezedge-actor-system-macros 0.6.0
+0/0        0/0          0/0    0/0     0/0      ❓      ├── proc-macro2 1.0.30
+0/0        0/0          0/0    0/0     0/0      🔒      │   └── unicode-xid 0.2.2
+0/0        0/0          0/0    0/0     0/0      ❓      ├── quote 1.0.10
+0/0        0/0          0/0    0/0     0/0      ❓      │   └── proc-macro2 1.0.30
+0/0        45/45        3/3    0/0     2/2      ☢️      └── syn 1.0.80
 0/0        0/0          0/0    0/0     0/0      ❓          ├── proc-macro2 1.0.30
 0/0        0/0          0/0    0/0     0/0      ❓          ├── quote 1.0.10
-0/0        45/45        3/3    0/0     2/2      ☢️          └── syn 1.0.80
+0/0        0/0          0/0    0/0     0/0      🔒          └── unicode-xid 0.2.2
 
-20/62      1406/3037    85/118 1/2     63/120
+0/0        45/45        3/3    0/0     2/2
 
 ```

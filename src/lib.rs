@@ -12,7 +12,6 @@ pub mod actor;
 mod config;
 pub mod kernel;
 pub mod system;
-mod tokio_backend;
 
 use std::any::Any;
 use std::fmt;
@@ -96,9 +95,7 @@ pub mod actors {
         SubscribedResponse, SysTopic, Tell, Topic, Unsubscribe, UnsubscribeAll,
     };
     pub use crate::system::{
-        ActorSystem, ActorSystemBackend, ScheduleId, SendingBackend, SystemBuilder, SystemEvent,
-        SystemMsg, Timer,
+        ActorSystem, ScheduleId, SystemBuilder, SystemEvent, SystemMsg, Timer,
     };
-    pub use crate::tokio_backend::ActorSystemBackendTokio;
     pub use crate::{AnyMessage, Message};
 }

@@ -3,7 +3,7 @@ members = [".", "tezedge-actor-system-macros"]
 
 [package]
 name = "tezedge-actor-system"
-version = "0.5.0"
+version = "0.6.0"
 authors = [
     "Lee Smith <lee@riker.rs>",
     "Branislav Kontur <branislav.kontur@viablesystems.io>",
@@ -17,8 +17,7 @@ readme = "README.md"
 keywords = ["actors", "actor-model", "async", "event_sourcing"]
 
 [dependencies]
-tezedge-actor-system-macros = { path = "tezedge-actor-system-macros", version = "0.5.0" }
-tokio = { version = "1.12", features = ["sync", "rt-multi-thread"] }
+tezedge-actor-system-macros = { path = "tezedge-actor-system-macros", version = "0.6.0" }
 toml = { git = "https://github.com/tezedge/toml-rs.git", tag = "v0.5.8-cleanup-unsafe-1" }
 uuid = { git = "https://github.com/tezedge/uuid", tag = "v0.8.2-cleanup-unsafe-1", default-features = false, features = ["v4"] }
 slog = "2.7"
@@ -26,5 +25,3 @@ slog = "2.7"
 [dev-dependencies]
 riker-testkit = "0.1.0"
 log = "0.4"
-tokio = { version = "1.12", features = ["sync", "rt-multi-thread", "macros", "time"] }
-tokio-test = { version = "0.4.2" }

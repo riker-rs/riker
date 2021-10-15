@@ -94,10 +94,9 @@ impl Receive<Panic> for RestartSup {
     }
 }
 
-#[tokio::test(flavor = "multi_thread")]
-async fn supervision_restart_failed_actor() {
-    let backend = tokio::runtime::Handle::current().into();
-    let sys = ActorSystem::new(backend).unwrap();
+#[test]
+fn supervision_restart_failed_actor() {
+    let sys = ActorSystem::new().unwrap();
 
     for i in 0..100 {
         let sup = sys

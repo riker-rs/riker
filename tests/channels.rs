@@ -66,10 +66,9 @@ impl Receive<SomeMessage> for Subscriber {
     }
 }
 
-#[tokio::test(flavor = "multi_thread")]
-async fn channel_publish() {
-    let backend = tokio::runtime::Handle::current().into();
-    let sys = ActorSystem::new(backend).unwrap();
+#[test]
+fn channel_publish() {
+    let sys = ActorSystem::new().unwrap();
 
     // Create the channel we'll be using
     let chan: ChannelRef<SomeMessage> = channel("my-chan", &sys).unwrap();
@@ -99,10 +98,9 @@ async fn channel_publish() {
     p_assert_eq!(listen, ());
 }
 
-#[tokio::test(flavor = "multi_thread")]
-async fn channel_publish_subscribe_all() {
-    let backend = tokio::runtime::Handle::current().into();
-    let sys = ActorSystem::new(backend).unwrap();
+#[test]
+fn channel_publish_subscribe_all() {
+    let sys = ActorSystem::new().unwrap();
 
     // Create the channel we'll be using
     let chan: ChannelRef<SomeMessage> = channel("my-chan", &sys).unwrap();
@@ -256,10 +254,9 @@ impl Receive<SystemEvent> for EventSubscriber {
     }
 }
 
-#[tokio::test(flavor = "multi_thread")]
-async fn channel_system_events() {
-    let backend = tokio::runtime::Handle::current().into();
-    let sys = ActorSystem::new(backend).unwrap();
+#[test]
+fn channel_system_events() {
+    let sys = ActorSystem::new().unwrap();
 
     let actor = sys.actor_of::<EventSubscriber>("event-sub").unwrap();
 
@@ -330,10 +327,9 @@ impl Receive<DeadLetter> for DeadLetterSub {
     }
 }
 
-#[tokio::test(flavor = "multi_thread")]
-async fn channel_dead_letters() {
-    let backend = tokio::runtime::Handle::current().into();
-    let sys = ActorSystem::new(backend).unwrap();
+#[test]
+fn channel_dead_letters() {
+    let sys = ActorSystem::new().unwrap();
     let actor = sys.actor_of::<DeadLetterSub>("dl-subscriber").unwrap();
 
     let (probe, listen) = probe();
