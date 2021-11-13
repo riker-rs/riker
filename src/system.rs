@@ -319,7 +319,7 @@ impl ActorSystem {
         }
 
         let prov = Provider::new(log.clone());
-        let timer = BasicTimer::start(&cfg);
+        let timer = BasicTimer::start();
 
         // 1. create proto system
         let proto = ProtoSystem {
