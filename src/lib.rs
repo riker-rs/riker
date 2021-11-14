@@ -33,7 +33,6 @@ pub fn load_config() -> Config {
     cfg.set_default("dispatcher.pool_size", (num_cpus::get() * 2) as i64)
         .unwrap();
     cfg.set_default("dispatcher.stack_size", 0).unwrap();
-    cfg.set_default("scheduler.frequency_millis", 50).unwrap();
 
     // load the system config
     // riker.toml contains settings for anything related to the actor framework and its modules
