@@ -115,7 +115,7 @@ impl TimerRef {
     }
 
     pub(crate) fn stop(&self) {
-        self.sender.send(Job::Shutdown).expect("Failed to stop shutdown to timer");
+        self.sender.send(Job::Shutdown).expect("Failed to shut down timer");
         self.thread.unpark();
     }
 }
@@ -163,29 +163,19 @@ impl BasicTimer {
     /// Runs all jobs that have been scheduled to run once and which are due
     /// If there are jobs left, return the duration until the next one is due
     fn execute_once_jobs(&mut self) -> Option<Duration> {
+        let now = Instant::now();
         let (send, keep): (Vec<OnceJob>, Vec<OnceJob>) = self
             .once_jobs
             .drain(..)
-            .partition(|j| Instant::now() >= j.send_at);
+            .partition(|j| now >= j.send_at);
 
         // send those messages where the 'send_at' time has been reached or elapsed
         for job in send {
             job.send();
         }
 
-        if keep.is_empty() {
-            return None;
-        }
-
-        // for those messages that are not to be sent yet, just put them back on the vec
-        let mut next_job = Duration::MAX;
-        let now = Instant::now();
-        for job in keep {
-            let time_left = job.send_at.duration_since(now);
-            next_job = min(next_job, time_left);
-            self.once_jobs.push(job);
-        }
-        Some(next_job)
+        self.once_jobs = keep;
+        self.once_jobs.iter().map( |j| j.send_at.duration_since(now) ).min()
     }
 
     /// Executes all repeat jobs that are due and returns the duration until the next is due
