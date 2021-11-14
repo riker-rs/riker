@@ -517,7 +517,7 @@ impl ActorSystem {
     pub fn shutdown(&self) -> Shutdown {
         let (tx, rx) = oneshot::channel::<()>();
         let tx = Arc::new(Mutex::new(Some(tx)));
-
+        self.timer.stop();
         self.tmp_actor_of_args::<ShutdownActor, _>(tx).unwrap();
 
         rx

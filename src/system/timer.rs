@@ -58,6 +58,7 @@ pub enum Job {
     Once(OnceJob),
     Repeat(RepeatJob),
     Cancel(Uuid),
+    Shutdown,
 }
 
 pub struct OnceJob {
@@ -112,6 +113,11 @@ impl TimerRef {
         self.thread.unpark();
         result
     }
+
+    pub(crate) fn stop(&self) {
+        self.sender.send(Job::Shutdown).expect("Failed to stop shutdown to timer");
+        self.thread.unpark();
+    }
 }
 
 
@@ -131,6 +137,7 @@ impl BasicTimer {
                     Job::Cancel(id) => process.cancel(&id),
                     Job::Once(job) => process.schedule_once(job),
                     Job::Repeat(job) => process.schedule_repeat(job),
+                    Job::Shutdown => return,
                 }
             }
 
