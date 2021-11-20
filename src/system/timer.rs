@@ -219,10 +219,7 @@ impl BasicTimer {
         }
     }
 
-    pub fn schedule_repeat(&mut self, mut job: RepeatJob) {
-        if Instant::now() >= job.send_at {
-            job.send();
-        }
+    pub fn schedule_repeat(&mut self, job: RepeatJob) {
         self.repeat_jobs.push(job);
     }
 }
