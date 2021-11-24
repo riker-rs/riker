@@ -319,7 +319,7 @@ impl ActorSystem {
         }
 
         let prov = Provider::new(log.clone());
-        let timer = BasicTimer::start(&cfg);
+        let timer = BasicTimer::start();
 
         // 1. create proto system
         let proto = ProtoSystem {
@@ -517,7 +517,7 @@ impl ActorSystem {
     pub fn shutdown(&self) -> Shutdown {
         let (tx, rx) = oneshot::channel::<()>();
         let tx = Arc::new(Mutex::new(Some(tx)));
-
+        self.timer.stop();
         self.tmp_actor_of_args::<ShutdownActor, _>(tx).unwrap();
 
         rx

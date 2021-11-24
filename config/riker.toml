@@ -41,9 +41,6 @@ msg_process_limit = 1000
 # number of threads available to the CPU pool
 # pool_size = 4
 
-[scheduler]
-frequency_millis = 50
-
 [cqrs]
 # number of seconds of inactivity after which a cqrs actor will sleep
 sleep_after_secs = 120
