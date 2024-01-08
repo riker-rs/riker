@@ -21,30 +21,26 @@ use config::{Config, File};
 use crate::actor::BasicActorRef;
 
 pub fn load_config() -> Config {
-    let mut cfg = Config::new();
+    let riker_conf_path = env::var("RIKER_CONF").unwrap_or_else(|_| "config/riker.toml".into());
+    let app_conf_path = env::var("APP_CONF").unwrap_or_else(|_| "config/app".into());
 
-    cfg.set_default("debug", true).unwrap();
-    cfg.set_default("log.level", "debug").unwrap();
-    cfg.set_default("log.log_format", "{date} {time} {level} [{module}] {body}")
-        .unwrap();
-    cfg.set_default("log.date_format", "%Y-%m-%d").unwrap();
-    cfg.set_default("log.time_format", "%H:%M:%S%:z").unwrap();
-    cfg.set_default("mailbox.msg_process_limit", 1000).unwrap();
-    cfg.set_default("dispatcher.pool_size", (num_cpus::get() * 2) as i64)
-        .unwrap();
-    cfg.set_default("dispatcher.stack_size", 0).unwrap();
-    cfg.set_default("scheduler.frequency_millis", 50).unwrap();
-
-    // load the system config
-    // riker.toml contains settings for anything related to the actor framework and its modules
-    let path = env::var("RIKER_CONF").unwrap_or_else(|_| "config/riker.toml".into());
-    cfg.merge(File::with_name(&path).required(false)).unwrap();
-
-    // load the user application config
-    // app.toml or app.yaml contains settings specific to the user application
-    let path = env::var("APP_CONF").unwrap_or_else(|_| "config/app".into());
-    cfg.merge(File::with_name(&path).required(false)).unwrap();
-    cfg
+    Config::builder()
+        .set_default("debug", true).unwrap()
+        .set_default("log.level", "debug").unwrap()
+        .set_default("log.log_format", "{date} {time} {level} [{module}] {body}").unwrap()
+        .set_default("log.date_format", "%Y-%m-%d").unwrap()
+        .set_default("log.time_format", "%H:%M:%S%:z").unwrap()
+        .set_default("mailbox.msg_process_limit", 1000).unwrap()
+        .set_default("dispatcher.pool_size", (num_cpus::get() * 2) as i64).unwrap()
+        .set_default("dispatcher.stack_size", 0).unwrap()
+        .set_default("scheduler.frequency_millis", 50).unwrap()
+        // load the system config
+        // riker.toml contains settings for anything related to the actor framework and its modules
+        .add_source(File::with_name(&riker_conf_path).required(false))
+        // load the user application config
+        // app.toml or app.yaml contains settings specific to the user application
+        .add_source(File::with_name(&app_conf_path).required(false))
+        .build().unwrap()
 }
 
 /// Wraps message and sender
