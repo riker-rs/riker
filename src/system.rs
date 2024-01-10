@@ -3,7 +3,7 @@ pub(crate) mod timer;
 
 use std::fmt;
 
-use crate::actor::BasicActorRef;
+use crate::{actor::BasicActorRef, actors::selection::RefSelectionFactory};
 
 // Public riker::system API (plus the pub data types in this file)
 pub use self::timer::{BasicTimer, ScheduleId, Timer};
@@ -691,6 +691,12 @@ impl fmt::Debug for ActorSystem {
             self.start_date(),
             self.uptime()
         )
+    }
+}
+
+impl RefSelectionFactory for ActorSystem {
+    fn select_ref(&self, path: &str) -> Option<BasicActorRef> {
+        self.root().children().find(|act| act.path() == path)
     }
 }
 

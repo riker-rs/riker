@@ -201,3 +201,7 @@ enum Selection {
 pub trait ActorSelectionFactory {
     fn select(&self, path: &str) -> Result<ActorSelection, InvalidPath>;
 }
+
+pub trait RefSelectionFactory {
+    fn select_ref(&self, path: &str) -> Option<BasicActorRef>;
+}

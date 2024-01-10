@@ -62,13 +62,16 @@ impl Actor for MyActor {
 fn main() {
     let sys = ActorSystem::new().unwrap();
 
+    println!("Starting actor my-actor");
     let _my_actor = sys.actor_of::<MyActor>("my-actor").unwrap();
 
     std::thread::sleep(Duration::from_millis(500));
     sys.print_tree();
 
+    println!("Killing actor my-actor");
     let select = sys.select("/user/my-actor").unwrap();
     select.try_tell(Command::KillChild("/user/my-actor/my-child".to_string()), None);
+    println!("Actor my-actor should be");
     std::thread::sleep(Duration::from_millis(500));
     sys.print_tree();
 }
