@@ -696,7 +696,7 @@ impl fmt::Debug for ActorSystem {
 
 impl RefSelectionFactory for ActorSystem {
     fn select_ref(&self, path: &str) -> Option<BasicActorRef> {
-        self.root().children().find(|act| act.path() == path)
+        self.user_root().children().find(|act| act.path() == path)
     }
 }
 

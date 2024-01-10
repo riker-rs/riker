@@ -24,7 +24,7 @@ pub use self::{
     },
     macros::actor,
     props::{ActorArgs, ActorFactory, ActorFactoryArgs, ActorProducer, BoxActorProd, Props},
-    selection::{ActorSelection, ActorSelectionFactory},
+    selection::{ActorSelection, ActorSelectionFactory, RefSelectionFactory},
     uri::{ActorPath, ActorUri},
 };
 

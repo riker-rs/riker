@@ -521,6 +521,17 @@ where
     }
 }
 
+impl<Msg> RefSelectionFactory for Context<Msg>
+where
+    Msg: Message
+{
+    fn select_ref(&self, path: &str) -> Option<BasicActorRef> {
+        self.myself
+            .children()
+            .find(|b_act| b_act.path() == path)
+    }
+}
+
 impl<Msg> Run for Context<Msg>
 where
     Msg: Message,

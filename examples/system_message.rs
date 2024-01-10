@@ -45,10 +45,9 @@ impl Actor for MyActor {
     fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender) {
         match msg {
             Command::KillChild(path) => {
-                ctx.myself()
-                    .children()
-                    .find(|act_ref| act_ref.path().to_string() == path)
-                    .map(|act| ctx.stop(act));
+                ctx.myself().children().for_each(|b| println!("{}", b.path()));
+                ctx.select_ref(path.as_str())
+                    .map(|b_act| ctx.stop(&b_act));
             },
             Command::Other(inner_msg) => {
                 println!("parent got a message {}", inner_msg);
@@ -68,10 +67,15 @@ fn main() {
     std::thread::sleep(Duration::from_millis(500));
     sys.print_tree();
 
+    let _ = match sys.select_ref("/user/my-actor") {
+        Some(b_act) => b_act.try_tell(Command::Other("CiaoCiao".to_string()), None),
+        None => panic!("No actor found in path /user/my-actor"),
+    };
+
     println!("Killing actor my-actor");
-    let select = sys.select("/user/my-actor").unwrap();
-    select.try_tell(Command::KillChild("/user/my-actor/my-child".to_string()), None);
-    println!("Actor my-actor should be");
+    let _select = sys.select_ref("/user/my-actor")
+        .map(|b_act| b_act.try_tell(Command::KillChild("/user/my-actor/my-child".to_string()), None).unwrap());
+    println!("Actor my-actor should be gone");
     std::thread::sleep(Duration::from_millis(500));
     sys.print_tree();
 }
