@@ -77,24 +77,13 @@ where
     ctx.run(rx.map(|r| r.unwrap())).unwrap()
 }
 
-pub fn new_ask<Msg: Message, R: Message>(sys: ActorSystem, receiver: &BasicActorRef, msg: Msg) -> RemoteHandle<R> {
+pub fn ask_ref<Msg: Message, R: Message>(sys: ActorSystem, receiver: &BasicActorRef, msg: Msg) -> RemoteHandle<R> {
     let (tx, rx) = channel::<R>();
     let tx = Arc::new(Mutex::new(Some(tx)));
 
     let props = Props::new_from_args(Box::new(AskActor::new), tx);
     let actor = sys.tmp_actor_of_props(props).unwrap();
     receiver.try_tell(msg, Some(actor.into())).unwrap();
-
-    sys.run(rx.map(|r| r.unwrap())).unwrap()
-}
-
-pub fn new_ask2<Msg: Message, R: Message>(sys: ActorSystem, receiver: &ActorSelection, msg: Msg) -> RemoteHandle<R> {
-    let (tx, rx) = channel::<R>();
-    let tx = Arc::new(Mutex::new(Some(tx)));
-
-    let props = Props::new_from_args(Box::new(AskActor::new), tx);
-    let actor = sys.tmp_actor_of_props(props).unwrap();
-    receiver.try_tell(msg, Some(actor.into()));
 
     sys.run(rx.map(|r| r.unwrap())).unwrap()
 }
