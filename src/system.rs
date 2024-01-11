@@ -1,6 +1,9 @@
 pub(crate) mod logger;
 pub(crate) mod timer;
 
+#[cfg(feature = "serde")]
+use serde_json::{json, Value};
+
 use std::fmt;
 
 use crate::{actor::BasicActorRef, actors::selection::RefSelectionFactory};
@@ -422,6 +425,34 @@ impl ActorSystem {
         let root = &self.sys_actors.as_ref().unwrap().root;
         print_node(self, &root, "");
     }
+    
+    #[cfg(feature = "serde")]
+    pub fn generate_json(&self) -> Value {
+        fn node_to_json(sys: &ActorSystem, node: &BasicActorRef) -> Value {
+            if node.is_root() {
+                let mut children_json = Vec::new();
+                for actor in node.children() {
+                    let child_json = node_to_json(sys, &actor);
+                    children_json.push(child_json);
+                }
+                json!({
+                    sys.name(): children_json
+                })
+            } else {
+                let mut children_json = Vec::new();
+                for actor in node.children() {
+                    let child_json = node_to_json(sys, &actor);
+                    children_json.push(child_json);
+                }
+                json!({
+                    node.name(): children_json
+                })
+            }
+        }
+    
+        let root = &self.sys_actors.as_ref().unwrap().root;
+        node_to_json(self, &root)
+    }    
 
     /// Returns the system root's actor reference
     #[allow(dead_code)]

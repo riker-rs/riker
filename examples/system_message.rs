@@ -67,14 +67,14 @@ fn main() {
     std::thread::sleep(Duration::from_millis(500));
     sys.print_tree();
 
-    let _ = match sys.select_ref("/user/my-actor") {
+    let _ = match sys.select("/user/my-actor").ok() {
         Some(b_act) => b_act.try_tell(Command::Other("CiaoCiao".to_string()), None),
         None => panic!("No actor found in path /user/my-actor"),
     };
 
     println!("Killing actor my-actor");
-    let _select = sys.select_ref("/user/my-actor")
-        .map(|b_act| b_act.try_tell(Command::KillChild("/user/my-actor/my-child".to_string()), None).unwrap());
+    let _select = sys.select("/user/my-actor")
+        .map(|b_act| b_act.try_tell(Command::KillChild("/user/my-actor/my-child".to_string()), None));
     println!("Actor my-actor should be gone");
     std::thread::sleep(Duration::from_millis(500));
     sys.print_tree();

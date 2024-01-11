@@ -27,7 +27,11 @@ slog-stdlog = "4.1.1"
 slog-scope = "4.4.0"
 num_cpus = "1.16.0"
 dashmap = "5.5.3"
+serde_json = { version = "1.0.111", optional = true }
 
 [dev-dependencies]
 riker-testkit = "0.1.0"
 log = "0.4.20"
+
+[features]
+serde = ["dep:serde_json"]
