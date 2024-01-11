@@ -1,0 +1,37 @@
+[package]
+name = "riker"
+version = "0.4.2"
+authors = ["Lee Smith <lee@riker.rs>"]
+edition = "2018"
+description = "Easily build fast, highly concurrent and resilient applications. An Actor Framework for Rust."
+homepage = "https://riker.rs"
+repository = "https://github.com/riker-rs/riker"
+license = "MIT"
+readme = "README.md"
+keywords = ["actors", "actor-model", "async", "cqrs", "event_sourcing"]
+
+[badges]
+travis-ci = { repository = "riker-rs/riker" }
+
+[dependencies]
+riker-macros = { path = "../riker-macros" }
+chrono = "0.4.31"
+config = "0.13.4"
+futures = { version = "0.3.30", features = ["thread-pool"] }
+rand = "0.8.5"
+regex = "1.10.2"
+uuid = { version = "1.6.1", features = ["v4"] }
+pin-utils = "0.1.0"
+slog = "2.7.0"
+slog-stdlog = "4.1.1"
+slog-scope = "4.4.0"
+num_cpus = "1.16.0"
+dashmap = "5.5.3"
+serde_json = { version = "1.0.111", optional = true }
+
+[dev-dependencies]
+riker-testkit = "0.1.0"
+log = "0.4.20"
+
+[features]
+serde = ["dep:serde_json"]
