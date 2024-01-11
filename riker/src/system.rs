@@ -694,19 +694,20 @@ impl ActorSelectionFactory for ActorSystem {
     }
 }
 
-impl RefSelectionFactory for ActorSystem {
+impl RefSelectionFactory for ActorSystem {    
     fn select_ref(&self, path: &str) -> Option<BasicActorRef> {
-        self.user_root()
-            .children()
-            .filter(|act| act.has_children())
-            .find_map(|act| {
-                act.children().find(|act| {
-                    // let ok = act.path() == path;
-                    // println!("{} == {} -> {}", act.path(), path, ok);
-                    // ok
-                    act.path() == path
-                })
-            })
+        fn find_actor_by_path_recursive(root: &BasicActorRef, path: &str) -> Option<BasicActorRef> {
+            if root.path() == path {
+                Some(root.clone())
+            } else if root.has_children() {
+                root.children()
+                    .find_map(|act| find_actor_by_path_recursive(&act, path))
+            } else {
+                None
+            }
+        }
+    
+        find_actor_by_path_recursive(self.user_root(), path)
     }
 }
 
