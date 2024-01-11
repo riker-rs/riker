@@ -526,9 +526,18 @@ where
     Msg: Message
 {
     fn select_ref(&self, path: &str) -> Option<BasicActorRef> {
-        self.myself
-            .children()
-            .find(|b_act| b_act.path() == path)
+        fn find_actor_by_path_recursive(root: &BasicActorRef, path: &str) -> Option<BasicActorRef> {
+            if root.path() == path {
+                Some(root.clone())
+            } else if root.has_children() {
+                root.children()
+                    .find_map(|act| find_actor_by_path_recursive(&act, path))
+            } else {
+                None
+            }
+        }
+
+        find_actor_by_path_recursive(self.system.user_root(), path)
     }
 }
 
