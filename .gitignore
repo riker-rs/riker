@@ -1,0 +1,15 @@
+**/target
+**/*.rs.bk
+.vscode
+.idea
+Cargo.lock
+**/Cargo.lock
+
+# Project dependencies
+.cache
+node_modules
+python_modules
+yarn-error.log
+package-lock.json
+yarn.lock
+
