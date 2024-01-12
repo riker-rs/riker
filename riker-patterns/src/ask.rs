@@ -77,7 +77,11 @@ where
     ctx.run(rx.map(|r| r.unwrap())).unwrap()
 }
 
-pub fn ask_ref<Msg: Message, R: Message>(sys: ActorSystem, receiver: &BasicActorRef, msg: Msg) -> RemoteHandle<R> {
+pub fn ask_ref<Msg: Message, R: Message>(
+    sys: ActorSystem,
+    receiver: &BasicActorRef,
+    msg: Msg,
+) -> RemoteHandle<R> {
     let (tx, rx) = channel::<R>();
     let tx = Arc::new(Mutex::new(Some(tx)));
 

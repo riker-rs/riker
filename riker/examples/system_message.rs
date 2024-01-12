@@ -17,7 +17,7 @@ impl Actor for Child {
         if let SystemMsg::Command(cmd) = msg {
             match cmd {
                 SystemCmd::Stop => ctx.system.stop(ctx.myself()),
-                SystemCmd::Restart => {},
+                SystemCmd::Restart => {}
             }
         }
     }
@@ -31,7 +31,7 @@ struct MyActor {
 #[derive(Debug, Clone)]
 enum Command {
     KillChild(String),
-    Other(String)
+    Other(String),
 }
 
 // implement the Actor trait
@@ -45,14 +45,15 @@ impl Actor for MyActor {
     fn recv(&mut self, ctx: &Context<Self::Msg>, msg: Self::Msg, sender: Sender) {
         match msg {
             Command::KillChild(path) => {
-                ctx.myself().children().for_each(|b| println!("{}", b.path()));
-                ctx.select_ref(path.as_str())
-                    .map(|b_act| ctx.stop(&b_act));
-            },
+                ctx.myself()
+                    .children()
+                    .for_each(|b| println!("{}", b.path()));
+                ctx.select_ref(path.as_str()).map(|b_act| ctx.stop(&b_act));
+            }
             Command::Other(inner_msg) => {
                 println!("parent got a message {}", inner_msg);
                 self.child.as_ref().unwrap().tell(inner_msg, sender);
-            },
+            }
         }
     }
 }
@@ -73,8 +74,12 @@ fn main() {
     };
 
     println!("Killing actor my-actor");
-    let _select = sys.select("/user/my-actor")
-        .map(|b_act| b_act.try_tell(Command::KillChild("/user/my-actor/my-child".to_string()), None));
+    let _select = sys.select("/user/my-actor").map(|b_act| {
+        b_act.try_tell(
+            Command::KillChild("/user/my-actor/my-child".to_string()),
+            None,
+        )
+    });
     println!("Actor my-actor should be gone");
     std::thread::sleep(Duration::from_millis(500));
     sys.print_tree();

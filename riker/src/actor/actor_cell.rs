@@ -523,7 +523,7 @@ where
 
 impl<Msg> RefSelectionFactory for Context<Msg>
 where
-    Msg: Message
+    Msg: Message,
 {
     fn select_ref(&self, path: &str) -> Option<BasicActorRef> {
         fn find_actor_by_path_recursive(root: &BasicActorRef, path: &str) -> Option<BasicActorRef> {

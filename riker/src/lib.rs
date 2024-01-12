@@ -40,7 +40,8 @@ pub fn load_config() -> Config {
         // load the user application config
         // app.toml or app.yaml contains settings specific to the user application
         .add_source(File::with_name(&app_conf_path).required(false))
-        .build().unwrap()
+        .build()
+        .unwrap()
 }
 
 /// Wraps message and sender
