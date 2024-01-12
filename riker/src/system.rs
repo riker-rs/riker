@@ -452,7 +452,30 @@ impl ActorSystem {
     
         let root = &self.sys_actors.as_ref().unwrap().root;
         node_to_json(self, &root)
-    }    
+    }
+
+    #[cfg(feature = "serde")]
+    pub fn generate_node_json(&self) -> Value {
+        fn node_to_json(sys: &ActorSystem, node: &BasicActorRef, nodes: &mut Vec<Value>, edges: &mut Vec<Value>) {
+            nodes.push(json!({ "id": node.name() }));
+    
+            for actor in node.children() {
+                edges.push(json!({ "from": node.name(), "to": actor.name() }));
+                node_to_json(sys, &actor, nodes, edges);
+            }
+        }
+    
+        let root = &self.sys_actors.as_ref().unwrap().root;
+        let mut nodes = Vec::new();
+        let mut edges = Vec::new();
+    
+        node_to_json(self, &root, &mut nodes, &mut edges);
+    
+        json!({
+            "nodes": nodes,
+            "edges": edges
+        })
+    }
 
     /// Returns the system root's actor reference
     #[allow(dead_code)]
