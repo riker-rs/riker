@@ -1,9 +1,8 @@
 use dashmap::DashMap;
-use slog::trace;
+use tracing::trace;
 
 use std::sync::Arc;
 
-use crate::system::LoggingSystem;
 use crate::{
     actor::actor_cell::{ActorCell, ExtendedCell},
     actor::*,
@@ -16,7 +15,6 @@ use crate::{
 #[derive(Clone)]
 pub struct Provider {
     inner: Arc<ProviderInner>,
-    log: LoggingSystem,
 }
 
 struct ProviderInner {
@@ -24,14 +22,13 @@ struct ProviderInner {
 }
 
 impl Provider {
-    pub fn new(log: LoggingSystem) -> Self {
+    pub fn new() -> Self {
         let inner = ProviderInner {
             paths: DashMap::new(),
         };
 
         Provider {
             inner: Arc::new(inner),
-            log,
         }
     }
 
@@ -48,7 +45,7 @@ impl Provider {
         validate_name(name)?;
 
         let path = ActorPath::new(&format!("{}/{}", parent.path(), name));
-        trace!(sys.log(), "Attempting to create actor at: {}", path);
+        trace!("Attempting to create actor at: {path}");
 
         self.register(&path)?;
 
@@ -137,7 +134,7 @@ fn root(sys: &ActorSystem) -> BasicActorRef {
 
     // root
     let props: BoxActorProd<Guardian> =
-        Props::new_args::<Guardian, _>(("root".to_string(), sys.log()));
+        Props::new_args::<Guardian, _>("root".to_string());
     let (sender, sys_sender, mb) = mailbox::<SystemMsg>(100);
 
     let cell = ExtendedCell::new(
@@ -165,7 +162,7 @@ fn guardian(name: &str, path: &str, root: &BasicActorRef, sys: &ActorSystem) -> 
     };
 
     let props: BoxActorProd<Guardian> =
-        Props::new_args::<Guardian, _>((name.to_string(), sys.log()));
+        Props::new_args::<Guardian, _>(name.to_string());
     let (sender, sys_sender, mb) = mailbox::<SystemMsg>(100);
 
     let cell = ExtendedCell::new(
@@ -189,12 +186,11 @@ fn guardian(name: &str, path: &str, root: &BasicActorRef, sys: &ActorSystem) -> 
 
 struct Guardian {
     name: String,
-    log: LoggingSystem,
 }
 
-impl ActorFactoryArgs<(String, LoggingSystem)> for Guardian {
-    fn create_args((name, log): (String, LoggingSystem)) -> Self {
-        Guardian { name, log }
+impl ActorFactoryArgs<String> for Guardian {
+    fn create_args(name: String) -> Self {
+        Guardian { name }
     }
 }
 
@@ -204,6 +200,6 @@ impl Actor for Guardian {
     fn recv(&mut self, _: &Context<Self::Msg>, _: Self::Msg, _: Option<BasicActorRef>) {}
 
     fn post_stop(&mut self) {
-        trace!(self.log, "{} guardian stopped", self.name);
+        trace!("{} guardian stopped", self.name);
     }
 }

@@ -3,6 +3,7 @@ pub(crate) mod timer;
 
 #[cfg(feature = "serde")]
 use serde_json::{json, Value};
+use tracing::debug;
 
 use std::fmt;
 
@@ -135,7 +136,6 @@ impl fmt::Debug for SystemError {
     }
 }
 use std::{
-    ops::Deref,
     sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
@@ -161,7 +161,6 @@ use crate::{
     validate::{validate_name, InvalidPath},
     AnyMessage, Message,
 };
-use slog::{debug, Logger};
 
 // 0. error results on any
 // 1. visibility
@@ -179,7 +178,6 @@ pub struct ProtoSystem {
 pub struct SystemBuilder {
     name: Option<String>,
     cfg: Option<Config>,
-    log: Option<Logger>,
     exec: Option<ThreadPool>,
 }
 
@@ -192,12 +190,8 @@ impl SystemBuilder {
         let name = self.name.unwrap_or_else(|| "riker".to_string());
         let cfg = self.cfg.unwrap_or_else(load_config);
         let exec = self.exec.unwrap_or_else(|| default_exec(&cfg));
-        let log = self
-            .log
-            .map(|log| LoggingSystem::new(log, None))
-            .unwrap_or_else(|| default_log(&cfg));
 
-        ActorSystem::create(name.as_ref(), exec, log, cfg)
+        ActorSystem::create(name.as_ref(), exec, cfg)
     }
 
     pub fn name(self, name: &str) -> Self {
@@ -220,39 +214,6 @@ impl SystemBuilder {
             ..self
         }
     }
-
-    pub fn log(self, log: Logger) -> Self {
-        SystemBuilder {
-            log: Some(log),
-            ..self
-        }
-    }
-}
-
-/// Holds fields related to logging system.
-#[derive(Clone)]
-pub struct LoggingSystem {
-    /// Logger
-    log: Logger,
-    /// Global logger guard
-    global_logger_guard: Option<GlobalLoggerGuard>,
-}
-
-impl LoggingSystem {
-    pub(crate) fn new(log: Logger, global_logger_guard: Option<GlobalLoggerGuard>) -> Self {
-        Self {
-            log,
-            global_logger_guard,
-        }
-    }
-}
-
-impl Deref for LoggingSystem {
-    type Target = Logger;
-
-    fn deref(&self) -> &Self::Target {
-        &self.log
-    }
 }
 
 /// The actor runtime and common services coordinator
@@ -267,7 +228,6 @@ impl Deref for LoggingSystem {
 pub struct ActorSystem {
     proto: Arc<ProtoSystem>,
     sys_actors: Option<SysActors>,
-    log: LoggingSystem,
     debug: bool,
     pub exec: ThreadPool,
     pub timer: TimerRef,
@@ -282,9 +242,8 @@ impl ActorSystem {
     pub fn new() -> Result<ActorSystem, SystemError> {
         let cfg = load_config();
         let exec = default_exec(&cfg);
-        let log = default_log(&cfg);
 
-        ActorSystem::create("riker", exec, log, cfg)
+        ActorSystem::create("riker", exec, cfg)
     }
 
     /// Create a new `ActorSystem` instance with provided name
@@ -293,23 +252,20 @@ impl ActorSystem {
     pub fn with_name(name: &str) -> Result<ActorSystem, SystemError> {
         let cfg = load_config();
         let exec = default_exec(&cfg);
-        let log = default_log(&cfg);
 
-        ActorSystem::create(name, exec, log, cfg)
+        ActorSystem::create(name, exec, cfg)
     }
 
     /// Create a new `ActorSystem` instance bypassing default config behavior
     pub fn with_config(name: &str, cfg: Config) -> Result<ActorSystem, SystemError> {
         let exec = default_exec(&cfg);
-        let log = default_log(&cfg);
 
-        ActorSystem::create(name, exec, log, cfg)
+        ActorSystem::create(name, exec, cfg)
     }
 
     fn create(
         name: &str,
         exec: ThreadPool,
-        log: LoggingSystem,
         cfg: Config,
     ) -> Result<ActorSystem, SystemError> {
         validate_name(name).map_err(|_| SystemError::InvalidName(name.into()))?;
@@ -317,11 +273,9 @@ impl ActorSystem {
         let debug = cfg.get_bool("debug").unwrap();
 
         // Until the logger has started, use println
-        if debug {
-            debug!(log, "Starting actor system: System[{}]", name);
-        }
+        debug!("Starting actor system: System[{}]", name);
 
-        let prov = Provider::new(log.clone());
+        let prov = Provider::new();
         let timer = BasicTimer::start(&cfg);
 
         // 1. create proto system
@@ -339,7 +293,6 @@ impl ActorSystem {
             proto: Arc::new(proto),
             debug,
             exec,
-            log,
             // event_store: None,
             timer,
             sys_channels: None,
@@ -359,12 +312,12 @@ impl ActorSystem {
             &prov,
             &sys,
             "dl_logger",
-            (sys.dead_letters().clone(), sys.log()),
+            sys.dead_letters().clone(),
         )?;
 
         sys.complete_start();
 
-        debug!(sys.log, "Actor system [{}] [{}] started", sys.id(), name);
+        debug!("Actor system [{}] [{}] started", sys.id(), name);
 
         Ok(sys)
     }
@@ -559,11 +512,6 @@ impl ActorSystem {
     {
         self.provider
             .create_actor(Props::new_args::<A, _>(args), name, &self.sys_root(), self)
-    }
-
-    #[inline]
-    pub fn log(&self) -> LoggingSystem {
-        self.log.clone()
     }
 
     /// Shutdown the actor system
