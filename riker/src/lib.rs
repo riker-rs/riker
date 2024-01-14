@@ -25,11 +25,6 @@ pub fn load_config() -> Config {
     let app_conf_path = env::var("APP_CONF").unwrap_or_else(|_| "config/app".into());
 
     Config::builder()
-        .set_default("debug", true).unwrap()
-        .set_default("log.level", "debug").unwrap()
-        .set_default("log.log_format", "{date} {time} {level} [{module}] {body}").unwrap()
-        .set_default("log.date_format", "%Y-%m-%d").unwrap()
-        .set_default("log.time_format", "%H:%M:%S%:z").unwrap()
         .set_default("mailbox.msg_process_limit", 1000).unwrap()
         .set_default("dispatcher.pool_size", (num_cpus::get() * 2) as i64).unwrap()
         .set_default("dispatcher.stack_size", 0).unwrap()
