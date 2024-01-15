@@ -1,0 +1,11 @@
+[package]
+name = "riker-testkit"
+version = "0.1.0"
+authors = ["Lee Smith <leenozara@gmail.com>"]
+description = "Tools to make testing Riker applications easier"
+homepage = "http://riker.rs/logging"
+license = "MIT"
+readme = "README.md"
+
+[dependencies]
+chrono = "0.4.31"

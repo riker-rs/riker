@@ -14,4 +14,4 @@ riker = { path = "../riker" }
 futures = "0.3.30"
 
 [dev-dependencies]
-riker-testkit = "0.1.0"
+riker-testkit = { path = "../riker-testkit" }
