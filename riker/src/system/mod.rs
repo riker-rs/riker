@@ -223,12 +223,10 @@ impl SystemBuilder {
 /// The `ActorSystem` is the heart of a Riker application,
 /// starting several threads when it is created. Create only one instance
 /// of `ActorSystem` per application.
-#[allow(dead_code)]
 #[derive(Clone)]
 pub struct ActorSystem {
     proto: Arc<ProtoSystem>,
     sys_actors: Option<SysActors>,
-    debug: bool,
     pub exec: ThreadPool,
     pub timer: TimerRef,
     pub sys_channels: Option<SysChannels>,
@@ -269,9 +267,6 @@ impl ActorSystem {
         cfg: Config,
     ) -> Result<ActorSystem, SystemError> {
         validate_name(name).map_err(|_| SystemError::InvalidName(name.into()))?;
-        // Process Configuration
-        let debug = cfg.get_bool("debug").unwrap();
-
         // Until the logger has started, use println
         debug!("Starting actor system: System[{}]", name);
 
@@ -291,7 +286,6 @@ impl ActorSystem {
         // 2. create uninitialized system
         let mut sys = ActorSystem {
             proto: Arc::new(proto),
-            debug,
             exec,
             // event_store: None,
             timer,
