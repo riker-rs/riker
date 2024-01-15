@@ -6,7 +6,7 @@ use futures::channel::oneshot::{channel, Sender as ChannelSender};
 use futures::future::RemoteHandle;
 use futures::FutureExt;
 
-use riker::actors::*;
+use crate::actors::*;
 
 /// Convenience fuction to send and receive a message from an actor
 ///

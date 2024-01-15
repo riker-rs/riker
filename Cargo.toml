@@ -5,6 +5,5 @@ resolver = "2"
 members = [
     "riker",
     "riker-macros",
-    "riker-patterns",
     "riker-testkit"
 ]
