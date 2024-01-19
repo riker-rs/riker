@@ -18,16 +18,12 @@ impl Actor for NewActor {
 }
 
 impl Receive<u32> for NewActor {
-    type Msg = NewActorMsg;
-
     fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: u32, _sender: Option<BasicActorRef>) {
         println!("u32");
     }
 }
 
 impl Receive<String> for NewActor {
-    type Msg = NewActorMsg;
-
     fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: String, _sender: Option<BasicActorRef>) {
         println!("String");
     }
@@ -73,8 +69,6 @@ impl<A: Send + 'static, B: Send + 'static> Actor for GenericActor<A, B> {
 }
 
 impl<A: Send + 'static, B: Send + 'static> Receive<String> for GenericActor<A, B> {
-    type Msg = GenericActorMsg;
-
     fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: String, _sender: Option<BasicActorRef>) {
         println!("String");
     }
@@ -119,8 +113,6 @@ impl Actor for GenericMsgActor {
 }
 
 impl Receive<Message<String>> for GenericMsgActor {
-    type Msg = GenericMsgActorMsg;
-
     fn receive(
         &mut self,
         _ctx: &Context<Self::Msg>,
@@ -177,8 +169,6 @@ impl Actor for PathMsgActor {
 }
 
 impl Receive<test_mod::GenericMessage<String>> for PathMsgActor {
-    type Msg = PathMsgActorMsg;
-
     fn receive(
         &mut self,
         _ctx: &Context<Self::Msg>,
@@ -190,8 +180,6 @@ impl Receive<test_mod::GenericMessage<String>> for PathMsgActor {
 }
 
 impl Receive<test_mod::Message> for PathMsgActor {
-    type Msg = PathMsgActorMsg;
-
     fn receive(
         &mut self,
         _ctx: &Context<Self::Msg>,

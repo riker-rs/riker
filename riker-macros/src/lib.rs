@@ -122,7 +122,6 @@ fn receive(aname: &Ident, gen: &Generics, name: &Ident, types: &MsgTypes) -> Tok
 
     quote! {
         impl #impl_generics Receive<#name> for #aname #ty_generics #where_clause {
-            type Msg = #name;
             fn receive(&mut self,
                         ctx: &Context<Self::Msg>,
                         msg: Self::Msg,

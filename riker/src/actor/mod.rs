@@ -245,8 +245,6 @@ impl<A: Actor + ?Sized> Actor for Box<A> {
 /// }
 ///
 /// impl Receive<Bar> for MyActor {
-///     type Msg = MyActorMsg;
-///
 ///     fn receive(&mut self,
 ///                 ctx: &Context<Self::Msg>,
 ///                 msg: Bar, // <-- receive Bar
@@ -262,9 +260,7 @@ impl<A: Actor + ?Sized> Actor for Box<A> {
 /// actor.tell(Foo, None);
 /// actor.tell(Bar, None);
 /// ```
-pub trait Receive<Msg: Message> {
-    type Msg: Message;
-
+pub trait Receive<Msg: Message>: Actor {
     /// Invoked when an actor receives a message
     ///
     /// It is guaranteed that only one message in the actor's mailbox is processed

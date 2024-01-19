@@ -37,24 +37,18 @@ impl Actor for Counter {
 }
 
 impl Receive<Add> for Counter {
-    type Msg = CounterMsg;
-
     fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: Add, _sender: Sender) {
         self.count += 1;
     }
 }
 
 impl Receive<Sub> for Counter {
-    type Msg = CounterMsg;
-
     fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: Sub, _sender: Sender) {
         self.count -= 1;
     }
 }
 
 impl Receive<Print> for Counter {
-    type Msg = CounterMsg;
-
     fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: Print, _sender: Sender) {
         println!("Total counter value: {}", self.count);
     }
