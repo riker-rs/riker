@@ -1,7 +1,6 @@
-use futures::executor::block_on;
 use riker::actors::*;
 
-#[test]
+#[riker_macros::test]
 fn system_create() {
     assert!(ActorSystem::new().is_ok());
     assert!(ActorSystem::with_name("valid-name").is_ok());
@@ -40,8 +39,7 @@ impl Actor for ShutdownTest {
     fn recv(&mut self, _: &Context<Self::Msg>, _: Self::Msg, _: Sender) {}
 }
 
-#[test]
-#[allow(dead_code)]
+#[riker_macros::test]
 fn system_shutdown() {
     let sys = ActorSystem::new().unwrap();
 
@@ -49,21 +47,21 @@ fn system_shutdown() {
         .actor_of_args::<ShutdownTest, _>("test-actor-1", 1)
         .unwrap();
 
-    block_on(sys.shutdown()).unwrap();
+    sys.shutdown().await.unwrap();
 }
 
-#[test]
+#[riker_macros::test]
 fn system_futures_exec() {
     let sys = ActorSystem::new().unwrap();
 
     for i in 0..100 {
         let f = sys.run(async move { format!("some_val_{}", i) }).unwrap();
-
-        assert_eq!(block_on(f), format!("some_val_{}", i));
+        let result = f.await;
+        assert_eq!(result.unwrap(), format!("some_val_{}", i));
     }
 }
 
-#[test]
+#[riker_macros::test]
 fn system_futures_panic() {
     let sys = ActorSystem::new().unwrap();
 
@@ -77,23 +75,23 @@ fn system_futures_panic() {
 
     for i in 0..100 {
         let f = sys.run(async move { format!("some_val_{}", i) }).unwrap();
-
-        assert_eq!(block_on(f), format!("some_val_{}", i));
+        let result = f.await;
+        assert_eq!(result.unwrap(), format!("some_val_{}", i));
     }
 }
 
-#[test]
+#[riker_macros::test]
 fn system_load_app_config() {
     let sys = ActorSystem::new().unwrap();
 
     assert_eq!(sys.config().get_int("app.some_setting").unwrap() as i64, 1);
 }
 
-#[test]
+#[riker_macros::test]
 fn system_builder() {
     let sys = SystemBuilder::new().create().unwrap();
-    block_on(sys.shutdown()).unwrap();
+    sys.shutdown().await.unwrap();
 
     let sys = SystemBuilder::new().name("my-sys").create().unwrap();
-    block_on(sys.shutdown()).unwrap();
+    sys.shutdown().await.unwrap();
 }

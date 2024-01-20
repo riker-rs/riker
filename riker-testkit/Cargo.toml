@@ -1,6 +1,7 @@
 [package]
 name = "riker-testkit"
 version = "0.1.0"
+edition = "2021"
 authors = ["Lee Smith <leenozara@gmail.com>"]
 description = "Tools to make testing Riker applications easier"
 homepage = "http://riker.rs/logging"
@@ -9,3 +10,6 @@ readme = "README.md"
 
 [dependencies]
 chrono = "0.4.31"
+tokio = { version = "1.35.1", features = ["full"] }
+async-trait = { version = "0.1.77" }
+riker-macros = { path = "../riker-macros" }

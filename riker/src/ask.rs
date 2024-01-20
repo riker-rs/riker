@@ -3,10 +3,10 @@
 use std::sync::{Arc, Mutex};
 
 use tokio::sync::oneshot::{channel, Sender as ChannelSender};
-use futures::future::RemoteHandle;
 use futures::FutureExt;
 
 use crate::actors::*;
+use crate::executor::TaskHandle;
 
 /// Convenience fuction to send and receive a message from an actor
 ///
@@ -60,7 +60,7 @@ use crate::actors::*;
 /// assert_eq!(block_on(r), "Hello Will Riker".to_string());
 /// ```
 
-pub fn ask<Msg, Ctx, R, T>(ctx: &Ctx, receiver: &T, msg: Msg) -> RemoteHandle<R>
+pub fn ask<Msg, Ctx, R, T>(ctx: &Ctx, receiver: &T, msg: Msg) -> TaskHandle<R>
 where
     Msg: Message,
     R: Message,
@@ -81,7 +81,7 @@ pub fn ask_ref<Msg: Message, R: Message>(
     sys: ActorSystem,
     receiver: &BasicActorRef,
     msg: Msg,
-) -> RemoteHandle<R> {
+) -> TaskHandle<R> {
     let (tx, rx) = channel::<R>();
     let tx = Arc::new(Mutex::new(Some(tx)));
 

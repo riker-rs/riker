@@ -50,8 +50,6 @@ impl Actor for Subscriber {
 }
 
 impl Receive<TestProbe> for Subscriber {
-    type Msg = SubscriberMsg;
-
     fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: TestProbe, _sender: Sender) {
         msg.0.event(());
         self.probe = Some(msg);
@@ -59,14 +57,12 @@ impl Receive<TestProbe> for Subscriber {
 }
 
 impl Receive<SomeMessage> for Subscriber {
-    type Msg = SubscriberMsg;
-
     fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: SomeMessage, _sender: Sender) {
         self.probe.as_ref().unwrap().0.event(());
     }
 }
 
-#[test]
+#[riker_macros::test]
 fn channel_publish() {
     let sys = ActorSystem::new().unwrap();
 
@@ -80,11 +76,11 @@ fn channel_publish() {
         .actor_of_args::<Subscriber, _>("sub-actor", (chan.clone(), topic.clone()))
         .unwrap();
 
-    let (probe, listen) = probe();
+    let (probe, mut listen) = probe();
     sub.tell(TestProbe(probe), None);
 
     // wait for the probe to arrive at the actor before publishing message
-    listen.recv();
+    listen.recv().await;
 
     // Publish a test message
     chan.tell(
@@ -98,7 +94,7 @@ fn channel_publish() {
     p_assert_eq!(listen, ());
 }
 
-#[test]
+#[riker_macros::test]
 fn channel_publish_subscribe_all() {
     let sys = ActorSystem::new().unwrap();
 
@@ -112,11 +108,11 @@ fn channel_publish_subscribe_all() {
         .actor_of_args::<Subscriber, _>("sub-actor", (chan.clone(), topic))
         .unwrap();
 
-    let (probe, listen) = probe();
+    let (probe, mut listen) = probe();
     sub.tell(TestProbe(probe), None);
 
     // wait for the probe to arrive at the actor before publishing message
-    listen.recv();
+    listen.recv().await;
 
     // Publish a test message to topic "topic-1"
     chan.tell(
@@ -167,16 +163,12 @@ impl Actor for DumbActor {
 }
 
 impl Receive<Panic> for DumbActor {
-    type Msg = DumbActorMsg;
-
     fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: Panic, _sender: Sender) {
         panic!("// TEST PANIC // TEST PANIC // TEST PANIC //");
     }
 }
 
 impl Receive<SomeMessage> for DumbActor {
-    type Msg = DumbActorMsg;
-
     fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: SomeMessage, _sender: Sender) {
 
         // Intentionally left blank
@@ -222,8 +214,6 @@ impl Actor for EventSubscriber {
 }
 
 impl Receive<TestProbe> for EventSubscriber {
-    type Msg = EventSubscriberMsg;
-
     fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: TestProbe, _sender: Sender) {
         msg.0.event(());
         self.probe = Some(msg);
@@ -231,8 +221,6 @@ impl Receive<TestProbe> for EventSubscriber {
 }
 
 impl Receive<SystemEvent> for EventSubscriber {
-    type Msg = EventSubscriberMsg;
-
     fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: SystemEvent, _sender: Sender) {
         match msg {
             SystemEvent::ActorCreated(created) => {
@@ -254,18 +242,18 @@ impl Receive<SystemEvent> for EventSubscriber {
     }
 }
 
-#[test]
+#[riker_macros::test]
 fn channel_system_events() {
     let sys = ActorSystem::new().unwrap();
 
     let actor = sys.actor_of::<EventSubscriber>("event-sub").unwrap();
 
-    let (probe, listen) = probe();
+    let (probe, mut listen) = probe();
     actor.tell(TestProbe(probe), None);
 
     // wait for the probe to arrive at the actor before attempting
     // create, restart and stop
-    listen.recv();
+    listen.recv().await;
 
     // Create an actor
     let dumb = sys.actor_of::<DumbActor>("dumb-actor").unwrap();
@@ -311,8 +299,6 @@ impl Actor for DeadLetterSub {
 }
 
 impl Receive<TestProbe> for DeadLetterSub {
-    type Msg = DeadLetterSubMsg;
-
     fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: TestProbe, _sender: Sender) {
         msg.0.event(());
         self.probe = Some(msg);
@@ -320,23 +306,21 @@ impl Receive<TestProbe> for DeadLetterSub {
 }
 
 impl Receive<DeadLetter> for DeadLetterSub {
-    type Msg = DeadLetterSubMsg;
-
     fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: DeadLetter, _sender: Sender) {
         self.probe.as_ref().unwrap().0.event(());
     }
 }
 
-#[test]
+#[riker_macros::test]
 fn channel_dead_letters() {
     let sys = ActorSystem::new().unwrap();
     let actor = sys.actor_of::<DeadLetterSub>("dl-subscriber").unwrap();
 
-    let (probe, listen) = probe();
+    let (probe, mut listen) = probe();
     actor.tell(TestProbe(probe), None);
 
     // wait for the probe to arrive at the actor before attempting to stop the actor
-    listen.recv();
+    listen.recv().await;
 
     let dumb = sys.actor_of::<DumbActor>("dumb-actor").unwrap();
 

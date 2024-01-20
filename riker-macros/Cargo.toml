@@ -2,7 +2,7 @@
 name = "riker-macros"
 version = "0.2.0"
 authors = ["Lee Smith <lee@riker.rs>"]
-edition = "2018"
+edition = "2021"
 description = "Macro crate for Riker actor framework"
 homepage = "https://riker.rs"
 repository = "https://github.com/riker-rs/riker"

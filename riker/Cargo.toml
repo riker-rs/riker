@@ -30,7 +30,7 @@ dashmap = "5.5.3"
 serde_json = { version = "1.0.111", optional = true }
 
 [dev-dependencies]
-riker-testkit = "0.1.0"
+riker-testkit = { path = "../riker-testkit" }
 log = "0.4.20"
 
 [features]

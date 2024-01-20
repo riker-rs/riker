@@ -718,7 +718,7 @@ dependencies = [
  "rand",
  "regex",
  "riker-macros",
- "riker-testkit 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "riker-testkit",
  "serde_json",
  "tokio",
  "tracing",
@@ -739,16 +739,10 @@ dependencies = [
 name = "riker-testkit"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "chrono",
-]
-
-[[package]]
-name = "riker-testkit"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1692a424341e1be688dc20ed9c55f5747131a1cb16b0b8f5be0cbd55b8d578d"
-dependencies = [
- "chrono",
+ "riker-macros",
+ "tokio",
 ]
 
 [[package]]

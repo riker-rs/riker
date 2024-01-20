@@ -3,7 +3,7 @@ pub(crate) mod mailbox;
 pub(crate) mod provider;
 pub(crate) mod queue;
 
-use crate::system::ActorSystem;
+use crate::{actors::Run, system::ActorSystem};
 
 #[allow(dead_code)]
 #[derive(Debug)]
@@ -18,7 +18,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use futures::{channel::mpsc::channel, task::SpawnExt, StreamExt};
+use futures::{channel::mpsc::channel, StreamExt};
 use tracing::warn;
 
 use crate::{
@@ -98,7 +98,7 @@ where
         }
     };
 
-    sys.exec.spawn(f).unwrap();
+    sys.run(f).unwrap().forget();
     Ok(kr)
 }
 

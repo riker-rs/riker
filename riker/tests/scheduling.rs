@@ -30,8 +30,6 @@ impl Actor for ScheduleOnce {
 }
 
 impl Receive<TestProbe> for ScheduleOnce {
-    type Msg = ScheduleOnceMsg;
-
     fn receive(&mut self, ctx: &Context<ScheduleOnceMsg>, msg: TestProbe, _sender: Sender) {
         self.probe = Some(msg);
         // reschedule an Empty to be sent to myself()
@@ -40,33 +38,31 @@ impl Receive<TestProbe> for ScheduleOnce {
 }
 
 impl Receive<SomeMessage> for ScheduleOnce {
-    type Msg = ScheduleOnceMsg;
-
     fn receive(&mut self, _ctx: &Context<ScheduleOnceMsg>, _msg: SomeMessage, _sender: Sender) {
         self.probe.as_ref().unwrap().0.event(());
     }
 }
 
-#[test]
+#[riker_macros::test]
 fn schedule_once() {
     let sys = ActorSystem::new().unwrap();
 
     let actor = sys.actor_of::<ScheduleOnce>("schedule-once").unwrap();
 
-    let (probe, listen) = probe();
+    let (probe, mut listen) = probe();
 
     // use scheduler to set up probe
     sys.schedule_once(Duration::from_millis(200), actor, None, TestProbe(probe));
     p_assert_eq!(listen, ());
 }
 
-#[test]
+#[riker_macros::test]
 fn schedule_at_time() {
     let sys = ActorSystem::new().unwrap();
 
     let actor = sys.actor_of::<ScheduleOnce>("schedule-once").unwrap();
 
-    let (probe, listen) = probe();
+    let (probe, mut listen) = probe();
 
     // use scheduler to set up probe at a specific time
     let schedule_at = Utc::now() + CDuration::milliseconds(200);
@@ -92,8 +88,6 @@ impl Actor for ScheduleRepeat {
 }
 
 impl Receive<TestProbe> for ScheduleRepeat {
-    type Msg = ScheduleRepeatMsg;
-
     fn receive(&mut self, ctx: &Context<Self::Msg>, msg: TestProbe, _sender: Sender) {
         self.probe = Some(msg);
         // schedule Message to be repeatedly sent to myself
@@ -110,8 +104,6 @@ impl Receive<TestProbe> for ScheduleRepeat {
 }
 
 impl Receive<SomeMessage> for ScheduleRepeat {
-    type Msg = ScheduleRepeatMsg;
-
     fn receive(&mut self, ctx: &Context<Self::Msg>, _msg: SomeMessage, _sender: Sender) {
         if self.counter == 5 {
             ctx.cancel_schedule(self.schedule_id.unwrap());
@@ -122,13 +114,13 @@ impl Receive<SomeMessage> for ScheduleRepeat {
     }
 }
 
-#[test]
+#[riker_macros::test]
 fn schedule_repeat() {
     let sys = ActorSystem::new().unwrap();
 
     let actor = sys.actor_of::<ScheduleRepeat>("schedule-repeat").unwrap();
 
-    let (probe, listen) = probe();
+    let (probe, mut listen) = probe();
 
     actor.tell(TestProbe(probe), None);
 

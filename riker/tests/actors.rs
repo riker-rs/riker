@@ -29,16 +29,12 @@ impl Actor for Counter {
 }
 
 impl Receive<TestProbe> for Counter {
-    type Msg = CounterMsg;
-
     fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: TestProbe, _sender: Sender) {
         self.probe = Some(msg)
     }
 }
 
 impl Receive<Add> for Counter {
-    type Msg = CounterMsg;
-
     fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: Add, _sender: Sender) {
         self.count += 1;
         if self.count == 1_000_000 {
@@ -47,7 +43,7 @@ impl Receive<Add> for Counter {
     }
 }
 
-#[test]
+#[riker_macros::test]
 fn actor_create() {
     let sys = ActorSystem::new().unwrap();
 
@@ -78,13 +74,13 @@ fn actor_create() {
     assert!(sys.actor_of::<Counter>("!").is_err());
 }
 
-#[test]
+#[riker_macros::test]
 fn actor_tell() {
     let sys = ActorSystem::new().unwrap();
 
     let actor = sys.actor_of::<Counter>("me").unwrap();
 
-    let (probe, listen) = probe();
+    let (probe, mut listen) = probe();
     actor.tell(TestProbe(probe), None);
 
     for _ in 0..1_000_000 {
@@ -94,14 +90,14 @@ fn actor_tell() {
     p_assert_eq!(listen, ());
 }
 
-#[test]
+#[riker_macros::test]
 fn actor_try_tell() {
     let sys = ActorSystem::new().unwrap();
 
     let actor = sys.actor_of::<Counter>("me").unwrap();
     let actor: BasicActorRef = actor.into();
 
-    let (probe, listen) = probe();
+    let (probe, mut listen) = probe();
     actor
         .try_tell(CounterMsg::TestProbe(TestProbe(probe)), None)
         .unwrap();
@@ -155,19 +151,18 @@ impl Actor for Child {
     fn recv(&mut self, _: &Context<Self::Msg>, _: Self::Msg, _: Sender) {}
 }
 
-#[test]
-#[allow(dead_code)]
+#[riker_macros::test]
 fn actor_stop() {
     let system = ActorSystem::new().unwrap();
 
     let parent = system.actor_of::<Parent>("parent").unwrap();
 
-    let (probe, listen) = probe();
+    let (probe, mut listen) = probe();
     parent.tell(TestProbe(probe), None);
     system.print_tree();
 
     // wait for the probe to arrive at the actor before attempting to stop the actor
-    listen.recv();
+    listen.recv().await;
 
     system.stop(&parent);
     p_assert_eq!(listen, ());

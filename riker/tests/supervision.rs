@@ -44,16 +44,12 @@ impl Actor for PanicActor {
 }
 
 impl Receive<TestProbe> for PanicActor {
-    type Msg = PanicActorMsg;
-
     fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: TestProbe, _sender: Sender) {
         msg.0.event(());
     }
 }
 
 impl Receive<Panic> for PanicActor {
-    type Msg = PanicActorMsg;
-
     fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: Panic, _sender: Sender) {
         panic!("// TEST PANIC // TEST PANIC // TEST PANIC //");
     }
@@ -83,22 +79,18 @@ impl Actor for RestartSup {
 }
 
 impl Receive<TestProbe> for RestartSup {
-    type Msg = RestartSupMsg;
-
     fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: TestProbe, sender: Sender) {
         self.actor_to_fail.as_ref().unwrap().tell(msg, sender);
     }
 }
 
 impl Receive<Panic> for RestartSup {
-    type Msg = RestartSupMsg;
-
     fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: Panic, _sender: Sender) {
         self.actor_to_fail.as_ref().unwrap().tell(Panic, None);
     }
 }
 
-#[test]
+#[riker_macros::test]
 fn supervision_restart_failed_actor() {
     let sys = ActorSystem::new().unwrap();
 
@@ -110,7 +102,7 @@ fn supervision_restart_failed_actor() {
         // Make the test actor panic
         sup.tell(Panic, None);
 
-        let (probe, listen) = probe::<()>();
+        let (probe, mut listen) = probe::<()>();
         sup.tell(TestProbe(probe), None);
         p_assert_eq!(listen, ());
     }
@@ -145,16 +137,12 @@ impl Actor for EscalateSup {
 }
 
 impl Receive<TestProbe> for EscalateSup {
-    type Msg = EscalateSupMsg;
-
     fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: TestProbe, sender: Sender) {
         self.actor_to_fail.as_ref().unwrap().tell(msg, sender);
     }
 }
 
 impl Receive<Panic> for EscalateSup {
-    type Msg = EscalateSupMsg;
-
     fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: Panic, _sender: Sender) {
         self.actor_to_fail.as_ref().unwrap().tell(Panic, None);
     }
@@ -188,22 +176,18 @@ impl Actor for EscRestartSup {
 }
 
 impl Receive<TestProbe> for EscRestartSup {
-    type Msg = EscRestartSupMsg;
-
     fn receive(&mut self, _ctx: &Context<Self::Msg>, msg: TestProbe, sender: Sender) {
         self.escalator.as_ref().unwrap().tell(msg, sender);
     }
 }
 
 impl Receive<Panic> for EscRestartSup {
-    type Msg = EscRestartSupMsg;
-
     fn receive(&mut self, _ctx: &Context<Self::Msg>, _msg: Panic, _sender: Sender) {
         self.escalator.as_ref().unwrap().tell(Panic, None);
     }
 }
 
-#[test]
+#[riker_macros::test]
 fn supervision_escalate_failed_actor() {
     let sys = ActorSystem::new().unwrap();
 
@@ -212,7 +196,7 @@ fn supervision_escalate_failed_actor() {
     // Make the test actor panic
     sup.tell(Panic, None);
 
-    let (probe, listen) = probe::<()>();
+    let (probe, mut listen) = probe::<()>();
     std::thread::sleep(std::time::Duration::from_millis(2000));
     sup.tell(TestProbe(probe), None);
     p_assert_eq!(listen, ());
